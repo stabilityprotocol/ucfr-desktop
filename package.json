@@ -1,0 +1,33 @@
+{
+  "name": "ucfr-desktop",
+  "version": "0.1.0",
+  "description": "Scaffolded Electron + React desktop app with mocked authentication and API flows.",
+  "main": "src/main/main.ts",
+  "scripts": {
+    "dev": "concurrently -k \"vite --host\" \"wait-on http://localhost:5173 && electron -r ts-node/register src/main/main.ts\"",
+    "renderer": "vite",
+    "main": "electron -r ts-node/register src/main/main.ts",
+    "build:renderer": "vite build"
+  },
+  "dependencies": {
+    "@tanstack/react-query": "^5.51.2",
+    "chokidar": "^3.6.0",
+    "electron": "^28.3.3",
+    "electron-store": "^8.2.0",
+    "jotai": "^2.8.0",
+    "react": "^18.3.1",
+    "react-dom": "^18.3.1"
+  },
+  "devDependencies": {
+    "@types/node": "^22.1.0",
+    "@types/react": "^18.3.5",
+    "@types/react-dom": "^18.3.0",
+    "@vitejs/plugin-react": "^4.3.2",
+    "concurrently": "^8.2.2",
+    "ts-node": "^10.9.2",
+    "typescript": "^5.5.4",
+    "vite": "^5.4.1",
+    "wait-on": "^7.2.0"
+  },
+  "packageManager": "yarn@4.3.1"
+}
