@@ -1,0 +1,2875 @@
+openapi: 3.0.3
+info:
+  title: UCFR API - GeneralizedClaimRegistry JSON-RPC Service
+  description: |
+    JSON-RPC API service for the GeneralizedClaimRegistry smart contract.
+    This API enables creation and querying of claims through HTTP endpoints that interact with the Stability Protocol blockchain.
+
+    ## Authentication
+    All methods require an API key for accessing the Stability Protocol RPC endpoint. The API key must be provided in the URL path: `/rpc/{apiKey}`. Get your API key at https://portal.stabilityprotocol.com
+
+    ## JSON-RPC 2.0 Protocol
+    This API follows the JSON-RPC 2.0 specification. All requests must be POST requests to the `/rpc/{apiKey}` endpoint where `{apiKey}` is your Stability Protocol API key (available at https://portal.stabilityprotocol.com).
+
+    ### Request Format
+    ```json
+    {
+      "jsonrpc": "2.0",
+      "method": "method.name",
+      "params": { ... },
+      "id": 1
+    }
+    ```
+
+    ### Response Format
+    ```json
+    {
+      "jsonrpc": "2.0",
+      "result": { ... },
+      "id": 1
+    }
+    ```
+
+    ### Error Format
+    ```json
+    {
+      "jsonrpc": "2.0",
+      "error": {
+        "code": -32000,
+        "message": "Error description",
+        "data": { ... }
+      },
+      "id": 1
+    }
+    ```
+  version: 1.0.0
+  contact:
+    name: UCFR API Support
+  license:
+    name: MIT
+
+servers:
+  - url: https://api.ucfr.io
+    description: Production server
+  - url: http://localhost:3000
+    description: Development server
+
+paths:
+  /health:
+    get:
+      summary: Health Check
+      description: Returns the health status of the API service
+      responses:
+        "200":
+          description: Service is healthy
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status:
+                    type: string
+                    example: ok
+                  timestamp:
+                    type: string
+                    format: date-time
+                  version:
+                    type: string
+                    example: 1.0.0
+                  environment:
+                    type: string
+                    example: production
+
+  /info:
+    get:
+      summary: Platform Summary
+      description: Returns aggregate counts for claims, organizations, and projects. Results are cached for five minutes.
+      tags:
+        - Info
+      responses:
+        "200":
+          description: Summary of platform activity counts
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/InfoSummary"
+
+  /api/organizations:
+    post:
+      summary: Create a new organization
+      tags:
+        - Organizations
+      security:
+        - BearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CreateOrganizationDto"
+      responses:
+        "201":
+          description: Organization created successfully
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Organization"
+        "400":
+          description: Invalid request body
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "401":
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+    get:
+      summary: List organizations for the authenticated user
+      tags:
+        - Organizations
+      security:
+        - BearerAuth: []
+      responses:
+        "200":
+          description: List of organizations
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  organizations:
+                    type: array
+                    items:
+                      $ref: "#/components/schemas/Organization"
+        "401":
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+
+  /api/organizations/{organizationId}:
+    get:
+      summary: Retrieve an organization
+      tags:
+        - Organizations
+      description: Public endpoint that returns an organization profile by its identifier.
+      parameters:
+        - name: organizationId
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        "200":
+          description: Organization retrieved
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Organization"
+        "404":
+          description: Organization not found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+    put:
+      summary: Update an organization
+      tags:
+        - Organizations
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: organizationId
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/UpdateOrganizationDto"
+      responses:
+        "200":
+          description: Organization updated
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Organization"
+        "400":
+          description: Invalid request body
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "401":
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "403":
+          description: Forbidden
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "404":
+          description: Organization not found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+    delete:
+      summary: Delete an organization
+      tags:
+        - Organizations
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: organizationId
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        "204":
+          description: Organization deleted
+        "401":
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "403":
+          description: Forbidden
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "404":
+          description: Organization not found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+
+  /api/organizations/{organizationId}/claims:
+    get:
+      summary: List organization claims
+      description: >
+        Returns stored claims for all projects belonging to an organization ordered by creation time (newest first).
+        This is a public endpoint that does not require authentication.
+      tags:
+        - Organizations
+        - Claims
+      security:
+        - {}
+      parameters:
+        - name: organizationId
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+          description: Organization ID to query.
+        - name: page
+          in: query
+          required: false
+          schema:
+            type: integer
+            minimum: 1
+            default: 1
+          description: Page number to retrieve. Defaults to 1.
+        - name: pageSize
+          in: query
+          required: false
+          schema:
+            type: integer
+            minimum: 1
+            maximum: 50
+            default: 25
+          description: Number of results per page. Maximum of 50.
+      responses:
+        "200":
+          description: List of claims for the organization
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ProjectClaimListResponse"
+        "404":
+          description: Organization not found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+
+  /api/organizations/{organizationId}/members:
+    post:
+      summary: Add a member to an organization
+      tags:
+        - Organizations
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: organizationId
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/AddOrganizationMemberDto"
+      responses:
+        "200":
+          description: Member added successfully
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Organization"
+        "400":
+          description: Invalid request body or business rule violation
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "401":
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "403":
+          description: Forbidden
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "404":
+          description: Organization not found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+    delete:
+      summary: Remove a member or leave an organization
+      description: |
+        Organization owners can remove any member. Non-owner members can call this endpoint
+        with their own email to voluntarily leave the organization.
+      tags:
+        - Organizations
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: organizationId
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/RemoveOrganizationMemberDto"
+      responses:
+        "200":
+          description: Member removed successfully
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Organization"
+        "400":
+          description: Invalid request body or business rule violation
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "401":
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "403":
+          description: Forbidden
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "404":
+          description: Organization not found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+
+  /api/users/{email}/profile:
+    get:
+      summary: Get user profile
+      description: |
+        Returns organizations, projects, and the 10 most recent project claims created by the specified user.
+        Organizations include those where the user is a direct member (owner or member role) as well as organizations
+        where the user is a guest (member of a project but not a direct organization member). Guest status can be
+        determined by checking if the user's email is not present in the organization's members list.
+        Projects include those where the user is an admin or member, as well as projects owned by the user.
+        When the authenticated requester matches the profile email, the service resolves and caches the Stability-managed Ethereum address for five minutes.
+        Requests for other users' profiles omit the Ethereum address field to preserve privacy.
+      tags:
+        - Users
+      parameters:
+        - name: email
+          in: path
+          required: true
+          description: Email address of the user profile to retrieve.
+          schema:
+            type: string
+            format: email
+      responses:
+        "200":
+          description: User profile details
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/UserProfile"
+              examples:
+                sample:
+                  value:
+                    email: user@example.com
+                    displayName: "User One"
+                    websiteUrl: "https://user.example"
+                    ethAddress: "0x1111111111111111111111111111111111111111"
+                    socialChannels:
+                      - platform: twitter
+                        url: https://twitter.com/user
+                        handle: "@user"
+                    organizations:
+                      - id: 11111111-1111-1111-1111-111111111111
+                        name: Example Org
+                        description: Organization description
+                        ownerEmail: owner@example.com
+                        members:
+                          - email: owner@example.com
+                            role: owner
+                            joinedAt: "2024-01-15T10:00:00.000Z"
+                          - email: user@example.com
+                            role: member
+                            joinedAt: "2024-01-16T10:00:00.000Z"
+                        createdAt: "2024-01-10T18:30:00.000Z"
+                        updatedAt: "2024-02-02T09:12:00.000Z"
+                      - id: 44444444-4444-4444-4444-444444444444
+                        name: Guest Organization
+                        description: Organization where user is a guest (member of project but not organization)
+                        ownerEmail: other@example.com
+                        members:
+                          - email: other@example.com
+                            role: owner
+                            joinedAt: "2024-01-20T10:00:00.000Z"
+                        createdAt: "2024-01-20T10:00:00.000Z"
+                        updatedAt: "2024-01-20T10:00:00.000Z"
+                    projects:
+                      - id: 22222222-2222-2222-2222-222222222222
+                        name: Project Alpha
+                        description: First project
+                        adminEmail: admin@example.com
+                        organization:
+                          id: 11111111-1111-1111-1111-111111111111
+                          name: Example Org
+                          description: Organization description
+                        members:
+                          - collaborator@example.com
+                        createdAt: "2024-01-20T12:00:00.000Z"
+                        updatedAt: "2024-02-05T15:45:00.000Z"
+                    recentClaims:
+                      - id: 33333333-3333-3333-3333-333333333333
+                        projectId: 22222222-2222-2222-2222-222222222222
+                        methodId: 1
+                        externalId: 42
+                        fingerprint: "0xabc123..."
+                        metadata:
+                          proofId: "example-proof"
+                          score: 98
+                        extURI: null
+                        signature: null
+                        publicKey: null
+                        transactionHash: null
+                        status: submitted
+                        createdBy: user@example.com
+                        errorReason: null
+                        createdAt: "2024-02-06T09:00:00.000Z"
+                        updatedAt: "2024-02-06T09:00:00.000Z"
+                        project:
+                          id: 22222222-2222-2222-2222-222222222222
+                          name: Project Alpha
+                          organization:
+                            id: 11111111-1111-1111-1111-111111111111
+                            name: Example Org
+                          description: First project
+                withoutEthAddress:
+                  summary: Profile for a different user (ETH address omitted)
+                  value:
+                    email: colleague@example.com
+                    organizations: []
+                    projects: []
+                    recentClaims: []
+        "400":
+          description: Invalid email parameter
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+    patch:
+      summary: Update user profile
+      description: |
+        Updates the display name, website link, or social media channels for the authenticated user's profile.
+        The requester must be authenticated and match the `email` path parameter. Provide at least one field to update.
+      tags:
+        - Users
+      parameters:
+        - name: email
+          in: path
+          required: true
+          description: Email address of the user profile to update.
+          schema:
+            type: string
+            format: email
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/UpdateUserProfileRequest"
+            examples:
+              updateDisplayName:
+                summary: Update display name and website
+                value:
+                  displayName: "User One"
+                  websiteUrl: "https://user.example"
+              updateSocials:
+                summary: Replace social channels
+                value:
+                  socialChannels:
+                    - platform: farcaster
+                      url: https://warpcast.com/user
+                      handle: user
+                    - platform: lens
+                      url: https://hey.xyz/u/user
+                      handle: user.lens
+      responses:
+        "200":
+          description: Updated user profile
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/UserProfile"
+        "400":
+          description: Invalid request body
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "401":
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "403":
+          description: Forbidden when attempting to update another user's profile
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "500":
+          description: Unexpected error while retrieving the user profile
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+
+  /api/users/{email}/projects:
+    get:
+      summary: List projects owned by a user
+      description: >
+        Public endpoint that returns projects owned by a specific user. When a valid
+        Bearer token for the project owner or a project member is supplied, private projects are included in the
+        response; otherwise only public projects are returned.
+      tags:
+        - Users
+        - Projects
+      security:
+        - {}
+        - BearerAuth: []
+      parameters:
+        - name: email
+          in: path
+          required: true
+          description: Email address of the user who owns the projects.
+          schema:
+            type: string
+            format: email
+      responses:
+        "200":
+          description: Projects owned by the user
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  projects:
+                    type: array
+                    items:
+                      $ref: "#/components/schemas/Project"
+        "400":
+          description: Invalid email parameter
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "401":
+          description: Unauthorized (invalid bearer token)
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+
+  /api/users/activity/recent-claims:
+    get:
+      summary: Get recent claims from user's projects
+      description: >
+        Returns the 10 most recent claims from projects where the authenticated user is involved
+        (as owner, admin, member, or organization member). Claims can be created by any user, not just
+        the requesting user. This endpoint helps users monitor activity across their projects.
+      tags:
+        - Users
+        - Claims
+      security:
+        - BearerAuth: []
+      responses:
+        "200":
+          description: Recent claims from projects where user is involved
+          content:
+            application/json:
+              schema:
+                type: object
+                required:
+                  - claims
+                properties:
+                  claims:
+                    type: array
+                    description: Up to 10 most recent claims ordered by creation time (newest first)
+                    items:
+                      $ref: "#/components/schemas/UserProfileClaim"
+              examples:
+                withClaims:
+                  summary: Response with recent claims
+                  value:
+                    claims:
+                      - id: 33333333-3333-3333-3333-333333333333
+                        projectId: 22222222-2222-2222-2222-222222222222
+                        methodId: 1
+                        externalId: 42
+                        fingerprint: "0xabc123..."
+                        metadata:
+                          proofId: "example-proof"
+                          score: 98
+                        extURI: null
+                        signature: null
+                        publicKey: null
+                        transactionHash: "0xdef456..."
+                        status: confirmed
+                        createdBy: colleague@example.com
+                        errorReason: null
+                        createdAt: "2024-02-06T09:00:00.000Z"
+                        updatedAt: "2024-02-06T09:00:00.000Z"
+                        project:
+                          id: 22222222-2222-2222-2222-222222222222
+                          name: Project Alpha
+                          organization:
+                            id: 11111111-1111-1111-1111-111111111111
+                            name: Example Org
+                          description: First project
+                noClaims:
+                  summary: Response with no claims
+                  value:
+                    claims: []
+        "401":
+          description: Unauthorized - valid bearer token required
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "500":
+          description: Internal server error
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+
+  /api/search:
+    get:
+      summary: Search profiles and fingerprints
+      description: |
+        Authenticated search endpoint backed by PostgreSQL trigram indexes (when available). A valid bearer token is required, so callers must send `Authorization: Bearer <token>`.
+        Provide either a `profile` query (minimum 2 characters) to find matching user emails,
+        an `organization` query (minimum 2 characters) to locate organization names,
+        or a `fingerprint` query (minimum 4 hexadecimal characters, with or without the `0x` prefix) to locate matching claim fingerprints.
+        Any combination of queries may be supplied simultaneously, and results are independently rate limited per IP address.
+      tags:
+        - Search
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: profile
+          in: query
+          required: false
+          description: >
+            Partial email to search for. Matching uses trigram similarity across organization members, project members,
+            project admins, and claim authors. When fewer than two characters are provided the query is accepted but not executed.
+          schema:
+            type: string
+            minLength: 1
+        - name: organization
+          in: query
+          required: false
+          description: >
+            Partial organization name to search for. Matching uses trigram similarity against stored organization names and
+            falls back to substring ranking when trigram extensions are unavailable. When fewer than two characters are provided the search is skipped.
+          schema:
+            type: string
+            minLength: 1
+        - name: fingerprint
+          in: query
+          required: false
+          description: >
+            Partial fingerprint to search for. Matching leverages trigram similarity against stored claim fingerprints and
+            supports values with or without the `0x` prefix. When fewer than four hexadecimal characters remain after removing the prefix the search is skipped.
+          schema:
+            type: string
+            minLength: 1
+        - name: profilesLimit
+          in: query
+          required: false
+          description: Maximum number of profile matches to return (default 10, maximum 25).
+          schema:
+            type: integer
+            minimum: 1
+            maximum: 25
+            default: 10
+        - name: organizationsLimit
+          in: query
+          required: false
+          description: Maximum number of organization matches to return (default 10, maximum 25).
+          schema:
+            type: integer
+            minimum: 1
+            maximum: 25
+            default: 10
+        - name: fingerprintsLimit
+          in: query
+          required: false
+          description: Maximum number of fingerprint matches to return (default 5, maximum 25).
+          schema:
+            type: integer
+            minimum: 1
+            maximum: 25
+            default: 5
+      responses:
+        "200":
+          description: Search results grouped by resource type
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/SearchResponse"
+        "400":
+          description: Missing or invalid query parameters (e.g., both queries omitted or too short)
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "401":
+          description: Missing or invalid bearer token
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "429":
+          description: Too many search requests from the same IP in the configured time window
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "500":
+          description: Unexpected error while performing the search
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+
+  /api/projects:
+    post:
+      summary: Create a new project
+      description: |
+        Creates a new project for the authenticated user. The project can belong to either an organization
+        (requires organization membership) or to the authenticated user themselves (personal project).
+        Provide either `organizationId` or `ownerUserId`, but not both. When creating a personal project,
+        `ownerUserId` must match the authenticated user's email.
+      tags:
+        - Projects
+      security:
+        - BearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CreateProjectDto"
+      responses:
+        "201":
+          description: Project created successfully
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Project"
+        "401":
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "400":
+          description: Invalid request body
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+    get:
+      summary: List all projects
+      description: Returns all projects for the authenticated user
+      tags:
+        - Projects
+      security:
+        - BearerAuth: []
+      responses:
+        "200":
+          description: List of projects
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  projects:
+                    type: array
+                    items:
+                      $ref: "#/components/schemas/ProjectWithClaimsCount"
+        "401":
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+
+  /api/projects/organization/{organizationId}:
+    get:
+      summary: List projects for an organization
+      description: >
+        Public endpoint that returns projects belonging to a specific organization. When a valid
+        Bearer token for an organization member is supplied, private projects are included in the
+        response; otherwise only public projects are returned.
+      tags:
+        - Projects
+      security:
+        - {}
+        - BearerAuth: []
+      parameters:
+        - name: organizationId
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+          description: Organization identifier
+      responses:
+        "200":
+          description: Projects for the organization
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  projects:
+                    type: array
+                    items:
+                      $ref: "#/components/schemas/Project"
+        "400":
+          description: Invalid organization ID
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "401":
+          description: Unauthorized (invalid bearer token)
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "404":
+          description: Organization not found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+
+  /api/projects/{projectId}:
+    get:
+      summary: Get a specific project
+      description: >
+        Returns a specific project by ID. This endpoint accepts an optional Bearer token; private
+        projects are only returned when the requester is a project member or belongs to the owning
+        organization.
+      tags:
+        - Projects
+      security:
+        - {}
+        - BearerAuth: []
+      parameters:
+        - name: projectId
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+          description: Project ID
+      responses:
+        "200":
+          description: Project details
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Project"
+        "403":
+          description: User does not have access to the project
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "404":
+          description: Project not found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+    put:
+      summary: Update a project
+      description: Updates a project's name and/or description
+      tags:
+        - Projects
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: projectId
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+          description: Project ID
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/UpdateProjectDto"
+      responses:
+        "200":
+          description: Project updated successfully
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Project"
+        "401":
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "404":
+          description: Project not found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+    delete:
+      summary: Delete a project
+      description: Deletes a project
+      tags:
+        - Projects
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: projectId
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+          description: Project ID
+      responses:
+        "204":
+          description: Project deleted successfully
+        "401":
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "404":
+          description: Project not found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+
+  /api/projects/{projectId}/members:
+    post:
+      summary: Add a member to a project
+      description: Adds a member to a project by email
+      tags:
+        - Projects
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: projectId
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+          description: Project ID
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/AddMemberDto"
+      responses:
+        "200":
+          description: Member added successfully
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Project"
+        "401":
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "404":
+          description: Project not found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+    delete:
+      summary: Remove a member from a project
+      description: Removes a member from a project by email
+      tags:
+        - Projects
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: projectId
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+          description: Project ID
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/RemoveMemberDto"
+      responses:
+        "200":
+          description: Member removed successfully
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Project"
+        "401":
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "404":
+          description: Project not found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+
+  /api/projects/{projectId}/members/self:
+    delete:
+      summary: Leave a project
+      description: Allows an authenticated project collaborator to remove themselves from a project without organization membership.
+      tags:
+        - Projects
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: projectId
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+          description: Project ID
+      responses:
+        "200":
+          description: User left the project successfully
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Project"
+        "400":
+          description: Invalid request or user cannot leave
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "401":
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "404":
+          description: Project not found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+
+  /api/projects/{projectId}/claims:
+    post:
+      summary: Submit a claim for a project
+      description: Creates a blockchain claim on behalf of a project and stores the request for historical tracking.
+      tags:
+        - Claims
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: projectId
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+          description: Project ID the claim belongs to.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CreateProjectClaimDto"
+      responses:
+        "201":
+          description: Claim submitted successfully
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ProjectClaim"
+        "400":
+          description: Invalid request body
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+  /api/projects/{projectId}/claims/image:
+    post:
+      summary: Submit an image claim for a project
+      description: |
+        Creates a claim while accepting an image file upload. The service persists both the original asset
+        (`CLAIM_ID_original.ext`) and a JPEG thumbnail resized to a maximum width of 1024px (`CLAIM_ID_thumbnail.jpg`)
+        inside the `orgId/projectId/claimId` folder, then returns storage metadata for each file alongside the claim details.
+      tags:
+        - Claims
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: projectId
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+          description: Project ID the claim belongs to.
+      requestBody:
+        required: true
+        content:
+          multipart/form-data:
+            schema:
+              allOf:
+                - $ref: "#/components/schemas/CreateProjectClaimDto"
+                - $ref: "#/components/schemas/CreateImageProjectClaimDto"
+      responses:
+        "201":
+          description: Image claim submitted successfully
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ImageClaimResponse"
+        "400":
+          description: Invalid request body or missing image file
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "401":
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "403":
+          description: User does not have access to the project
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "404":
+          description: Project not found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "409":
+          description: Claim already exists for the specified method/externalId/fingerprint combination
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "401":
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "403":
+          description: User does not have access to the project
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "404":
+          description: Project not found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "409":
+          description: Claim already exists for the specified method/externalId/fingerprint combination
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+    get:
+      summary: List project claims
+      description: >
+        Returns stored claims for a project ordered by creation time (newest first). Authentication
+        is optional; private projects require the requester to be a project member or part of the
+        owning organization.
+      tags:
+        - Claims
+      security:
+        - {}
+        - BearerAuth: []
+      parameters:
+        - name: projectId
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+          description: Project ID to query.
+        - name: page
+          in: query
+          required: false
+          schema:
+            type: integer
+            minimum: 1
+            default: 1
+          description: Page number to retrieve. Defaults to 1.
+        - name: pageSize
+          in: query
+          required: false
+          schema:
+            type: integer
+            minimum: 1
+            maximum: 20
+            default: 20
+          description: Number of results per page. Maximum of 20.
+      responses:
+        "200":
+          description: List of claims for the project
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ProjectClaimListResponse"
+        "401":
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "403":
+          description: User does not have access to the project
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "404":
+          description: Project not found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+
+  /api/projects/{projectId}/claims/{claimId}:
+    get:
+      summary: Get a single project claim
+      description: >
+        Retrieves a specific claim record stored for a project. Authentication is optional; private
+        projects require the requester to be a member of the project or the owning organization.
+      tags:
+        - Claims
+      security:
+        - {}
+        - BearerAuth: []
+      parameters:
+        - name: projectId
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+          description: Project ID.
+        - name: claimId
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+          description: Stored claim identifier.
+      responses:
+        "200":
+          description: Claim found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ProjectClaim"
+        "401":
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "403":
+          description: User does not have access to the project
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "404":
+          description: Project or claim not found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+
+  /api/claims/{claimId}:
+    get:
+      summary: Get claim by ID
+      description: Retrieves a publicly available claim record by its unique identifier.
+      tags:
+        - Claims
+      parameters:
+        - name: claimId
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+          description: Unique identifier of the stored claim.
+      responses:
+        "200":
+          description: Claim found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ProjectClaim"
+        "400":
+          description: Invalid request parameters
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "404":
+          description: Claim not found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+
+  /api/claims/fingerprint/{fingerprint}:
+    get:
+      summary: List claims by fingerprint
+      description: Returns stored claim records matching the provided fingerprint across all projects.
+      tags:
+        - Claims
+      parameters:
+        - name: fingerprint
+          in: path
+          required: true
+          schema:
+            type: string
+            pattern: "^0x[0-9a-f]{64}$"
+          description: Fingerprint associated with the claim, encoded as a 64-character lowercase hex string prefixed with 0x.
+      responses:
+        "200":
+          description: Matching claim records
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ProjectClaimListResponse"
+        "400":
+          description: Invalid request parameters
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+
+  /api/claims/mine:
+    get:
+      summary: List authenticated user claims
+      description: >
+        Returns claim records created by the currently authenticated user ordered by creation time (newest first).
+        Results include the project summary for each claim. Authentication is required.
+      tags:
+        - Claims
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: page
+          in: query
+          required: false
+          schema:
+            type: integer
+            minimum: 1
+            default: 1
+          description: Page number to retrieve. Defaults to 1.
+        - name: pageSize
+          in: query
+          required: false
+          schema:
+            type: integer
+            minimum: 1
+            maximum: 50
+            default: 25
+          description: Number of results per page. Maximum of 50.
+        - name: projectId
+          in: query
+          required: false
+          schema:
+            type: string
+            format: uuid
+          description: Filter results to a specific project owned by the user.
+        - name: organizationId
+          in: query
+          required: false
+          schema:
+            type: string
+            format: uuid
+          description: Filter results to projects belonging to the specified organization.
+        - name: createdAfter
+          in: query
+          required: false
+          schema:
+            type: string
+            format: date-time
+          description: Return claims created on or after this ISO 8601 timestamp.
+        - name: createdBefore
+          in: query
+          required: false
+          schema:
+            type: string
+            format: date-time
+          description: Return claims created on or before this ISO 8601 timestamp.
+        - name: metadata
+          in: query
+          required: false
+          schema:
+            type: string
+          description: Case-insensitive substring filter applied to the raw metadata payload stored for each claim.
+      responses:
+        "200":
+          description: Claims created by the authenticated user
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/UserClaimListResponse"
+        "400":
+          description: Invalid request parameters
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "401":
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+
+  /api/claims/recent:
+    get:
+      summary: List recent claims
+      description: Returns the most recent stored claims across all projects. Responses are cached for five minutes.
+      tags:
+        - Claims
+      parameters:
+        - name: limit
+          in: query
+          description: Maximum number of claims to return (must be less than 100). Defaults to 10.
+          required: false
+          schema:
+            type: integer
+            minimum: 1
+            maximum: 99
+      responses:
+        "200":
+          description: Recent claim records
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/RecentClaimsResponse"
+        "400":
+          description: Invalid request parameters
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+
+  /rpc/{apiKey}:
+    post:
+      summary: JSON-RPC Endpoint
+      description: Main endpoint for all JSON-RPC method calls
+      parameters:
+        - name: apiKey
+          in: path
+          required: true
+          description: "Your Stability Protocol API key (get it at https://portal.stabilityprotocol.com). Default for demos: try-it-out."
+          schema:
+            type: string
+            default: "try-it-out"
+            example: "try-it-out"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/JsonRpcRequest"
+            examples:
+              claim_create:
+                summary: Create a new claim
+                value:
+                  jsonrpc: "2.0"
+                  method: "claim.create"
+                  params:
+                    - methodId: "1"
+                      externalId: "1"
+                      fingerprint: "0x1234567890abcdef"
+                      data: "Sample claim data"
+                  id: 1
+              claim_get:
+                summary: Get an existing claim
+                value:
+                  jsonrpc: "2.0"
+                  method: "claim.get"
+                  params:
+                    - methodId: "1"
+                      fingerprint: "0x1234567890abcdef"
+                  id: 2
+              claim_get_with_extId:
+                summary: Get an existing claim with external ID
+                value:
+                  jsonrpc: "2.0"
+                  method: "claim.get"
+                  params:
+                    - methodId: "1"
+                      fingerprint: "0x1234567890abcdef"
+                      extId: "1"
+                  id: 2
+              method_register:
+                summary: Register a new method (admin only)
+                value:
+                  jsonrpc: "2.0"
+                  method: "method.register"
+                  params:
+                    - methodId: "1"
+                      name: "SHA-256"
+                      specURI: "https://example.com/sha256-spec"
+                      fpSizeBytes: 32
+                      isActive: true
+                  id: 3
+              method_get:
+                summary: Get method information
+                value:
+                  jsonrpc: "2.0"
+                  method: "method.get"
+                  params:
+                    - methodId: "1"
+                  id: 4
+              externalId_register:
+                summary: Register a new external ID (admin only)
+                value:
+                  jsonrpc: "2.0"
+                  method: "externalId.register"
+                  params:
+                    - externalId: "1"
+                      specURI: "https://example.com/ext-spec"
+                      sigSizeHint: 64
+                      isActive: true
+                  id: 5
+              externalId_get:
+                summary: Get external ID information
+                value:
+                  jsonrpc: "2.0"
+                  method: "externalId.get"
+                  params:
+                    - externalId: "1"
+                  id: 6
+      responses:
+        "200":
+          description: JSON-RPC response
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/JsonRpcResponse"
+              examples:
+                success_response:
+                  summary: Successful response
+                  value:
+                    jsonrpc: "2.0"
+                    result:
+                      transactionHash: "0xabcdef..."
+                    id: 1
+                error_response:
+                  summary: Error response
+                  value:
+                    jsonrpc: "2.0"
+                    error:
+                      code: -32602
+                      message: "Invalid params"
+                      data:
+                        - path: "methodId"
+                          message: "Method ID is required"
+                    id: 1
+
+components:
+  schemas:
+    JsonRpcRequest:
+      type: object
+      required:
+        - jsonrpc
+        - method
+        - id
+      properties:
+        jsonrpc:
+          type: string
+          enum: ["2.0"]
+        method:
+          type: string
+          enum:
+            - claim.create
+            - claim.get
+            - method.register
+            - method.get
+            - externalId.register
+            - externalId.get
+        params:
+          type: array
+          items:
+            type: object
+        id:
+          oneOf:
+            - type: string
+            - type: number
+            - type: "null"
+
+    JsonRpcResponse:
+      type: object
+      required:
+        - jsonrpc
+        - id
+      properties:
+        jsonrpc:
+          type: string
+          enum: ["2.0"]
+        result:
+          type: object
+        error:
+          $ref: "#/components/schemas/JsonRpcError"
+        id:
+          oneOf:
+            - type: string
+            - type: number
+            - type: "null"
+
+    JsonRpcError:
+      type: object
+      required:
+        - code
+        - message
+      properties:
+        code:
+          type: integer
+          description: Error code following JSON-RPC 2.0 specification
+        message:
+          type: string
+          description: Error message
+        data:
+          description: Additional error data
+          oneOf:
+            - $ref: "#/components/schemas/FieldError"
+            - type: array
+              items:
+                $ref: "#/components/schemas/FieldError"
+              description: Array of validation errors
+            - $ref: "#/components/schemas/ContractErrorData"
+            - $ref: "#/components/schemas/RateLimitErrorData"
+
+    FieldError:
+      type: object
+      properties:
+        path:
+          type: string
+          description: JSON path or field name with error
+        message:
+          type: string
+          description: Human-readable error message
+
+    ContractErrorData:
+      type: object
+      properties:
+        code:
+          type: string
+          description: Application-specific contract error code (e.g. CONTRACT_REVERT)
+        originalError:
+          type: string
+          description: Original provider error string
+        reason:
+          type: string
+          description: Parsed revert reason, when available
+
+    RateLimitErrorData:
+      type: object
+      properties:
+        retryAfter:
+          type: integer
+          description: Seconds until the client may retry
+
+    InfoSummary:
+      type: object
+      required:
+        - claims
+        - organizations
+        - projects
+      properties:
+        claims:
+          type: integer
+          minimum: 0
+          description: Total number of stored claims across all projects.
+        organizations:
+          type: integer
+          minimum: 0
+          description: Total number of registered organizations.
+        projects:
+          type: integer
+          minimum: 0
+          description: Total number of registered projects.
+
+    RecentClaimsResponse:
+      type: object
+      required:
+        - claims
+        - meta
+      properties:
+        claims:
+          type: array
+          description: Recent claim records ordered from newest to oldest.
+          items:
+            $ref: "#/components/schemas/ProjectClaim"
+        meta:
+          type: object
+          required:
+            - limit
+            - count
+            - cacheHit
+          properties:
+            limit:
+              type: integer
+              minimum: 1
+              maximum: 99
+              description: Limit applied to the query.
+            count:
+              type: integer
+              minimum: 0
+              description: Number of records included in this response.
+            cacheHit:
+              type: boolean
+              description: Indicates whether the response was served from cache.
+
+    ClaimCreateParams:
+      type: object
+      required:
+        - methodId
+        - externalId
+        - fingerprint
+        - data
+      properties:
+        methodId:
+          type: string
+          description: Method ID for the claim
+        externalId:
+          type: string
+          description: External ID for the claim
+        fingerprint:
+          type: string
+          description: Fingerprint data (hex string)
+        data:
+          type: string
+          description: Claim metadata
+        signature:
+          type: string
+          description: External signature (optional)
+        pubKey:
+          type: string
+          description: Public key for signature verification (optional)
+        extURI:
+          type: string
+          description: External URI reference (optional)
+
+    ClaimGetParams:
+      type: object
+      required:
+        - methodId
+        - fingerprint
+      properties:
+        methodId:
+          type: string
+          description: Method ID for the claim
+        fingerprint:
+          type: string
+          description: Fingerprint data (hex string)
+        extId:
+          type: string
+          description: External ID for the claim (optional, defaults to 0)
+
+    MethodRegisterParams:
+      type: object
+      required:
+        - methodId
+      properties:
+        methodId:
+          type: string
+          description: Method ID to register
+        name:
+          type: string
+          description: Method name
+          default: "Method {methodId}"
+        specURI:
+          type: string
+          description: Specification URI
+          default: ""
+        fpSizeBytes:
+          type: integer
+          description: Fingerprint size in bytes
+          default: 32
+        isActive:
+          type: boolean
+          description: Whether the method is active
+          default: true
+
+    MethodGetParams:
+      type: object
+      required:
+        - methodId
+      properties:
+        methodId:
+          type: string
+          description: Method ID to retrieve
+
+    ExternalIdRegisterParams:
+      type: object
+      required:
+        - externalId
+      properties:
+        externalId:
+          type: string
+          description: External ID to register
+        specURI:
+          type: string
+          description: Specification URI
+          default: ""
+        sigSizeHint:
+          type: integer
+          description: Signature size hint
+        isActive:
+          type: boolean
+          description: Whether the external ID is active
+          default: true
+
+    ExternalIdGetParams:
+      type: object
+      required:
+        - externalId
+      properties:
+        externalId:
+          type: string
+          description: External ID to retrieve
+
+    Claim:
+      type: object
+      properties:
+        creator:
+          type: string
+          description: Address of the claim creator
+        metadata:
+          type: string
+          description: Claim metadata
+        fingerprint:
+          type: string
+          description: Fingerprint data
+        timestamp:
+          type: integer
+          description: Claim creation timestamp
+        methodId:
+          type: integer
+          description: Method ID
+        externalId:
+          type: integer
+          description: External ID
+        externalSig:
+          type: string
+          description: External signature
+        pubKey:
+          type: string
+          description: Public key
+        extURI:
+          type: string
+          description: External URI
+
+    Method:
+      type: object
+      properties:
+        methodId:
+          type: integer
+          description: Method ID
+        name:
+          type: string
+          description: Method name
+        specURI:
+          type: string
+          description: Specification URI
+        fpSizeBytes:
+          type: integer
+          description: Fingerprint size in bytes
+        active:
+          type: boolean
+          description: Whether the method is active
+
+    ExternalId:
+      type: object
+      properties:
+        extId:
+          type: integer
+          description: External ID
+        specURI:
+          type: string
+          description: Specification URI
+        sigSizeHint:
+          type: integer
+          description: Signature size hint
+        active:
+          type: boolean
+          description: Whether the external ID is active
+
+    ProjectOrganization:
+      type: object
+      nullable: true
+      description: Organization details for the project (null for user-owned projects)
+      properties:
+        id:
+          type: string
+          format: uuid
+          description: Organization ID
+        name:
+          type: string
+          description: Organization name
+        description:
+          type: string
+          nullable: true
+          description: Organization description
+
+    Project:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+          description: Project ID
+        name:
+          type: string
+          description: Project name
+        description:
+          type: string
+          description: Project description
+        adminEmail:
+          type: string
+          format: email
+          description: Admin email (owner of the project)
+        organization:
+          $ref: "#/components/schemas/ProjectOrganization"
+        ownerUserId:
+          type: string
+          format: email
+          nullable: true
+          description: Email of the user who owns the project (null for organization-owned projects)
+        visibility:
+          type: string
+          enum:
+            - public
+            - private
+          description: Visibility level controlling who can view claims and project details
+        members:
+          type: array
+          items:
+            type: string
+            format: email
+          description: Array of member emails
+        createdAt:
+          type: string
+          format: date-time
+          description: Project creation timestamp
+        updatedAt:
+          type: string
+          format: date-time
+          description: Project last update timestamp
+    ProjectWithClaimsCount:
+      allOf:
+        - $ref: "#/components/schemas/Project"
+        - type: object
+          properties:
+            claimsCount:
+              type: integer
+              minimum: 0
+              description: Total number of claims recorded for the project
+
+    CreateProjectDto:
+      type: object
+      required:
+        - name
+      properties:
+        name:
+          type: string
+          minLength: 1
+          maxLength: 100
+          description: Project name
+        description:
+          type: string
+          maxLength: 500
+          description: Project description
+        visibility:
+          type: string
+          enum:
+            - public
+            - private
+          description: Project visibility. Defaults to `public`.
+          default: public
+        organizationId:
+          type: string
+          format: uuid
+          description: Organization the project belongs to. Either `organizationId` or `ownerUserId` must be provided, but not both.
+        ownerUserId:
+          type: string
+          format: email
+          description: Email of the user who owns the project. Either `organizationId` or `ownerUserId` must be provided, but not both. When creating a user-owned project, this must match the authenticated user's email.
+
+    UpdateProjectDto:
+      type: object
+      properties:
+        name:
+          type: string
+          minLength: 1
+          maxLength: 100
+          description: Project name
+        description:
+          type: string
+          maxLength: 500
+          description: Project description
+        visibility:
+          type: string
+          enum:
+            - public
+            - private
+          description: Updated visibility level for the project
+
+    AddMemberDto:
+      type: object
+      required:
+        - email
+      properties:
+        email:
+          type: string
+          format: email
+          description: Email of the member to add
+
+    RemoveMemberDto:
+      type: object
+      required:
+        - email
+      properties:
+        email:
+          type: string
+          format: email
+          description: Email of the member to remove
+
+    OrganizationMember:
+      type: object
+      properties:
+        email:
+          type: string
+          format: email
+          description: Member email address
+        role:
+          type: string
+          enum: [owner, member]
+          description: Role of the member within the organization
+        joinedAt:
+          type: string
+          format: date-time
+          description: Timestamp when the member joined
+
+    Organization:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+          description: Organization ID
+        name:
+          type: string
+          description: Organization name
+        description:
+          type: string
+          description: Organization description
+        ownerEmail:
+          type: string
+          format: email
+          description: Email of the organization owner
+        members:
+          type: array
+          items:
+            $ref: "#/components/schemas/OrganizationMember"
+          description: Organization members
+        createdAt:
+          type: string
+          format: date-time
+          description: Organization creation timestamp
+        updatedAt:
+          type: string
+          format: date-time
+          description: Organization update timestamp
+
+    CreateOrganizationDto:
+      type: object
+      required:
+        - name
+      properties:
+        name:
+          type: string
+          minLength: 1
+          maxLength: 150
+          description: Organization name
+        description:
+          type: string
+          maxLength: 500
+          description: Organization description
+
+    UpdateOrganizationDto:
+      type: object
+      properties:
+        name:
+          type: string
+          minLength: 1
+          maxLength: 150
+          description: Organization name
+        description:
+          type: string
+          maxLength: 500
+          description: Organization description
+
+    AddOrganizationMemberDto:
+      type: object
+      required:
+        - email
+      properties:
+        email:
+          type: string
+          format: email
+          description: Email of the member to add
+        role:
+          type: string
+          enum: [owner, member]
+          description: Role to assign to the member (defaults to member)
+
+    RemoveOrganizationMemberDto:
+      type: object
+      required:
+        - email
+      properties:
+        email:
+          type: string
+          format: email
+          description: Email of the member to remove (members may supply their own email to leave)
+
+    CreateProjectClaimDto:
+      type: object
+      required:
+        - methodId
+        - externalId
+        - fingerprint
+        - data
+      properties:
+        methodId:
+          type: integer
+          minimum: 0
+          description: Registry method identifier.
+        externalId:
+          type: integer
+          minimum: 0
+          description: External ID registered for the claim.
+        fingerprint:
+          type: string
+          description: Fingerprint for the claim; must be a hex string.
+          example: "0x1234abcd..."
+        data:
+          type: string
+          description: Encoded metadata payload for the claim.
+        signature:
+          type: string
+          nullable: true
+          description: Optional external signature.
+        pubKey:
+          type: string
+          nullable: true
+          description: Optional public key used to verify the signature.
+    CreateImageProjectClaimDto:
+      type: object
+      required:
+        - image
+      properties:
+        image:
+          type: string
+          format: binary
+          description: Image file to associate with the claim.
+
+    ImageClaimResponse:
+      type: object
+      required:
+        - claim
+        - uploads
+      properties:
+        claim:
+          $ref: "#/components/schemas/ProjectClaim"
+        uploads:
+          type: object
+          required:
+            - original
+            - thumbnail
+          properties:
+            original:
+              type: object
+              required:
+                - storagePath
+                - fileName
+                - mimeType
+                - size
+              properties:
+                storagePath:
+                  type: string
+                  description: Storage key for the original file (CLAIM_ID_original.ext).
+                fileName:
+                  type: string
+                  description: Original file name stored in the claim directory.
+                mimeType:
+                  type: string
+                  description: MIME type detected from the uploaded file.
+                size:
+                  type: integer
+                  format: int64
+                  description: File size in bytes.
+            signed:
+              type: object
+              nullable: true
+              description: Metadata for the generated, C2PA-signed asset copy.
+              properties:
+                storagePath:
+                  type: string
+                fileName:
+                  type: string
+                mimeType:
+                  type: string
+                size:
+                  type: integer
+                  format: int64
+                url:
+                  type: string
+                  nullable: true
+                  description: Public URL when storage is backed by a CDN.
+            manifest:
+              type: object
+              nullable: true
+              description: Metadata for the uploaded manifest sidecar.
+              properties:
+                storagePath:
+                  type: string
+                fileName:
+                  type: string
+                mimeType:
+                  type: string
+                size:
+                  type: integer
+                  format: int64
+                url:
+                  type: string
+                  nullable: true
+            thumbnail:
+              type: object
+              required:
+                - storagePath
+                - fileName
+                - mimeType
+                - size
+              properties:
+                storagePath:
+                  type: string
+                  description: Storage key for the generated thumbnail (CLAIM_ID_thumbnail.jpg).
+                fileName:
+                  type: string
+                  description: Thumbnail file name stored in the claim directory.
+                mimeType:
+                  type: string
+                  description: Always `image/jpeg`.
+                size:
+                  type: integer
+                  format: int64
+                  description: Thumbnail size in bytes.
+        extURI:
+          type: string
+          nullable: true
+          description: Optional URI associated with the claim.
+        c2pa:
+          $ref: "#/components/schemas/ClaimC2paAssets"
+
+    ProjectClaim:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+          description: Stored claim identifier.
+        projectId:
+          type: string
+          format: uuid
+          description: Project identifier.
+        methodId:
+          type: integer
+          description: Method identifier used on-chain.
+        externalId:
+          type: integer
+          description: External ID associated with the claim.
+        fingerprint:
+          type: string
+          description: Claim fingerprint (hex encoded).
+        metadata:
+          type: object
+          description: Parsed claim metadata payload. Image claims automatically include `allow_ai_training` (boolean) and `pHash` (0x-prefixed 16-character lowercase hexadecimal perceptual hash string) fields. Returns an empty object when no metadata is stored. In rare cases where parsing fails, the service may temporarily return the raw string payload.
+          additionalProperties: true
+        extURI:
+          type: string
+          nullable: true
+          description: Optional external URI stored with the claim.
+        signature:
+          type: string
+          nullable: true
+          description: External signature submitted with the claim.
+        publicKey:
+          type: string
+          nullable: true
+          description: Public key corresponding to the signature, if provided.
+        transactionHash:
+          type: string
+          nullable: true
+          description: Transaction hash returned by the blockchain once the claim is submitted.
+        status:
+          type: string
+          enum: ["submitted", "pending", "confirmed", "failed"]
+          description: Current lifecycle status of the claim record.
+        createdBy:
+          type: string
+          format: email
+          description: Email of the user who submitted the claim.
+        errorReason:
+          type: string
+          nullable: true
+          description: Error message captured when the claim failed on-chain.
+        c2paAssets:
+          $ref: "#/components/schemas/ClaimC2paAssets"
+        createdAt:
+          type: string
+          format: date-time
+          description: Time when the claim was stored.
+        updatedAt:
+          type: string
+          format: date-time
+          description: Last update timestamp for the stored claim.
+
+    ClaimC2paAssets:
+      type: object
+      description: Metadata for C2PA artifacts generated during claim creation.
+      required:
+        - assetId
+      properties:
+        assetId:
+          type: string
+          description: Asset identifier returned by the signing service.
+        manifestUrl:
+          type: string
+          nullable: true
+          description: Public URL for the uploaded manifest sidecar when available.
+        signedAssetUrl:
+          type: string
+          nullable: true
+          description: Public URL pointing at the signed asset copy when available.
+
+    ProjectClaimListResponse:
+      type: object
+      required:
+        - claims
+        - pagination
+      properties:
+        claims:
+          type: array
+          description: Stored claims matching the query.
+          items:
+            $ref: "#/components/schemas/ProjectClaim"
+        pagination:
+          type: object
+          description: Pagination details for the result set.
+          required:
+            - page
+            - pageSize
+            - total
+            - totalPages
+            - hasNextPage
+          properties:
+            page:
+              type: integer
+              minimum: 1
+              description: Current page number.
+            pageSize:
+              type: integer
+              minimum: 1
+              maximum: 50
+              description: Number of items returned per page. Maximum varies by endpoint (20 for project claims, 50 for organization claims).
+            total:
+              type: integer
+              minimum: 0
+              description: Total number of claims matching the query.
+            totalPages:
+              type: integer
+              minimum: 0
+              description: Total number of available pages for the query.
+            hasNextPage:
+              type: boolean
+              description: Indicates whether another page of results is available.
+
+    UserClaimListResponse:
+      type: object
+      required:
+        - claims
+        - pagination
+      properties:
+        claims:
+          type: array
+          description: Claims authored by the authenticated user, ordered by creation time.
+          items:
+            $ref: "#/components/schemas/UserProfileClaim"
+        pagination:
+          type: object
+          description: Pagination details for the authenticated user claim list.
+          required:
+            - page
+            - pageSize
+            - total
+            - totalPages
+            - hasNextPage
+          properties:
+            page:
+              type: integer
+              minimum: 1
+              description: Current page number.
+            pageSize:
+              type: integer
+              minimum: 1
+              maximum: 50
+              description: Number of items returned per page.
+            total:
+              type: integer
+              minimum: 0
+              description: Total number of claims authored by the user.
+            totalPages:
+              type: integer
+              minimum: 0
+              description: Total number of available pages for the query.
+            hasNextPage:
+              type: boolean
+              description: Indicates whether another page of results is available.
+
+    UserProfileProjectSummary:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+          description: Identifier of the project that the claim belongs to.
+        name:
+          type: string
+          description: Project name.
+        organization:
+          $ref: "#/components/schemas/ProjectOrganization"
+        description:
+          type: string
+          nullable: true
+          description: Optional project description.
+
+    UserProfileClaim:
+      allOf:
+        - $ref: "#/components/schemas/ProjectClaim"
+        - type: object
+          properties:
+            project:
+              $ref: "#/components/schemas/UserProfileProjectSummary"
+
+    UserProfile:
+      type: object
+      required:
+        - email
+        - organizations
+        - projects
+        - recentClaims
+      properties:
+        email:
+          type: string
+          format: email
+          description: Email of the user whose profile is returned.
+        displayName:
+          type: string
+          nullable: true
+          description: Optional display name configured by the user.
+        websiteUrl:
+          type: string
+          format: uri
+          nullable: true
+          description: External website or portfolio link for the user profile.
+        socialChannels:
+          type: array
+          description: Social media channels configured for the user.
+          items:
+            $ref: "#/components/schemas/UserSocialChannel"
+        organizations:
+          type: array
+          description: |
+            Organizations the user currently belongs to. Includes both direct memberships (where the user is an owner or member)
+            and guest memberships (where the user is a member of a project within the organization but not a direct organization member).
+            Guest status can be determined by checking if the user's email is not present in the organization's members list.
+          items:
+            $ref: "#/components/schemas/Organization"
+        projects:
+          type: array
+          description: Projects where the user is an admin, member, or owner. Duplicates are automatically removed.
+          items:
+            $ref: "#/components/schemas/Project"
+        recentClaims:
+          type: array
+          description: Up to 10 most recent project claims created by the user.
+          items:
+            $ref: "#/components/schemas/UserProfileClaim"
+        ethAddress:
+          type: string
+          nullable: true
+          pattern: "^0x[a-fA-F0-9]{40}$"
+          description: Ethereum address associated with the authenticated user. Returned only when the requester matches the profile email and the address is resolvable; otherwise the field is omitted or null.
+
+    UserSocialChannel:
+      type: object
+      required:
+        - platform
+        - url
+      properties:
+        platform:
+          type: string
+          description: Name of the social network or channel (e.g., twitter, farcaster, lens).
+        url:
+          type: string
+          format: uri
+          description: Public link to the social profile or channel.
+        handle:
+          type: string
+          nullable: true
+          description: Optional handle or username associated with the channel.
+
+    UpdateUserProfileRequest:
+      type: object
+      description: Fields that can be updated on a user profile. Provide at least one property.
+      properties:
+        displayName:
+          type: string
+          maxLength: 120
+          description: Display name that should appear on the user's public profile.
+        websiteUrl:
+          type: string
+          format: uri
+          maxLength: 2048
+          description: Website or portfolio link for the user.
+        socialChannels:
+          type: array
+          description: Social media channels to associate with the user profile (maximum of 10 entries).
+          maxItems: 10
+          items:
+            $ref: "#/components/schemas/UserSocialChannel"
+      example:
+        displayName: "Alicia Doe"
+        websiteUrl: "https://alicia.example"
+        socialChannels:
+          - platform: "twitter"
+            url: "https://twitter.com/alicia"
+            handle: "@alicia"
+
+    ProfileSearchResult:
+      type: object
+      required:
+        - email
+        - organizationCount
+        - projectCount
+        - recentClaimCount
+        - score
+      properties:
+        email:
+          type: string
+          format: email
+          description: Email address that matched the profile query.
+        organizationCount:
+          type: integer
+          minimum: 0
+          description: Number of organizations where the user is an owner or member.
+        projectCount:
+          type: integer
+          minimum: 0
+          description: Number of projects where the user is an admin or collaborator.
+        recentClaimCount:
+          type: integer
+          minimum: 0
+          description: Total claims authored by this user.
+        lastActivityAt:
+          type: string
+          format: date-time
+          nullable: true
+          description: Timestamp of the most recent claim authored by the user, if any.
+        score:
+          type: number
+          format: float
+          description: Trigram similarity score (0–1) representing how closely the email matched the query.
+
+    FingerprintSearchResult:
+      type: object
+      required:
+        - fingerprint
+        - methodId
+        - externalId
+        - projectId
+        - projectName
+        - organization
+        - createdAt
+        - score
+      properties:
+        fingerprint:
+          type: string
+          description: Claim fingerprint hex string.
+        methodId:
+          type: integer
+          description: Method identifier associated with the fingerprint.
+        externalId:
+          type: integer
+          description: External identifier associated with the claim.
+        projectId:
+          type: string
+          format: uuid
+          description: Project that owns the claim.
+        projectName:
+          type: string
+          description: Human-readable project name.
+        organization:
+          allOf:
+            - $ref: "#/components/schemas/ProjectOrganization"
+          nullable: true
+          description: Organization that owns the project (null for user-owned projects).
+        createdAt:
+          type: string
+          format: date-time
+          description: Claim creation timestamp.
+        score:
+          type: number
+          format: float
+          description: Trigram similarity score (0–1) representing how closely the fingerprint matched the query.
+
+    OrganizationSearchResult:
+      type: object
+      required:
+        - id
+        - name
+        - ownerEmail
+        - memberCount
+        - projectCount
+        - score
+      properties:
+        id:
+          type: string
+          format: uuid
+          description: Organization identifier.
+        name:
+          type: string
+          description: Organization name.
+        description:
+          type: string
+          nullable: true
+          description: Optional organization description.
+        ownerEmail:
+          type: string
+          format: email
+          description: Email of the owning user.
+        memberCount:
+          type: integer
+          minimum: 0
+          description: Number of members currently in the organization.
+        projectCount:
+          type: integer
+          minimum: 0
+          description: Number of projects attached to the organization.
+        score:
+          type: number
+          format: float
+          description: Trigram similarity score (0–1) representing how closely the organization name matched the query.
+
+    SearchResponse:
+      type: object
+      required:
+        - profileSearchApplied
+        - organizationSearchApplied
+        - fingerprintSearchApplied
+        - profiles
+        - organizations
+        - fingerprints
+      properties:
+        profileQuery:
+          type: string
+          nullable: true
+          description: Profile query string echoed back when supplied.
+        organizationQuery:
+          type: string
+          nullable: true
+          description: Organization query string echoed back when supplied.
+        fingerprintQuery:
+          type: string
+          nullable: true
+          description: Fingerprint query string echoed back when supplied.
+        profileSearchApplied:
+          type: boolean
+          description: Indicates whether the profile query satisfied the minimum length and was executed.
+        organizationSearchApplied:
+          type: boolean
+          description: Indicates whether the organization query satisfied the minimum length and was executed.
+        fingerprintSearchApplied:
+          type: boolean
+          description: Indicates whether the fingerprint query satisfied the minimum length and was executed.
+        profiles:
+          type: array
+          items:
+            $ref: "#/components/schemas/ProfileSearchResult"
+        organizations:
+          type: array
+          items:
+            $ref: "#/components/schemas/OrganizationSearchResult"
+        fingerprints:
+          type: array
+          items:
+            $ref: "#/components/schemas/FingerprintSearchResult"
+
+    ErrorResponse:
+      type: object
+      properties:
+        error:
+          type: string
+          description: Error message
+
+  securitySchemes:
+    BearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+      description: Bearer token authentication using JWT tokens
+
+tags:
+  - name: Projects
+    description: Project management operations
+  - name: Claims
+    description: Claim creation and retrieval operations
+  - name: Methods
+    description: Method registration and management
+  - name: External IDs
+    description: External ID registration and management
+  - name: Search
+    description: Search utilities for discovering profiles and claim fingerprints
+  - name: Users
+    description: User account and profile endpoints
+  - name: Health
+    description: Service health and status
