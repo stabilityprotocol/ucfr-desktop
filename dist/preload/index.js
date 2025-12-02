@@ -24,6 +24,9 @@ const api = {
         me: () => electron_1.ipcRenderer.invoke("api/me"),
         projects: () => electron_1.ipcRenderer.invoke("api/projects"),
         health: () => electron_1.ipcRenderer.invoke("api/health"),
+        userProfile: (email) => electron_1.ipcRenderer.invoke("api/userProfile", email),
+        userProjects: (email) => electron_1.ipcRenderer.invoke("api/userProjects", email),
+        organizationProjects: (orgId) => electron_1.ipcRenderer.invoke("api/organizationProjects", orgId),
     },
 };
 electron_1.contextBridge.exposeInMainWorld("ucfr", api);

@@ -4,6 +4,11 @@ import {
   fetchProjects,
   fetchHealth,
 } from "../shared/api/mockApi";
+import {
+  fetchUserProfile,
+  fetchUserProjects,
+  fetchOrganizationProjects,
+} from "../shared/api/client";
 
 // Browser mock for window.ucfr API
 export function createBrowserMock(): RendererAPI {
@@ -174,6 +179,21 @@ export function createBrowserMock(): RendererAPI {
       },
       health: async () => {
         return await fetchHealth();
+      },
+      userProfile: async (email: string) => {
+        const token = localStorage.getItem("ucfr_token");
+        if (!token) return null;
+        return await fetchUserProfile(email, token);
+      },
+      userProjects: async (email: string) => {
+        const token = localStorage.getItem("ucfr_token");
+        if (!token) return [];
+        return await fetchUserProjects(email, token);
+      },
+      organizationProjects: async (orgId: string) => {
+        const token = localStorage.getItem("ucfr_token");
+        if (!token) return [];
+        return await fetchOrganizationProjects(orgId, token);
       },
     },
   };

@@ -8,6 +8,11 @@ import {
   fetchCurrentUser,
   fetchHealth,
 } from "../shared/api/mockApi";
+import {
+  fetchUserProfile,
+  fetchUserProjects,
+  fetchOrganizationProjects,
+} from "../shared/api/client";
 
 let watcher: FolderWatcher | null = null;
 
@@ -157,6 +162,23 @@ export function registerIpcHandlers() {
   ipcMain.handle("api/projects", async () => fetchProjects());
   ipcMain.handle("api/me", async () => fetchCurrentUser());
   ipcMain.handle("api/health", async () => fetchHealth());
+  ipcMain.handle("api/userProfile", async (_event, email: string) => {
+    const token = await tokenManager.getToken();
+    if (!token) return null;
+    return fetchUserProfile(email, token);
+  });
+
+  ipcMain.handle("api/userProjects", async (_event, email: string) => {
+    const token = await tokenManager.getToken();
+    if (!token) return [];
+    return fetchUserProjects(email, token);
+  });
+
+  ipcMain.handle("api/organizationProjects", async (_event, orgId: string) => {
+    const token = await tokenManager.getToken();
+    if (!token) return [];
+    return fetchOrganizationProjects(orgId, token);
+  });
 
   ipcMain.handle("app/openExternal", async (_event, target: string) => {
     return await shell.openExternal(

@@ -23,6 +23,9 @@ type RendererAPI = {
     me: () => Promise<unknown>;
     projects: () => Promise<unknown>;
     health: () => Promise<unknown>;
+    userProfile: (email: string) => Promise<unknown>;
+    userProjects: (email: string) => Promise<unknown>;
+    organizationProjects: (orgId: string) => Promise<unknown>;
   };
 };
 
@@ -51,6 +54,10 @@ const api: RendererAPI = {
     me: () => ipcRenderer.invoke("api/me"),
     projects: () => ipcRenderer.invoke("api/projects"),
     health: () => ipcRenderer.invoke("api/health"),
+    userProfile: (email) => ipcRenderer.invoke("api/userProfile", email),
+    userProjects: (email) => ipcRenderer.invoke("api/userProjects", email),
+    organizationProjects: (orgId) =>
+      ipcRenderer.invoke("api/organizationProjects", orgId),
   },
 };
 

@@ -7,6 +7,8 @@ import {
   projectsAtom,
   healthAtom,
   currentUserAtom,
+  organizationsAtom,
+  userProfileAtom,
 } from "../state";
 import { useQueryClient } from "@tanstack/react-query";
 
@@ -23,6 +25,8 @@ export function useBootstrap() {
   const [, setProjects] = useAtom(projectsAtom);
   const [, setHealth] = useAtom(healthAtom);
   const [, setCurrentUser] = useAtom(currentUserAtom);
+  const [, setOrganizations] = useAtom(organizationsAtom);
+  const [, setUserProfile] = useAtom(userProfileAtom);
   const queryClient = useQueryClient();
 
   useEffect(() => {
@@ -42,6 +46,19 @@ export function useBootstrap() {
       setFolder(typedSettings.folderPath);
       setAutoStart(Boolean(typedSettings.autoStart));
       setCurrentUser(user as any);
+      if (user && typeof user === "string") {
+        window.ucfr.api
+          .userProfile(user)
+          .then((profile: any) => {
+            if (profile) {
+              setUserProfile(profile);
+              if (profile.organizations) {
+                setOrganizations(profile.organizations);
+              }
+            }
+          })
+          .catch((err) => console.error("Failed to fetch profile", err));
+      }
       setProjects(projects as any);
       setHealth(health as any);
     }
@@ -61,6 +78,8 @@ export function useBootstrap() {
     setProjects,
     setHealth,
     setCurrentUser,
+    setOrganizations,
+    setUserProfile,
     queryClient,
   ]);
 }

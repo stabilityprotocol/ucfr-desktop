@@ -11,8 +11,25 @@ export type MockProject = {
   claims: number;
 };
 
+export type Project = {
+  id: string;
+  name: string;
+  description?: string;
+  adminEmail: string;
+  organization?: {
+    id: string;
+    name: string;
+    description?: string;
+  };
+  ownerUserId?: string;
+  visibility: "public" | "private";
+  members: string[];
+  createdAt: string;
+  updatedAt: string;
+};
+
 export type MockHealth = {
-  status: 'ok' | 'degraded' | 'unhealthy';
+  status: "ok" | "degraded" | "unhealthy";
   version: string;
 };
 
@@ -39,4 +56,30 @@ export type ClaimCreateParams = {
   signature?: string;
   pubKey?: string;
   extURI?: string;
+};
+
+export type OrganizationMember = {
+  email: string;
+  role: "owner" | "member";
+  joinedAt: string;
+};
+
+export type Organization = {
+  id: string;
+  name: string;
+  description?: string;
+  ownerEmail: string;
+  members: OrganizationMember[];
+  createdAt: string;
+  updatedAt: string;
+};
+
+export type UserProfile = {
+  email: string;
+  displayName?: string;
+  websiteUrl?: string;
+  organizations: Organization[];
+  projects: Project[];
+  recentClaims: any[]; // limiting scope for now
+  ethAddress?: string;
 };
