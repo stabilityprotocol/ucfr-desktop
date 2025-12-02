@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { useAtom } from "jotai";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { LayoutDashboard, FolderKanban, Settings } from "lucide-react";
+import { Settings, ChevronDown, User } from "lucide-react";
 import { useBootstrap } from "./hooks/useApi";
 import {
   tokenAtom,
@@ -15,7 +15,7 @@ import { LoginPage } from "./pages/Login";
 import { DashboardPage } from "./pages/Dashboard";
 import { ProjectsPage } from "./pages/Projects";
 import { SettingsPage } from "./pages/Settings";
-import monolithLogo from "../assets/monolith-logo.png";
+import { isBrowserMode } from "./mockBrowserAPI";
 import "./style.css";
 
 const queryClient = new QueryClient();
@@ -43,12 +43,20 @@ function Shell() {
   const [activeProjectId, setActiveProjectId] = useState<string | null>(null);
 
   const login = async () => {
+    if (!window.ucfr) {
+      console.error("window.ucfr is not available.");
+      return;
+    }
+
     const auth = (await window.ucfr.auth.startLoginFlow()) as {
       requestId: string;
     };
     const authUrl = `https://auth.ucfr.io/?request_id=${auth.requestId}`;
-
-    await window.ucfr.app.openExternal(authUrl);
+    if (isBrowserMode()) {
+      console.log("🔗 Auth URL:", authUrl);
+    } else {
+      await window.ucfr.app.openExternal(authUrl);
+    }
   };
 
   const logout = async () => {
@@ -79,85 +87,100 @@ function Shell() {
 
   return (
     <div className="h-full grid grid-cols-[260px_minmax(0,1fr)] lg:grid-cols-[280px_minmax(0,1fr)]">
-      <aside className="border-r border-[#e5e5e5] bg-[#09090b] p-0 flex flex-col">
-        <div className="px-3 pb-6 text-[11px] tracking-[0.18em] uppercase text-[#71717a]">
-          <div className="font-bold text-sm text-white tracking-[-0.02em] normal-case">
-            <img src={monolithLogo} alt="Monolith" className="h-6" />
+      <aside className="border-r border-gray-200 bg-white p-0 flex flex-col h-full">
+        {/* Logo Area */}
+        <div className="px-6 py-6">
+          <div className="flex items-center gap-3">
+            <div className="h-8 w-1.5 bg-black rounded-sm"></div>
+            <span className="font-bold text-xl tracking-wide text-black">
+              MONOLITH
+            </span>
           </div>
         </div>
 
-        <nav className="flex flex-col gap-1 flex-1">
-          <button
-            className={`w-full rounded-md justify-start px-3 py-2 bg-transparent border-transparent shadow-none text-[#a1a1aa] transition-all duration-200 hover:bg-white/5 hover:text-[#e4e4e7] inline-flex items-center gap-1.5 ${
-              activeView === "dashboard"
-                ? "bg-[#27272a] text-white [&>svg]:text-white"
-                : ""
-            }`}
-            onClick={() => setActiveView("dashboard")}
-          >
-            <LayoutDashboard
-              className="text-[#71717a] group-hover:text-[#e4e4e7]"
-              size={16}
+        {/* Project Selector */}
+        <div className="px-4 mb-6">
+          <div className="flex items-center justify-between px-3 py-2.5 bg-white border border-gray-200 hover:border-gray-300 transition-colors rounded-sm cursor-pointer group">
+            <div className="flex items-center gap-3">
+              <div className="bg-gray-100 p-1 rounded-full">
+                <User size={14} className="text-gray-600" />
+              </div>
+              <span className="font-semibold text-sm text-gray-900 uppercase tracking-wide">
+                Personal Projects
+              </span>
+            </div>
+            <ChevronDown
+              size={14}
+              className="text-gray-400 group-hover:text-gray-600"
             />
-            <span>Dashboard</span>
-          </button>
+          </div>
+        </div>
 
-          <div className="mt-6">
-            <div className="text-[11px] uppercase tracking-[0.1em] text-[#52525b] px-3 pb-2 font-semibold">
+        <nav className="flex flex-col flex-1 px-4 space-y-8">
+          {/* Dashboard Link */}
+          <div>
+            <button
+              className={`w-full text-left text-sm font-medium hover:text-black transition-colors uppercase tracking-wide ${
+                activeView === "dashboard"
+                  ? "text-black font-bold"
+                  : "text-gray-500"
+              }`}
+              onClick={() => setActiveView("dashboard")}
+            >
+              Dashboard
+            </button>
+          </div>
+
+          {/* Projects Section */}
+          <div>
+            <div className="text-[11px] font-bold text-gray-400 uppercase tracking-[0.15em] mb-4">
               Projects
             </div>
-            <button
-              className={`w-full rounded-md justify-start px-3 py-2 bg-transparent border-transparent shadow-none text-[#a1a1aa] transition-all duration-200 hover:bg-white/5 hover:text-[#e4e4e7] inline-flex items-center gap-1.5 ${
-                activeView === "projects" && !activeProjectId
-                  ? "bg-[#27272a] text-white [&>svg]:text-white"
-                  : ""
-              }`}
-              onClick={() => {
-                setActiveView("projects");
-                setActiveProjectId(null);
-              }}
-            >
-              <FolderKanban
-                className="text-[#71717a] group-hover:text-[#e4e4e7]"
-                size={16}
-              />
-              <span>All projects</span>
-            </button>
-            <div className="mt-1 pl-0 flex flex-col gap-0.5">
-              {projects.map((project) => (
+            <div className="flex flex-col gap-3">
+              <button
+                className={`w-full text-left text-sm font-medium hover:text-black transition-colors uppercase tracking-wide ${
+                  activeView === "projects" && !activeProjectId
+                    ? "text-black font-bold"
+                    : "text-gray-500"
+                }`}
+                onClick={() => {
+                  setActiveView("projects");
+                  setActiveProjectId(null);
+                }}
+              >
+                All projects
+              </button>
+              {projects.map((p) => (
                 <button
-                  key={project.id}
-                  className={`rounded-md py-1.5 px-3 text-[13px] pl-9 w-full justify-start bg-transparent border-transparent shadow-none text-[#a1a1aa] transition-all duration-200 hover:bg-white/5 hover:text-[#e4e4e7] ${
-                    activeView === "projects" && activeProjectId === project.id
-                      ? "bg-[#27272a] text-white"
-                      : ""
+                  key={p.id}
+                  className={`w-full text-left text-sm font-medium hover:text-black transition-colors uppercase tracking-wide truncate ${
+                    activeView === "projects" && activeProjectId === p.id
+                      ? "text-black font-bold"
+                      : "text-gray-500"
                   }`}
                   onClick={() => {
                     setActiveView("projects");
-                    setActiveProjectId(project.id);
+                    setActiveProjectId(p.id);
                   }}
                 >
-                  <span>{project.name}</span>
+                  {p.name}
                 </button>
               ))}
             </div>
           </div>
         </nav>
 
-        <div className="mt-auto pt-4 border-t border-[#27272a]">
+        {/* Bottom Settings */}
+        <div className="p-4 mt-auto border-t border-gray-100">
           <button
-            className={`w-full rounded-md justify-start px-3 py-2 bg-transparent border-transparent shadow-none text-[#a1a1aa] transition-all duration-200 hover:bg-white/5 hover:text-[#e4e4e7] inline-flex items-center gap-1.5 ${
-              activeView === "settings"
-                ? "bg-[#27272a] text-white [&>svg]:text-white"
-                : ""
-            }`}
             onClick={() => setActiveView("settings")}
+            className={`w-full text-left text-sm font-medium hover:text-black transition-colors uppercase tracking-wide flex items-center gap-2 ${
+              activeView === "settings"
+                ? "text-black font-bold"
+                : "text-gray-500"
+            }`}
           >
-            <Settings
-              className="text-[#71717a] group-hover:text-[#e4e4e7]"
-              size={16}
-            />
-            <span>Settings</span>
+            <Settings size={16} /> Settings
           </button>
         </div>
       </aside>

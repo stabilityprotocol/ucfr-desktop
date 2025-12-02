@@ -23,16 +23,16 @@ export function LoginPage({ onLogin }: LoginPageProps) {
           <h2 className="m-0 mb-2 text-sm tracking-[0.18em] uppercase text-[#a1a1aa]">
             Authenticate
           </h2>
-          <p className="m-0 mb-2.5 text-sm text-[#09090b]">
+          <p className="m-0 mb-2.5 text-sm text-[#09090b] text-center">
             We&apos;ll open a secure browser window where you can complete the
             login. Once authorized, you&apos;ll be redirected back here.
           </p>
           <div className="flex flex-wrap gap-2 items-center mt-6 justify-center">
             <button
-              className="inline-flex items-center gap-2 rounded-none bg-primary px-4 py-2 text-sm font-medium text-primary-foreground shadow-sm transition hover:bg-primary/90 w-full"
+              className="inline-flex items-center gap-2 rounded-none bg-primary px-4 py-2 text-sm font-medium text-primary-foreground shadow-sm transition hover:bg-primary/90 w-full justify-center"
               onClick={onLogin}
             >
-              Start login flow
+              Sign In
             </button>
           </div>
         </div>
