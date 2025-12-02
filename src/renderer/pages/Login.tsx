@@ -6,7 +6,7 @@ type LoginPageProps = {
 
 export function LoginPage({ onLogin }: LoginPageProps) {
   return (
-    <div className="min-h-full flex items-center justify-center bg-[radial-gradient(circle_at_top,#ffffff_0,#e4e4e7_100%)]">
+    <div className="h-full flex items-center justify-center bg-[radial-gradient(circle_at_top,#ffffff_0,#e4e4e7_100%)]">
       <div className="max-w-[480px] w-full flex flex-col gap-8 text-center m-auto">
         <header className="flex flex-col items-center gap-4 m-0">
           <img src={monolithLogo} alt="Monolith" className="h-12 w-auto mb-2" />
@@ -14,8 +14,8 @@ export function LoginPage({ onLogin }: LoginPageProps) {
             Connect your desktop to Monolith
           </h1>
           <p className="m-0 text-sm text-[#71717a] max-w-[360px] m-auto">
-            Sign in with your UCFR account to start tracking folders and syncing
-            claims in the background.
+            Sign in with your Monolith account to start tracking folders and
+            syncing claims in the background.
           </p>
         </header>
 
