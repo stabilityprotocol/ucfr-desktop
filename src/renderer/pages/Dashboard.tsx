@@ -6,7 +6,6 @@ type DashboardPageProps = {
   folder?: string;
   autoStart: boolean;
   projects: MockProject[];
-  onLogout: () => Promise<void> | void;
   onSelectFolder: () => Promise<void> | void;
   onToggleAutoStart: () => Promise<void> | void;
   onStartWatcher: (folder: string) => Promise<void> | void;
@@ -18,7 +17,6 @@ export function DashboardPage({
   folder,
   autoStart,
   projects,
-  onLogout,
   onSelectFolder,
   onToggleAutoStart,
   onStartWatcher,
@@ -27,16 +25,12 @@ export function DashboardPage({
     <div className="app-shell">
       <header>
         <div>
-          <p className="eyebrow">UCFR Desktop</p>
+          <p className="eyebrow">Monolith</p>
           <h1>Welcome {currentUser ?? "Guest"}</h1>
           <p className="sub">
             Health: {health?.status ?? "unknown"}{" "}
             <span>· version {health?.version ?? "n/a"}</span>
           </p>
-        </div>
-        <div className="auth">
-          <span className="pill">Token ready</span>
-          <button onClick={onLogout}>Sign out</button>
         </div>
       </header>
 

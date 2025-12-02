@@ -58,6 +58,140 @@ body {
   height: 100%;
 }
 
+.window {
+  height: 100%;
+  display: grid;
+  grid-template-columns: 260px minmax(0, 1fr);
+}
+
+@media (min-width: 1120px) {
+  .window {
+    grid-template-columns: 280px minmax(0, 1fr);
+  }
+}
+
+.sidebar {
+  border-right: 1px solid var(--color-border-subtle);
+  background: linear-gradient(180deg, #f9fafb, #f4f4f5);
+  padding: 16px 12px 16px 16px;
+  display: flex;
+}
+
+.sidebar-inner {
+  display: flex;
+  flex-direction: column;
+  width: 100%;
+  border-radius: 18px;
+  padding: 10px;
+  background: rgba(255, 255, 255, 0.92);
+  box-shadow: 0 18px 40px rgba(0, 0, 0, 0.06);
+}
+
+.sidebar-header {
+  padding: 4px 8px 10px;
+  font-size: 11px;
+  letter-spacing: 0.18em;
+  text-transform: uppercase;
+  color: var(--color-text-soft);
+}
+
+.sidebar-app-name {
+  font-weight: 600;
+}
+
+.sidebar-nav {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  padding: 4px;
+  flex: 1;
+}
+
+.sidebar-section {
+  margin-top: 12px;
+}
+
+.sidebar-section-label {
+  font-size: 11px;
+  text-transform: uppercase;
+  letter-spacing: 0.18em;
+  color: var(--color-text-soft);
+  padding: 0 8px 6px;
+}
+
+.sidebar-item {
+  width: 100%;
+  border-radius: 999px;
+  justify-content: flex-start;
+  padding-inline: 10px 12px;
+  padding-block: 6px;
+  background: transparent;
+  border-color: transparent;
+  box-shadow: none;
+}
+
+.sidebar-item:hover {
+  background: #f4f4f5;
+  border-color: transparent;
+  box-shadow: none;
+  transform: translateY(0);
+}
+
+.sidebar-item.is-active {
+  background: #18181b;
+  color: #fafafa;
+}
+
+.sidebar-item.is-active .sidebar-icon {
+  color: #fafafa;
+}
+
+.sidebar-icon {
+  color: var(--color-text-muted);
+}
+
+.sidebar-subitems {
+  margin-top: 4px;
+  padding-left: 18px;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.sidebar-item-nested {
+  border-radius: 999px;
+  padding-block: 4px;
+  padding-inline: 10px 12px;
+  font-size: 13px;
+}
+
+.sidebar-bullet {
+  width: 6px;
+  height: 6px;
+  border-radius: 999px;
+  background: var(--color-border-subtle);
+}
+
+.sidebar-item-nested.is-active .sidebar-bullet {
+  background: #fafafa;
+}
+
+.sidebar-project-name {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.sidebar-footer {
+  margin-top: 12px;
+  padding: 4px;
+  border-top: 1px solid rgba(228, 228, 231, 0.8);
+}
+
+.content {
+  min-height: 100%;
+}
+
 .app-shell {
   min-height: 100%;
   display: flex;

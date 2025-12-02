@@ -47,7 +47,7 @@ function createTray() {
     { type: "separator" },
     { label: "Quit", click: () => app.quit() },
   ]);
-  tray.setToolTip("UCFR Desktop");
+  tray.setToolTip("Monolith");
   tray.setContextMenu(menu);
 }
 

@@ -9,8 +9,8 @@ export function LoginPage({ onLogin }: LoginPageProps) {
     <div className="app-shell">
       <header>
         <div>
-          <p className="eyebrow">UCFR Desktop</p>
-          <h1>Connect your desktop to UCFR</h1>
+          <p className="eyebrow">Monolith</p>
+          <h1>Connect your desktop to Monolith</h1>
           <p className="sub">
             Sign in with your UCFR account to start tracking folders and syncing
             claims in the background.
@@ -31,10 +31,10 @@ export function LoginPage({ onLogin }: LoginPageProps) {
         </div>
 
         <div className="card">
-          <h2>About UCFR Desktop</h2>
+          <h2>About Monolith</h2>
           <p>
-            UCFR Desktop runs quietly in the background, monitoring your chosen
-            folders and sending updates to your UCFR workspace.
+            Monolith runs quietly in the background, monitoring your chosen
+            folders and sending updates to your workspace.
           </p>
           <p className="text-soft mono">
             Auto-start, tray controls, and real-time sync are enabled once

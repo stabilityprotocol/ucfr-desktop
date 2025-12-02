@@ -2652,6 +2652,15 @@ __metadata:
   languageName: node
   linkType: hard
 
+"lucide-react@npm:^0.555.0":
+  version: 0.555.0
+  resolution: "lucide-react@npm:0.555.0"
+  peerDependencies:
+    react: ^16.5.1 || ^17.0.0 || ^18.0.0 || ^19.0.0
+  checksum: 10c0/18f0870307fe2a37cf62473de88845a78107295de1efcf599a8662be3af4239c0b661a57f8e29815e424773e4aad04d199ad4d94d7ae977b7ce7a61be7f64e04
+  languageName: node
+  linkType: hard
+
 "magic-string@npm:^0.30.21":
   version: 0.30.21
   resolution: "magic-string@npm:0.30.21"
@@ -3658,6 +3667,7 @@ __metadata:
     electron: "npm:^28.3.3"
     electron-store: "npm:^8.2.0"
     jotai: "npm:^2.8.0"
+    lucide-react: "npm:^0.555.0"
     nodemon: "npm:^3.1.11"
     postcss: "npm:^8.4.49"
     react: "npm:^18.3.1"
