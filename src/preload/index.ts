@@ -55,4 +55,9 @@ const api: RendererAPI = {
 };
 
 contextBridge.exposeInMainWorld("ucfr", api);
+
+ipcRenderer.on("tokenChanged", () => {
+  window.dispatchEvent(new Event("tokenChanged"));
+});
+
 export type { RendererAPI };

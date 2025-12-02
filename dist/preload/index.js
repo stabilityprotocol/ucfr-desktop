@@ -27,3 +27,6 @@ const api = {
     },
 };
 electron_1.contextBridge.exposeInMainWorld("ucfr", api);
+electron_1.ipcRenderer.on("tokenChanged", () => {
+    window.dispatchEvent(new Event("tokenChanged"));
+});

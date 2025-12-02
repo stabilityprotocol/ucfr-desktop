@@ -47,7 +47,9 @@ export function useBootstrap() {
     }
     hydrate();
 
-    const handler = () => {
+    const handler = async () => {
+      const nextToken = await window.ucfr.auth.getToken();
+      setToken(nextToken);
       queryClient.invalidateQueries();
     };
     window.addEventListener("tokenChanged", handler);

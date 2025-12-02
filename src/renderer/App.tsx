@@ -9,6 +9,8 @@ import {
   healthAtom,
   currentUserAtom,
 } from "./state";
+import { LoginPage } from "./pages/Login";
+import { DashboardPage } from "./pages/Dashboard";
 import "./style.css";
 
 const queryClient = new QueryClient();
@@ -37,9 +39,6 @@ function Shell() {
     const authUrl = `https://auth.stabilityprotocol.com/?request_id=${auth.requestId}`;
 
     await window.ucfr.app.openExternal(authUrl);
-
-    const nextToken = await window.ucfr.auth.getToken();
-    setToken(nextToken);
   };
 
   const logout = async () => {
@@ -57,61 +56,25 @@ function Shell() {
     setAutoStart(next);
   };
 
+  const startWatcher = async (targetFolder: string) => {
+    await window.ucfr.sync.startWatcher(targetFolder);
+  };
+
+  if (!token) {
+    return <LoginPage onLogin={login} />;
+  }
+
   return (
-    <div className="app-shell">
-      <header>
-        <div>
-          <p className="eyebrow">UCFR Desktop (mocked)</p>
-          <h1>Welcome {currentUser ?? "Guest"}</h1>
-          <p className="sub">
-            Health: {health?.status ?? "unknown"} ({health?.version ?? "n/a"})
-          </p>
-        </div>
-        <div className="auth">
-          {token ? (
-            <>
-              <span className="pill">Token ready</span>
-              <button onClick={logout}>Sign out</button>
-            </>
-          ) : (
-            <button onClick={login}>Start login flow</button>
-          )}
-        </div>
-      </header>
-
-      <section className="grid">
-        <div className="card">
-          <h2>Watched folder</h2>
-          <p>{folder ?? "No folder selected yet."}</p>
-          <div className="row">
-            <button onClick={selectFolder}>Choose folder</button>
-            {folder && (
-              <button onClick={() => window.ucfr.sync.startWatcher(folder)}>
-                Start watcher
-              </button>
-            )}
-          </div>
-        </div>
-
-        <div className="card">
-          <h2>Startup</h2>
-          <p>Auto-start at login is {autoStart ? "enabled" : "disabled"}.</p>
-          <button onClick={toggleAutoStart}>
-            {autoStart ? "Disable" : "Enable"} auto-start
-          </button>
-        </div>
-
-        <div className="card">
-          <h2>Projects</h2>
-          <ul>
-            {projects.map((project) => (
-              <li key={project.id}>
-                <strong>{project.name}</strong> · {project.claims} claims
-              </li>
-            ))}
-          </ul>
-        </div>
-      </section>
-    </div>
+    <DashboardPage
+      currentUser={currentUser}
+      health={health}
+      folder={folder}
+      autoStart={autoStart}
+      projects={projects}
+      onLogout={logout}
+      onSelectFolder={selectFolder}
+      onToggleAutoStart={toggleAutoStart}
+      onStartWatcher={startWatcher}
+    />
   );
 }

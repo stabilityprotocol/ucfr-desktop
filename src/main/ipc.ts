@@ -1,4 +1,4 @@
-import { app, dialog, ipcMain, shell } from "electron";
+import { app, dialog, ipcMain, shell, BrowserWindow } from "electron";
 import { randomUUID } from "crypto";
 import { tokenManager } from "./tokenStore";
 import { getSettings, updateSettings } from "./settings";
@@ -100,6 +100,10 @@ export function registerIpcHandlers() {
       const token = await pollForToken(requestId);
       if (token) {
         await tokenManager.setToken(token);
+        // Notify all renderer windows that the token has changed
+        BrowserWindow.getAllWindows().forEach((win) =>
+          win.webContents.send("tokenChanged")
+        );
       } else {
         console.error("Authentication timed out or failed.");
       }
