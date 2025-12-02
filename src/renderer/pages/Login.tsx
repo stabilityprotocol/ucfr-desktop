@@ -59,5 +59,3 @@ export function LoginPage({ onLogin }: LoginPageProps) {
     </div>
   );
 }
-
-

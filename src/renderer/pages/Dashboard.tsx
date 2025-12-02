@@ -31,9 +31,7 @@ export function DashboardPage({
           <h1>Welcome {currentUser ?? "Guest"}</h1>
           <p className="sub">
             Health: {health?.status ?? "unknown"}{" "}
-            <span>
-              · version {health?.version ?? "n/a"}
-            </span>
+            <span>· version {health?.version ?? "n/a"}</span>
           </p>
         </div>
         <div className="auth">
@@ -82,5 +80,3 @@ export function DashboardPage({
     </div>
   );
 }
-
-
