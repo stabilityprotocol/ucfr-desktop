@@ -3617,6 +3617,13 @@ __metadata:
   languageName: node
   linkType: hard
 
+"tw-animate-css@npm:^1.4.0":
+  version: 1.4.0
+  resolution: "tw-animate-css@npm:1.4.0"
+  checksum: 10c0/6cfbc19ccc73883ec80ef1f9147f43e736cb01ee99c8172968b37eb81b720523d30e38b1a96aef92db3c586d864204db5510b51744ddacbbf0ad8e3c7fb56ec7
+  languageName: node
+  linkType: hard
+
 "type-fest@npm:^0.13.1":
   version: 0.13.1
   resolution: "type-fest@npm:0.13.1"
@@ -3674,6 +3681,7 @@ __metadata:
     react-dom: "npm:^18.3.1"
     tailwindcss: "npm:^4.0.0"
     ts-node: "npm:^10.9.2"
+    tw-animate-css: "npm:^1.4.0"
     typescript: "npm:^5.5.4"
     vite: "npm:^5.4.1"
     wait-on: "npm:^7.2.0"

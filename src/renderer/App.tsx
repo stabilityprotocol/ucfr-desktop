@@ -15,6 +15,7 @@ import { LoginPage } from "./pages/Login";
 import { DashboardPage } from "./pages/Dashboard";
 import { ProjectsPage } from "./pages/Projects";
 import { SettingsPage } from "./pages/Settings";
+import monolithLogo from "../assets/monolith-logo.png";
 import "./style.css";
 
 const queryClient = new QueryClient();
@@ -77,78 +78,91 @@ function Shell() {
     projects.find((project) => project.id === activeProjectId) ?? null;
 
   return (
-    <div className="window">
-      <aside className="sidebar">
-        <div className="sidebar-inner">
-          <div className="sidebar-header">
-            <span className="sidebar-app-name">Monolith</span>
+    <div className="h-full grid grid-cols-[260px_minmax(0,1fr)] lg:grid-cols-[280px_minmax(0,1fr)]">
+      <aside className="border-r border-[#e5e5e5] bg-[#09090b] p-0 flex flex-col">
+        <div className="px-3 pb-6 text-[11px] tracking-[0.18em] uppercase text-[#71717a]">
+          <div className="font-bold text-sm text-white tracking-[-0.02em] normal-case">
+            <img src={monolithLogo} alt="Monolith" className="h-6" />
           </div>
+        </div>
 
-          <nav className="sidebar-nav">
-            <button
-              className={`sidebar-item ${
-                activeView === "dashboard" ? "is-active" : ""
-              }`}
-              onClick={() => setActiveView("dashboard")}
-            >
-              <LayoutDashboard className="sidebar-icon" size={16} />
-              <span>Dashboard</span>
-            </button>
+        <nav className="flex flex-col gap-1 flex-1">
+          <button
+            className={`w-full rounded-md justify-start px-3 py-2 bg-transparent border-transparent shadow-none text-[#a1a1aa] transition-all duration-200 hover:bg-white/5 hover:text-[#e4e4e7] inline-flex items-center gap-1.5 ${
+              activeView === "dashboard"
+                ? "bg-[#27272a] text-white [&>svg]:text-white"
+                : ""
+            }`}
+            onClick={() => setActiveView("dashboard")}
+          >
+            <LayoutDashboard
+              className="text-[#71717a] group-hover:text-[#e4e4e7]"
+              size={16}
+            />
+            <span>Dashboard</span>
+          </button>
 
-            <div className="sidebar-section">
-              <div className="sidebar-section-label">Projects</div>
-              <button
-                className={`sidebar-item ${
-                  activeView === "projects" && !activeProjectId
-                    ? "is-active"
-                    : ""
-                }`}
-                onClick={() => {
-                  setActiveView("projects");
-                  setActiveProjectId(null);
-                }}
-              >
-                <FolderKanban className="sidebar-icon" size={16} />
-                <span>All projects</span>
-              </button>
-              <div className="sidebar-subitems">
-                {projects.map((project) => (
-                  <button
-                    key={project.id}
-                    className={`sidebar-item sidebar-item-nested ${
-                      activeView === "projects" &&
-                      activeProjectId === project.id
-                        ? "is-active"
-                        : ""
-                    }`}
-                    onClick={() => {
-                      setActiveView("projects");
-                      setActiveProjectId(project.id);
-                    }}
-                  >
-                    <span className="sidebar-bullet" />
-                    <span className="sidebar-project-name">{project.name}</span>
-                  </button>
-                ))}
-              </div>
+          <div className="mt-6">
+            <div className="text-[11px] uppercase tracking-[0.1em] text-[#52525b] px-3 pb-2 font-semibold">
+              Projects
             </div>
-          </nav>
-
-          <div className="sidebar-footer">
             <button
-              className={`sidebar-item ${
-                activeView === "settings" ? "is-active" : ""
+              className={`w-full rounded-md justify-start px-3 py-2 bg-transparent border-transparent shadow-none text-[#a1a1aa] transition-all duration-200 hover:bg-white/5 hover:text-[#e4e4e7] inline-flex items-center gap-1.5 ${
+                activeView === "projects" && !activeProjectId
+                  ? "bg-[#27272a] text-white [&>svg]:text-white"
+                  : ""
               }`}
-              onClick={() => setActiveView("settings")}
+              onClick={() => {
+                setActiveView("projects");
+                setActiveProjectId(null);
+              }}
             >
-              <Settings className="sidebar-icon" size={16} />
-              <span>Settings</span>
+              <FolderKanban
+                className="text-[#71717a] group-hover:text-[#e4e4e7]"
+                size={16}
+              />
+              <span>All projects</span>
             </button>
+            <div className="mt-1 pl-0 flex flex-col gap-0.5">
+              {projects.map((project) => (
+                <button
+                  key={project.id}
+                  className={`rounded-md py-1.5 px-3 text-[13px] pl-9 w-full justify-start bg-transparent border-transparent shadow-none text-[#a1a1aa] transition-all duration-200 hover:bg-white/5 hover:text-[#e4e4e7] ${
+                    activeView === "projects" && activeProjectId === project.id
+                      ? "bg-[#27272a] text-white"
+                      : ""
+                  }`}
+                  onClick={() => {
+                    setActiveView("projects");
+                    setActiveProjectId(project.id);
+                  }}
+                >
+                  <span>{project.name}</span>
+                </button>
+              ))}
+            </div>
           </div>
+        </nav>
+
+        <div className="mt-auto pt-4 border-t border-[#27272a]">
+          <button
+            className={`w-full rounded-md justify-start px-3 py-2 bg-transparent border-transparent shadow-none text-[#a1a1aa] transition-all duration-200 hover:bg-white/5 hover:text-[#e4e4e7] inline-flex items-center gap-1.5 ${
+              activeView === "settings"
+                ? "bg-[#27272a] text-white [&>svg]:text-white"
+                : ""
+            }`}
+            onClick={() => setActiveView("settings")}
+          >
+            <Settings
+              className="text-[#71717a] group-hover:text-[#e4e4e7]"
+              size={16}
+            />
+            <span>Settings</span>
+          </button>
         </div>
       </aside>
 
-      <main className="content">
+      <main className="min-h-full">
         {activeView === "dashboard" && (
           <DashboardPage
             currentUser={currentUser}
