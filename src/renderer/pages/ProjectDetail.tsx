@@ -1,7 +1,7 @@
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect } from "react";
 import { useParams } from "react-router-dom";
 import type { MockProject } from "../../shared/api/types";
-import { Folder, Plus, Trash2, Terminal } from "lucide-react";
+import { Folder, Plus, Trash2 } from "lucide-react";
 
 type ProjectDetailProps = {
   projects: MockProject[];
@@ -13,29 +13,11 @@ export function ProjectDetailPage({ projects }: ProjectDetailProps) {
 
   const [folders, setFolders] = useState<string[]>([]);
   const [loading, setLoading] = useState(false);
-  const [logs, setLogs] = useState<Array<{ event: string; file: string; time: string }>>([]);
-  const logsEndRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     if (!project) return;
     loadFolders();
-    
-    // Setup watcher listener
-    let cleanup: (() => void) | undefined;
-    if (window.ucfr?.sync?.onWatcherEvent) {
-      cleanup = window.ucfr.sync.onWatcherEvent((payload: { event: string; file: string }) => {
-        setLogs(prev => [...prev, { ...payload, time: new Date().toLocaleTimeString() }].slice(-100));
-      });
-    }
-    
-    return () => {
-      if (cleanup) cleanup();
-    };
   }, [project?.id]);
-
-  useEffect(() => {
-    logsEndRef.current?.scrollIntoView({ behavior: "smooth" });
-  }, [logs]);
 
   const loadFolders = async () => {
     if (window.ucfr?.project && project) {
@@ -133,31 +115,6 @@ export function ProjectDetailPage({ projects }: ProjectDetailProps) {
             ))}
           </div>
         )}
-      </div>
-
-      {/* Console Component */}
-      <div className="fixed bottom-0 left-0 right-0 bg-black/90 text-green-400 font-mono text-xs p-4 h-48 border-t border-white/10 z-10 backdrop-blur-md flex flex-col">
-        <div className="max-w-[960px] mx-auto w-full flex flex-col h-full">
-            <div className="flex items-center gap-2 mb-2 text-white/50 uppercase tracking-wider text-[10px] font-semibold shrink-0">
-                <Terminal size={12} />
-                Watcher Console
-            </div>
-            <div className="space-y-1 overflow-y-auto flex-1 pr-2 scrollbar-thin scrollbar-thumb-white/20 scrollbar-track-transparent">
-                {logs.length === 0 && <div className="text-white/30 italic">Waiting for file changes...</div>}
-                {logs.map((log, i) => (
-                    <div key={i} className="flex gap-2 hover:bg-white/5 p-0.5 rounded">
-                        <span className="text-white/40 shrink-0">[{log.time}]</span>
-                        <span className={`shrink-0 font-bold w-16 ${
-                            log.event === 'add' ? 'text-green-400' : 
-                            log.event === 'change' ? 'text-yellow-400' : 
-                            log.event === 'unlink' ? 'text-red-400' : 'text-blue-400'
-                        }`}>{log.event.toUpperCase()}</span>
-                        <span className="break-all opacity-90">{log.file}</span>
-                    </div>
-                ))}
-                <div ref={logsEndRef} />
-            </div>
-        </div>
       </div>
     </div>
   );

@@ -3,6 +3,7 @@ import { randomUUID } from "crypto";
 import { tokenManager } from "./tokenStore";
 import { getSettings, updateSettings } from "./settings";
 import { FolderWatcher } from "./watcher";
+import { handleFileChange } from "./claimService";
 import {
   fetchProjects,
   fetchCurrentUser,
@@ -92,6 +93,9 @@ function getOrCreateWatcher(): FolderWatcher {
       BrowserWindow.getAllWindows().forEach((win) =>
         win.webContents.send("watcher-event", payload)
       );
+      
+      // Trigger claim creation logic
+      handleFileChange(payload.file, payload.event);
     });
   }
   return watcher;

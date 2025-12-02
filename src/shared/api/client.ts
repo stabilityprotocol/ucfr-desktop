@@ -94,3 +94,70 @@ export async function fetchOrganizationProjects(
     return [];
   }
 }
+
+export async function fetchProject(
+  projectId: string,
+  token: string
+): Promise<Project | null> {
+  try {
+    const response = await fetch(`${BASE_URL}/api/projects/${projectId}`, {
+      method: "GET",
+      headers: {
+        Authorization: `Bearer ${token}`,
+        "Content-Type": "application/json",
+      },
+    });
+
+    if (!response.ok) {
+      console.error(
+        `Failed to fetch project: ${response.status} ${response.statusText}`
+      );
+      return null;
+    }
+
+    const data = await response.json();
+    return data;
+  } catch (error) {
+    console.error("Error fetching project:", error);
+    return null;
+  }
+}
+
+export async function createProjectClaim(
+  projectId: string,
+  token: string,
+  payload: {
+    methodId: number;
+    externalId: number;
+    fingerprint: string;
+    data: string;
+  }
+): Promise<any | null> {
+  try {
+    const response = await fetch(
+      `${BASE_URL}/api/projects/${projectId}/claims`,
+      {
+        method: "POST",
+        headers: {
+          Authorization: `Bearer ${token}`,
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify(payload),
+      }
+    );
+
+    if (!response.ok) {
+      const errText = await response.text();
+      console.error(
+        `Failed to create claim: ${response.status} ${response.statusText}`,
+        errText
+      );
+      return null;
+    }
+
+    return await response.json();
+  } catch (error) {
+    console.error("Error creating project claim:", error);
+    return null;
+  }
+}
