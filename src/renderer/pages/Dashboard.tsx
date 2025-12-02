@@ -3,27 +3,17 @@ import type { MockHealth, MockProject } from "../../shared/api/types";
 type DashboardPageProps = {
   currentUser: string | null;
   health: MockHealth | null;
-  folder?: string;
-  autoStart: boolean;
   projects: MockProject[];
-  onSelectFolder: () => Promise<void> | void;
-  onToggleAutoStart: () => Promise<void> | void;
-  onStartWatcher: (folder: string) => Promise<void> | void;
 };
 
 export function DashboardPage({
   currentUser,
   health,
-  folder,
-  autoStart,
   projects,
-  onSelectFolder,
-  onToggleAutoStart,
-  onStartWatcher,
 }: DashboardPageProps) {
   return (
-    <div className="min-h-full flex flex-col items-stretch justify-center p-8 md:p-12 md:px-10">
-      <header className="max-w-[960px] w-full mx-auto mb-6 flex items-center justify-between gap-6">
+    <div className="min-h-full flex flex-col items-stretch justify-start p-8 md:p-12 md:px-10">
+      <header className="max-w-[960px] w-full mx-auto mb-8 flex items-center justify-between gap-6">
         <div>
           <p className="text-[11px] tracking-[0.2em] uppercase text-[#a1a1aa] font-semibold m-0 mb-1.5">
             Monolith
@@ -40,51 +30,57 @@ export function DashboardPage({
         </div>
       </header>
 
-      <section className="max-w-[960px] w-full mx-auto grid grid-cols-1 gap-3.5 md:min-[900px]:grid-cols-[minmax(0,1.7fr)_minmax(0,1.3fr)] md:min-[900px]:items-start">
-        <div className="relative bg-gradient-to-br from-white to-[#fafafa] rounded-[20px] p-5 border border-[rgba(24,24,27,0.06)] shadow-[0_24px_60px_rgba(0,0,0,0.08)] before:content-[''] before:absolute before:inset-0 before:rounded-[inherit] before:border before:border-dashed before:border-[rgba(24,24,27,0.04)] before:pointer-events-none">
-          <h2 className="m-0 mb-2 text-sm tracking-[0.18em] uppercase text-[#a1a1aa]">
-            Watched folder
-          </h2>
-          <p className="m-0 mb-2.5 text-sm text-[#09090b]">
-            {folder ?? "No folder selected yet."}
-          </p>
-          <div className="flex flex-wrap gap-2 items-center mt-2">
-            <button className="inline-flex items-center gap-2 rounded-none bg-primary px-4 py-2 text-sm font-medium text-primary-foreground shadow-sm transition hover:bg-primary/90" onClick={onSelectFolder}>Choose folder</button>
-            {folder && (
-              <button className="inline-flex items-center gap-2 rounded-none bg-primary px-4 py-2 text-sm font-medium text-primary-foreground shadow-sm transition hover:bg-primary/90" onClick={() => onStartWatcher(folder)}>
-                Start watcher
-              </button>
-            )}
+      <section className="max-w-[960px] w-full mx-auto">
+        <div className="relative bg-white rounded-[20px] p-6 border border-zinc-100 shadow-sm">
+          <div className="flex items-center justify-between mb-6">
+            <h2 className="text-lg font-semibold tracking-tight text-zinc-900">
+              Projects
+            </h2>
+            <span className="text-sm text-zinc-500 bg-zinc-100 px-2.5 py-0.5 rounded-full font-medium">
+              {projects.length}
+            </span>
           </div>
-        </div>
 
-        <div className="relative bg-gradient-to-br from-white to-[#fafafa] rounded-[20px] p-5 border border-[rgba(24,24,27,0.06)] shadow-[0_24px_60px_rgba(0,0,0,0.08)] before:content-[''] before:absolute before:inset-0 before:rounded-[inherit] before:border before:border-dashed before:border-[rgba(24,24,27,0.04)] before:pointer-events-none">
-          <h2 className="m-0 mb-2 text-sm tracking-[0.18em] uppercase text-[#a1a1aa]">
-            Startup
-          </h2>
-          <p className="m-0 mb-2.5 text-sm text-[#09090b]">
-            Auto-start at login is {autoStart ? "enabled" : "disabled"}.
-          </p>
-          <button className="inline-flex items-center gap-2 rounded-none bg-primary px-4 py-2 text-sm font-medium text-primary-foreground shadow-sm transition hover:bg-primary/90" onClick={onToggleAutoStart}>
-            {autoStart ? "Disable" : "Enable"} auto-start
-          </button>
-        </div>
-
-        <div className="relative bg-gradient-to-br from-white to-[#fafafa] rounded-[20px] p-5 border border-[rgba(24,24,27,0.06)] shadow-[0_24px_60px_rgba(0,0,0,0.08)] before:content-[''] before:absolute before:inset-0 before:rounded-[inherit] before:border before:border-dashed before:border-[rgba(24,24,27,0.04)] before:pointer-events-none">
-          <h2 className="m-0 mb-2 text-sm tracking-[0.18em] uppercase text-[#a1a1aa]">
-            Projects
-          </h2>
           {projects.length === 0 ? (
-            <p className="text-[#a1a1aa]">No projects yet.</p>
+            <div className="text-center py-12 bg-zinc-50/50 rounded-xl border border-dashed border-zinc-200">
+              <p className="text-zinc-500 text-sm">No projects found.</p>
+            </div>
           ) : (
-            <ul className="m-2 mt-0 pl-5 text-sm">
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
               {projects.map((project) => (
-                <li key={project.id} className="mb-1">
-                  <strong className="font-semibold">{project.name}</strong> ·{" "}
-                  {project.claims} claims
-                </li>
+                <div
+                  key={project.id}
+                  className="group relative bg-white rounded-xl border border-zinc-200 p-4 hover:border-zinc-300 hover:shadow-md transition-all duration-200 cursor-pointer"
+                >
+                  <div className="flex flex-col gap-1">
+                    <h3 className="font-medium text-zinc-900 truncate pr-4">
+                      {project.name}
+                    </h3>
+                    <p className="text-xs text-zinc-500">
+                      {project.claims}{" "}
+                      {project.claims === 1 ? "claim" : "claims"}
+                    </p>
+                  </div>
+                  <div className="absolute top-4 right-4 opacity-0 group-hover:opacity-100 transition-opacity">
+                    <svg
+                      xmlns="http://www.w3.org/2000/svg"
+                      width="16"
+                      height="16"
+                      viewBox="0 0 24 24"
+                      fill="none"
+                      stroke="currentColor"
+                      strokeWidth="2"
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                      className="text-zinc-400"
+                    >
+                      <path d="M5 12h14" />
+                      <path d="m12 5 7 7-7 7" />
+                    </svg>
+                  </div>
+                </div>
               ))}
-            </ul>
+            </div>
           )}
         </div>
       </section>

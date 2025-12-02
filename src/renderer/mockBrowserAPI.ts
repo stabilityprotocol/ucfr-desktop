@@ -150,6 +150,28 @@ export function createBrowserMock(): RendererAPI {
         return folderPath;
       },
     },
+    project: {
+      addFolder: async (projectId: string) => {
+        console.log("Mock: Adding folder for project", projectId);
+        return [
+          "/Users/example/ProjectFolder1",
+          "/Users/example/ProjectFolder2",
+        ];
+      },
+      removeFolder: async (projectId: string, folderPath: string) => {
+        console.log(
+          "Mock: Removing folder",
+          folderPath,
+          "for project",
+          projectId
+        );
+        return ["/Users/example/ProjectFolder1"];
+      },
+      getFolders: async (projectId: string) => {
+        console.log("Mock: Getting folders for project", projectId);
+        return ["/Users/example/ProjectFolder1"];
+      },
+    },
     app: {
       toggleAutoStart: async (enable: boolean) => {
         mockSettings.autoStart = enable;
@@ -168,6 +190,10 @@ export function createBrowserMock(): RendererAPI {
       startWatcher: async (folderPath: string) => {
         console.log("Mock: Starting watcher for", folderPath);
         return true;
+      },
+      onWatcherEvent: (callback: (payload: any) => void) => {
+        console.log("Mock: registered watcher event listener");
+        return () => console.log("Mock: unregistered watcher event listener");
       },
     },
     api: {

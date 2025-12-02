@@ -85,7 +85,29 @@ async function getAuthorizedUserFromApi(): Promise<unknown | null> {
   }
 }
 
+function getOrCreateWatcher(): FolderWatcher {
+  if (!watcher) {
+    watcher = new FolderWatcher((payload) => {
+      console.log("Sync event", payload);
+      BrowserWindow.getAllWindows().forEach((win) =>
+        win.webContents.send("watcher-event", payload)
+      );
+    });
+  }
+  return watcher;
+}
+
 export function registerIpcHandlers() {
+  // Initialize watcher with existing folders
+  const settings = getSettings();
+  const projectFolders = settings.projectFolders || {};
+  const allFolders = Object.values(projectFolders).flat();
+
+  if (allFolders.length > 0) {
+    const w = getOrCreateWatcher();
+    allFolders.forEach((folder) => w.add(folder));
+  }
+
   ipcMain.handle("auth/getToken", async () => tokenManager.getToken());
 
   ipcMain.handle("auth/getUser", async () => {
@@ -139,6 +161,62 @@ export function registerIpcHandlers() {
     return null;
   });
 
+  ipcMain.handle("project/addFolder", async (_event, projectId: string) => {
+    const result = await dialog.showOpenDialog({
+      properties: ["openDirectory"],
+    });
+    if (!result.canceled && result.filePaths.length) {
+      const folderPath = result.filePaths[0];
+      const currentSettings = getSettings();
+      const projectFolders = currentSettings.projectFolders || {};
+      const currentList = projectFolders[projectId] || [];
+
+      if (!currentList.includes(folderPath)) {
+        const newList = [...currentList, folderPath];
+        updateSettings({
+          projectFolders: {
+            ...projectFolders,
+            [projectId]: newList,
+          },
+        });
+
+        const w = getOrCreateWatcher();
+        w.add(folderPath);
+
+        return newList;
+      }
+      return currentList;
+    }
+    return null;
+  });
+
+  ipcMain.handle(
+    "project/removeFolder",
+    async (_event, projectId: string, folderPath: string) => {
+      const currentSettings = getSettings();
+      const projectFolders = currentSettings.projectFolders || {};
+      const currentList = projectFolders[projectId] || [];
+
+      const newList = currentList.filter((p) => p !== folderPath);
+      updateSettings({
+        projectFolders: {
+          ...projectFolders,
+          [projectId]: newList,
+        },
+      });
+      if (watcher) {
+        watcher.unwatch(folderPath);
+      }
+      return newList;
+    }
+  );
+
+  ipcMain.handle("project/getFolders", async (_event, projectId: string) => {
+    const currentSettings = getSettings();
+    const projectFolders = currentSettings.projectFolders || {};
+    return projectFolders[projectId] || [];
+  });
+
   ipcMain.handle("app/toggleAutoStart", async (_event, enable: boolean) => {
     updateSettings({ autoStart: enable });
     app.setLoginItemSettings({
@@ -150,12 +228,8 @@ export function registerIpcHandlers() {
   });
 
   ipcMain.handle("sync/startWatcher", async (_event, folderPath: string) => {
-    if (!watcher) {
-      watcher = new FolderWatcher((payload) => {
-        console.log("Sync event", payload);
-      });
-    }
-    watcher.start(folderPath);
+    const w = getOrCreateWatcher();
+    w.start(folderPath);
     return true;
   });
 

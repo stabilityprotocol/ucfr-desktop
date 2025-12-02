@@ -3,13 +3,15 @@ import Store from 'electron-store';
 type Settings = {
   folderPath?: string;
   autoStart?: boolean;
+  projectFolders?: Record<string, string[]>;
 };
 
 const settings = new Store<Settings>({
   name: 'settings',
   defaults: {
     folderPath: undefined,
-    autoStart: false
+    autoStart: false,
+    projectFolders: {}
   }
 });
 

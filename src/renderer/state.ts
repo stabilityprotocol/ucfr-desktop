@@ -1,6 +1,5 @@
 import { atom } from "jotai";
 import type {
-  MockUser,
   MockProject,
   MockHealth,
   Organization,
@@ -17,3 +16,4 @@ export const healthAtom = atom<MockHealth | null>(null);
 export const currentUserAtom = atom<string | null>(null);
 export const userProfileAtom = atom<UserProfile | null>(null);
 export const organizationsAtom = atom<Organization[]>([]);
+export const activeOrgAtom = atom<Organization | null>(null);

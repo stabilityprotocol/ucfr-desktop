@@ -12,12 +12,18 @@ type RendererAPI = {
     set: (update: Record<string, unknown>) => Promise<unknown>;
     selectFolder: () => Promise<string | null>;
   };
+  project: {
+    addFolder: (projectId: string) => Promise<string[] | null>;
+    removeFolder: (projectId: string, folderPath: string) => Promise<string[]>;
+    getFolders: (projectId: string) => Promise<string[]>;
+  };
   app: {
     toggleAutoStart: (enable: boolean) => Promise<boolean>;
     openExternal: (target: string) => Promise<void>;
   };
   sync: {
     startWatcher: (folderPath: string) => Promise<boolean>;
+    onWatcherEvent: (callback: (payload: any) => void) => () => void;
   };
   api: {
     me: () => Promise<unknown>;
@@ -41,6 +47,14 @@ const api: RendererAPI = {
     set: (update) => ipcRenderer.invoke("settings/set", update),
     selectFolder: () => ipcRenderer.invoke("folder/select"),
   },
+  project: {
+    addFolder: (projectId) =>
+      ipcRenderer.invoke("project/addFolder", projectId),
+    removeFolder: (projectId, folderPath) =>
+      ipcRenderer.invoke("project/removeFolder", projectId, folderPath),
+    getFolders: (projectId) =>
+      ipcRenderer.invoke("project/getFolders", projectId),
+  },
   app: {
     toggleAutoStart: (enable) =>
       ipcRenderer.invoke("app/toggleAutoStart", enable),
@@ -49,6 +63,14 @@ const api: RendererAPI = {
   sync: {
     startWatcher: (folderPath) =>
       ipcRenderer.invoke("sync/startWatcher", folderPath),
+    onWatcherEvent: (callback) => {
+      const subscription = (_event: any, payload: any) => {
+        console.log("Preload: watcher-event received", payload);
+        callback(payload);
+      };
+      ipcRenderer.on("watcher-event", subscription);
+      return () => ipcRenderer.removeListener("watcher-event", subscription);
+    },
   },
   api: {
     me: () => ipcRenderer.invoke("api/me"),

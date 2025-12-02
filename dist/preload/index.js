@@ -13,12 +13,25 @@ const api = {
         set: (update) => electron_1.ipcRenderer.invoke("settings/set", update),
         selectFolder: () => electron_1.ipcRenderer.invoke("folder/select"),
     },
+    project: {
+        addFolder: (projectId) => electron_1.ipcRenderer.invoke("project/addFolder", projectId),
+        removeFolder: (projectId, folderPath) => electron_1.ipcRenderer.invoke("project/removeFolder", projectId, folderPath),
+        getFolders: (projectId) => electron_1.ipcRenderer.invoke("project/getFolders", projectId),
+    },
     app: {
         toggleAutoStart: (enable) => electron_1.ipcRenderer.invoke("app/toggleAutoStart", enable),
         openExternal: (target) => electron_1.ipcRenderer.invoke("app/openExternal", target),
     },
     sync: {
         startWatcher: (folderPath) => electron_1.ipcRenderer.invoke("sync/startWatcher", folderPath),
+        onWatcherEvent: (callback) => {
+            const subscription = (_event, payload) => {
+                console.log("Preload: watcher-event received", payload);
+                callback(payload);
+            };
+            electron_1.ipcRenderer.on("watcher-event", subscription);
+            return () => electron_1.ipcRenderer.removeListener("watcher-event", subscription);
+        },
     },
     api: {
         me: () => electron_1.ipcRenderer.invoke("api/me"),

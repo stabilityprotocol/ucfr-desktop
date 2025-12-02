@@ -1,84 +1,85 @@
+import { LogOut, Settings } from "lucide-react";
+
 type SettingsPageProps = {
-  folder?: string;
   autoStart: boolean;
-  onSelectFolder: () => Promise<void> | void;
   onToggleAutoStart: () => Promise<void> | void;
   onLogout: () => Promise<void> | void;
 };
 
 export function SettingsPage({
-  folder,
   autoStart,
-  onSelectFolder,
   onToggleAutoStart,
   onLogout,
 }: SettingsPageProps) {
   return (
-    <div className="min-h-full flex flex-col items-stretch justify-center p-8 md:p-12 md:px-10">
-      <header className="max-w-[960px] w-full mx-auto mb-6 flex items-center justify-between gap-6">
-        <div>
-          <p className="text-[11px] tracking-[0.2em] uppercase text-[#a1a1aa] font-semibold m-0 mb-1.5">
+    <div className="w-full max-w-3xl mx-auto p-8 md:p-12">
+      <header className="mb-12">
+        <div className="flex items-center gap-3 mb-2">
+          <div className="p-2 bg-zinc-100 rounded-lg">
+            <Settings className="w-6 h-6 text-zinc-900" />
+          </div>
+          <h1 className="text-2xl font-semibold tracking-tight text-zinc-900">
             Settings
-          </p>
-          <h1 className="text-[32px] leading-[1.1] tracking-[-0.04em] m-0 mb-1 md:text-[40px]">
-            App settings
           </h1>
-          <p className="m-0 text-sm text-[#71717a]">
-            Configure how Monolith behaves on your machine.
-          </p>
         </div>
+        <p className="text-zinc-500 text-sm ml-11">
+          Manage your application preferences and account.
+        </p>
       </header>
 
-      <section className="max-w-[960px] w-full mx-auto grid grid-cols-1 gap-3.5 md:min-[900px]:grid-cols-[minmax(0,1.7fr)_minmax(0,1.3fr)] md:min-[900px]:items-start">
-        <div className="relative bg-gradient-to-br from-white to-[#fafafa] rounded-[20px] p-5 border border-[rgba(24,24,27,0.06)] shadow-[0_24px_60px_rgba(0,0,0,0.08)] before:content-[''] before:absolute before:inset-0 before:rounded-[inherit] before:border before:border-dashed before:border-[rgba(24,24,27,0.04)] before:pointer-events-none">
-          <h2 className="m-0 mb-2 text-sm tracking-[0.18em] uppercase text-[#a1a1aa]">
-            Watched folder
-          </h2>
-          <p className="m-0 mb-2.5 text-sm text-[#09090b]">
-            {folder ?? "No folder selected yet."}
-          </p>
-          <div className="flex flex-wrap gap-2 items-center mt-2">
+      <div className="space-y-6">
+        <div className="rounded-xl border border-zinc-200 bg-white overflow-hidden">
+          <div className="px-6 py-4 border-b border-zinc-100 bg-zinc-50/50">
+            <h2 className="text-sm font-medium text-zinc-900">Startup</h2>
+          </div>
+          <div className="p-6 flex items-center justify-between">
+            <div>
+              <p className="text-sm font-medium text-zinc-900">Auto-start</p>
+              <p className="text-sm text-zinc-500 mt-1">
+                Automatically start Monolith when you log in.
+              </p>
+            </div>
             <button
-              className="inline-flex items-center gap-2 rounded-none bg-primary px-4 py-2 text-sm font-medium text-primary-foreground shadow-sm transition hover:bg-primary/90"
-              onClick={onSelectFolder}
+              onClick={onToggleAutoStart}
+              className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors focus:outline-none focus:ring-2 focus:ring-zinc-900 focus:ring-offset-2 ${
+                autoStart ? "bg-zinc-900" : "bg-zinc-200"
+              }`}
+              aria-pressed={autoStart}
+              role="switch"
             >
-              Choose folder
+              <span className="sr-only">Enable auto-start</span>
+              <span
+                className={`${
+                  autoStart ? "translate-x-6" : "translate-x-1"
+                } inline-block h-4 w-4 transform rounded-full bg-white transition-transform`}
+              />
             </button>
           </div>
         </div>
 
-        <div className="relative bg-gradient-to-br from-white to-[#fafafa] rounded-[20px] p-5 border border-[rgba(24,24,27,0.06)] shadow-[0_24px_60px_rgba(0,0,0,0.08)] before:content-[''] before:absolute before:inset-0 before:rounded-[inherit] before:border before:border-dashed before:border-[rgba(24,24,27,0.04)] before:pointer-events-none">
-          <h2 className="m-0 mb-2 text-sm tracking-[0.18em] uppercase text-[#a1a1aa]">
-            Startup
-          </h2>
-          <p className="m-0 mb-2.5 text-sm text-[#09090b]">
-            Auto-start at login is {autoStart ? "enabled" : "disabled"}.
-          </p>
-          <button
-            className="inline-flex items-center gap-2 rounded-none bg-primary px-4 py-2 text-sm font-medium text-primary-foreground shadow-sm transition hover:bg-primary/90"
-            onClick={onToggleAutoStart}
-          >
-            {autoStart ? "Disable" : "Enable"} auto-start
-          </button>
-        </div>
-
-        <div className="relative bg-gradient-to-br from-white to-[#fafafa] rounded-[20px] p-5 border border-[rgba(24,24,27,0.06)] shadow-[0_24px_60px_rgba(0,0,0,0.08)] before:content-[''] before:absolute before:inset-0 before:rounded-[inherit] before:border before:border-dashed before:border-[rgba(24,24,27,0.04)] before:pointer-events-none">
-          <h2 className="m-0 mb-2 text-sm tracking-[0.18em] uppercase text-[#a1a1aa]">
-            Session
-          </h2>
-          <p className="m-0 mb-2.5 text-sm text-[#09090b]">
-            You&apos;re currently signed in to Monolith.
-          </p>
-          <div className="flex flex-wrap gap-2 items-center mt-2">
-            <button
-              className="inline-flex items-center gap-2 rounded-none bg-primary px-4 py-2 text-sm font-medium text-primary-foreground shadow-sm transition hover:bg-primary/90"
-              onClick={onLogout}
-            >
-              Sign out
-            </button>
+        <div className="rounded-xl border border-zinc-200 bg-white overflow-hidden">
+          <div className="px-6 py-4 border-b border-zinc-100 bg-zinc-50/50">
+            <h2 className="text-sm font-medium text-zinc-900">Account</h2>
+          </div>
+          <div className="p-6">
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-sm font-medium text-zinc-900">Session</p>
+                <p className="text-sm text-zinc-500 mt-1">
+                  You are currently signed in to Monolith.
+                </p>
+              </div>
+              <button
+                onClick={onLogout}
+                className="inline-flex items-center gap-2 px-4 py-2 rounded-md text-sm font-medium text-red-600 bg-red-50 hover:bg-red-100 transition-colors"
+              >
+                <LogOut className="w-4 h-4" />
+                Sign out
+              </button>
+            </div>
           </div>
         </div>
-      </section>
+      </div>
     </div>
   );
 }
