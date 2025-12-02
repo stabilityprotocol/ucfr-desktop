@@ -4,9 +4,11 @@
   "description": "Scaffolded Electron + React desktop app with mocked authentication and API flows.",
   "main": "src/main/main.ts",
   "scripts": {
-    "dev": "concurrently -k \"vite --host\" \"wait-on http://localhost:5173 && electron -r ts-node/register src/main/main.ts\"",
+    "build:preload": "tsc src/preload/index.ts --outDir dist/preload --module commonjs --target ES2020 --moduleResolution node --esModuleInterop --skipLibCheck --declaration false",
+    "watch:preload": "tsc src/preload/index.ts --outDir dist/preload --module commonjs --target ES2020 --moduleResolution node --esModuleInterop --skipLibCheck --declaration false --watch",
+    "dev": "yarn build:preload && concurrently -k \"yarn watch:preload\" \"vite --host\" \"wait-on http://localhost:5173 && nodemon --watch src/main --watch dist/preload --exec 'electron electron-main.js'\"",
     "renderer": "vite",
-    "main": "electron -r ts-node/register src/main/main.ts",
+    "main": "electron electron-main.js",
     "build:renderer": "vite build"
   },
   "dependencies": {
@@ -24,6 +26,7 @@
     "@types/react-dom": "^18.3.0",
     "@vitejs/plugin-react": "^4.3.2",
     "concurrently": "^8.2.2",
+    "nodemon": "^3.1.11",
     "ts-node": "^10.9.2",
     "typescript": "^5.5.4",
     "vite": "^5.4.1",

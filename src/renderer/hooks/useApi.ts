@@ -1,11 +1,18 @@
-import { useEffect } from 'react';
-import { useAtom } from 'jotai';
-import { autoStartAtom, folderAtom, tokenAtom, projectsAtom, healthAtom, currentUserAtom } from '../state';
-import { useQueryClient } from '@tanstack/react-query';
+import { useEffect } from "react";
+import { useAtom } from "jotai";
+import {
+  autoStartAtom,
+  folderAtom,
+  tokenAtom,
+  projectsAtom,
+  healthAtom,
+  currentUserAtom,
+} from "../state";
+import { useQueryClient } from "@tanstack/react-query";
 
 declare global {
   interface Window {
-    ucfr: import('../../preload').RendererAPI;
+    ucfr: import("../../preload").RendererAPI;
   }
 }
 
@@ -23,12 +30,15 @@ export function useBootstrap() {
       const [token, settings, user, projects, health] = await Promise.all([
         window.ucfr.auth.getToken(),
         window.ucfr.settings.get(),
-        window.ucfr.api.me(),
+        window.ucfr.auth.getUser(),
         window.ucfr.api.projects(),
-        window.ucfr.api.health()
+        window.ucfr.api.health(),
       ]);
       setToken(token);
-      const typedSettings = settings as { folderPath?: string; autoStart?: boolean };
+      const typedSettings = settings as {
+        folderPath?: string;
+        autoStart?: boolean;
+      };
       setFolder(typedSettings.folderPath);
       setAutoStart(Boolean(typedSettings.autoStart));
       setCurrentUser(user as any);
@@ -40,7 +50,15 @@ export function useBootstrap() {
     const handler = () => {
       queryClient.invalidateQueries();
     };
-    window.addEventListener('tokenChanged', handler);
-    return () => window.removeEventListener('tokenChanged', handler);
-  }, [setToken, setFolder, setAutoStart, setProjects, setHealth, setCurrentUser, queryClient]);
+    window.addEventListener("tokenChanged", handler);
+    return () => window.removeEventListener("tokenChanged", handler);
+  }, [
+    setToken,
+    setFolder,
+    setAutoStart,
+    setProjects,
+    setHealth,
+    setCurrentUser,
+    queryClient,
+  ]);
 }

@@ -1,10 +1,11 @@
-import { contextBridge, ipcRenderer } from 'electron';
+import { contextBridge, ipcRenderer } from "electron";
 
 type RendererAPI = {
   auth: {
     getToken: () => Promise<string | null>;
     clearToken: () => Promise<null>;
     startLoginFlow: () => Promise<unknown>;
+    getUser: () => Promise<unknown>;
   };
   settings: {
     get: () => Promise<unknown>;
@@ -27,28 +28,31 @@ type RendererAPI = {
 
 const api: RendererAPI = {
   auth: {
-    getToken: () => ipcRenderer.invoke('auth/getToken'),
-    clearToken: () => ipcRenderer.invoke('auth/clearToken'),
-    startLoginFlow: () => ipcRenderer.invoke('auth/startLoginFlow')
+    getToken: () => ipcRenderer.invoke("auth/getToken"),
+    clearToken: () => ipcRenderer.invoke("auth/clearToken"),
+    startLoginFlow: () => ipcRenderer.invoke("auth/startLoginFlow"),
+    getUser: () => ipcRenderer.invoke("auth/getUser"),
   },
   settings: {
-    get: () => ipcRenderer.invoke('settings/get'),
-    set: (update) => ipcRenderer.invoke('settings/set', update),
-    selectFolder: () => ipcRenderer.invoke('folder/select')
+    get: () => ipcRenderer.invoke("settings/get"),
+    set: (update) => ipcRenderer.invoke("settings/set", update),
+    selectFolder: () => ipcRenderer.invoke("folder/select"),
   },
   app: {
-    toggleAutoStart: (enable) => ipcRenderer.invoke('app/toggleAutoStart', enable),
-    openExternal: (target) => ipcRenderer.invoke('app/openExternal', target)
+    toggleAutoStart: (enable) =>
+      ipcRenderer.invoke("app/toggleAutoStart", enable),
+    openExternal: (target) => ipcRenderer.invoke("app/openExternal", target),
   },
   sync: {
-    startWatcher: (folderPath) => ipcRenderer.invoke('sync/startWatcher', folderPath)
+    startWatcher: (folderPath) =>
+      ipcRenderer.invoke("sync/startWatcher", folderPath),
   },
   api: {
-    me: () => ipcRenderer.invoke('api/me'),
-    projects: () => ipcRenderer.invoke('api/projects'),
-    health: () => ipcRenderer.invoke('api/health')
-  }
+    me: () => ipcRenderer.invoke("api/me"),
+    projects: () => ipcRenderer.invoke("api/projects"),
+    health: () => ipcRenderer.invoke("api/health"),
+  },
 };
 
-contextBridge.exposeInMainWorld('ucfr', api);
+contextBridge.exposeInMainWorld("ucfr", api);
 export type { RendererAPI };

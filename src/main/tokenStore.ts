@@ -11,7 +11,7 @@ const tokenStore = new Store<TokenRecord>({
 
 export const tokenManager = {
   async getToken(): Promise<string | null> {
-    return tokenStore.get('token', null);
+    return tokenStore.get('token') || null;
   },
   async setToken(token: string): Promise<void> {
     tokenStore.set('token', token);

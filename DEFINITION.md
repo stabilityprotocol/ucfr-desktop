@@ -16,7 +16,6 @@
    • Electron (main)
    • React + Vite + TypeScript (renderer)
    • chokidar (folder watching)
-   • keytar (secure token storage)
    • electron-store (persistent settings)
    • Jotai (local/UI state)
    • TanStack Query (server state and fetch wrappers)
