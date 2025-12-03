@@ -12,10 +12,19 @@ export class FolderWatcher {
 
   start(folderPath: string | string[]) {
     this.stop();
-    this.watcher = chokidar.watch(folderPath, { ignoreInitial: true });
+    this.watcher = chokidar.watch(folderPath, {
+      ignoreInitial: true,
+      ignored: [
+        /(^|[\/\\])\../, // ignore dotfiles
+        "**/*.swp",
+        "**/*.swo",
+        "**/node_modules/**",
+        "**/.git/**",
+      ],
+    });
     this.watcher.on("all", (event, filePath) => {
       // Monitor add, change, and unlink (for rename detection)
-      if (event === 'add' || event === 'change' || event === 'unlink') {
+      if (event === "add" || event === "change" || event === "unlink") {
         this.onEvent({ event, file: filePath });
       }
     });
