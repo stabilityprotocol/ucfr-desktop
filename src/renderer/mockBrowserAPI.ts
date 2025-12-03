@@ -171,6 +171,23 @@ export function createBrowserMock(): RendererAPI {
         console.log("Mock: Getting folders for project", projectId);
         return ["/Users/example/ProjectFolder1"];
       },
+      getHistory: async (projectId: string) => {
+        console.log("Mock: Getting history for project", projectId);
+        return [
+          {
+            path: "/Users/example/ProjectFolder1/file1.txt",
+            event_type: "change",
+            hash: "0x123",
+            timestamp: Date.now() / 1000,
+          },
+          {
+            path: "/Users/example/ProjectFolder1/file2.txt",
+            event_type: "add",
+            hash: "0x456",
+            timestamp: (Date.now() - 3600000) / 1000,
+          },
+        ];
+      },
     },
     app: {
       toggleAutoStart: async (enable: boolean) => {

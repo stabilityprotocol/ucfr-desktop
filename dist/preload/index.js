@@ -17,6 +17,7 @@ const api = {
         addFolder: (projectId) => electron_1.ipcRenderer.invoke("project/addFolder", projectId),
         removeFolder: (projectId, folderPath) => electron_1.ipcRenderer.invoke("project/removeFolder", projectId, folderPath),
         getFolders: (projectId) => electron_1.ipcRenderer.invoke("project/getFolders", projectId),
+        getHistory: (projectId) => electron_1.ipcRenderer.invoke("project/getHistory", projectId),
     },
     app: {
         toggleAutoStart: (enable) => electron_1.ipcRenderer.invoke("app/toggleAutoStart", enable),

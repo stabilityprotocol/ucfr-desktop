@@ -1,6 +1,6 @@
 import { useRef, useEffect, useState } from "react";
 import { useAtom } from "jotai";
-import { NavLink } from "react-router-dom";
+import { NavLink, useNavigate } from "react-router-dom";
 import { Settings, ChevronDown, User } from "lucide-react";
 import { activeOrgAtom, organizationsAtom } from "../state";
 import monolithLogo from "../../assets/monolith-logo.png";
@@ -10,6 +10,7 @@ interface SidebarProps {
 }
 
 export function Sidebar({ projects }: SidebarProps) {
+  const navigate = useNavigate();
   const [activeOrg, setActiveOrg] = useAtom(activeOrgAtom);
   const [organizations] = useAtom(organizationsAtom);
   const [isOrgSelectorOpen, setIsOrgSelectorOpen] = useState(false);
@@ -40,7 +41,7 @@ export function Sidebar({ projects }: SidebarProps) {
   };
 
   return (
-    <aside className="border-r border-gray-200 bg-white p-0 flex flex-col h-full">
+    <aside className="border-r border-zinc-200 bg-white p-0 flex flex-col h-full">
       {/* Logo Area */}
       <div className="px-6 py-6">
         <NavLink to="/" className="flex items-center gap-3">
@@ -52,7 +53,7 @@ export function Sidebar({ projects }: SidebarProps) {
       <div className="px-4 mb-6 relative" ref={dropdownRef}>
         <div
           onClick={() => setIsOrgSelectorOpen(!isOrgSelectorOpen)}
-          className="flex items-center justify-between px-3 py-2.5 bg-white border border-gray-200 hover:border-gray-300 transition-colors rounded-sm cursor-pointer group"
+          className="flex items-center justify-between px-3 py-2.5 bg-white border border-zinc-200 hover:border-zinc-300 transition-colors rounded-sm cursor-pointer group"
         >
           <div className="flex items-center gap-3">
             {activeOrg ? (
@@ -62,39 +63,40 @@ export function Sidebar({ projects }: SidebarProps) {
                 </span>
               </div>
             ) : (
-              <div className="h-8 w-8 bg-gray-200 flex items-center justify-center rounded-sm flex-shrink-0">
-                <User size={16} className="text-gray-600" />
+              <div className="h-8 w-8 bg-zinc-200 flex items-center justify-center rounded-sm flex-shrink-0">
+                <User size={16} className="text-zinc-600" />
               </div>
             )}
-            <span className="font-bold text-sm text-gray-900 uppercase tracking-wide truncate max-w-[140px]">
+            <span className="font-bold text-sm text-zinc-900 uppercase tracking-wide truncate max-w-[140px]">
               {activeOrg ? activeOrg.name : "Personal Projects"}
             </span>
           </div>
           <ChevronDown
             size={14}
-            className="text-gray-400 group-hover:text-gray-600"
+            className="text-zinc-400 group-hover:text-zinc-600"
           />
         </div>
 
         {isOrgSelectorOpen && (
-          <div className="absolute left-4 right-4 top-full mt-1 bg-white border border-gray-200 rounded-sm shadow-lg z-50 max-h-80 overflow-y-auto py-2">
+          <div className="absolute left-4 right-4 top-full mt-1 bg-white border border-zinc-200 rounded-sm shadow-lg z-50 max-h-80 overflow-y-auto py-2">
             <div
-              className={`px-3 py-3 hover:bg-gray-50 cursor-pointer flex items-center gap-3 ${
-                !activeOrg ? "bg-gray-100" : ""
+              className={`px-3 py-3 hover:bg-zinc-50 cursor-pointer flex items-center gap-3 ${
+                !activeOrg ? "bg-zinc-100" : ""
               }`}
               onClick={() => {
                 setActiveOrg(null);
                 setIsOrgSelectorOpen(false);
+                navigate("/");
               }}
             >
-              <div className="h-10 w-10 bg-gray-200 flex items-center justify-center rounded-sm flex-shrink-0">
-                <User size={20} className="text-gray-600" />
+              <div className="h-10 w-10 bg-zinc-200 flex items-center justify-center rounded-sm flex-shrink-0">
+                <User size={20} className="text-zinc-600" />
               </div>
               <div className="flex flex-col overflow-hidden">
-                <span className="text-sm font-bold text-gray-900 uppercase tracking-wide truncate">
+                <span className="text-sm font-bold text-zinc-900 uppercase tracking-wide truncate">
                   PERSONAL PROJECTS
                 </span>
-                <span className="text-xs text-gray-500 truncate">
+                <span className="text-xs text-zinc-500 truncate">
                   Your own projects
                 </span>
               </div>
@@ -103,12 +105,13 @@ export function Sidebar({ projects }: SidebarProps) {
             {organizations.map((org) => (
               <div
                 key={org.id}
-                className={`px-3 py-3 hover:bg-gray-50 cursor-pointer flex items-center gap-3 ${
-                  activeOrg?.id === org.id ? "bg-gray-100" : ""
+                className={`px-3 py-3 hover:bg-zinc-50 cursor-pointer flex items-center gap-3 ${
+                  activeOrg?.id === org.id ? "bg-zinc-100" : ""
                 }`}
                 onClick={() => {
                   setActiveOrg(org);
                   setIsOrgSelectorOpen(false);
+                  navigate("/");
                 }}
               >
                 <div className="h-10 w-10 bg-black flex items-center justify-center rounded-sm flex-shrink-0">
@@ -116,7 +119,7 @@ export function Sidebar({ projects }: SidebarProps) {
                     {getInitials(org.name)}
                   </span>
                 </div>
-                <span className="text-sm font-bold text-gray-900 uppercase tracking-wide truncate">
+                <span className="text-sm font-bold text-zinc-900 uppercase tracking-wide truncate">
                   {org.name}
                 </span>
               </div>
@@ -135,7 +138,7 @@ export function Sidebar({ projects }: SidebarProps) {
               `w-full block text-left text-sm font-light transition-colors uppercase tracking-wide px-2 py-1.5 rounded-sm ${
                 isActive
                   ? "bg-black text-white"
-                  : "text-gray-500 hover:text-black hover:bg-gray-100"
+                  : "text-zinc-500 hover:text-black hover:bg-zinc-100"
               }`
             }
           >
@@ -145,7 +148,7 @@ export function Sidebar({ projects }: SidebarProps) {
 
         {/* Projects Section */}
         <div>
-          <div className="text-[11px] font-bold text-gray-400 uppercase tracking-[0.15em] mb-2 px-2">
+          <div className="text-[11px] font-bold text-zinc-400 uppercase tracking-[0.15em] mb-2 px-2">
             Projects
           </div>
           <div className="flex flex-col gap-1">
@@ -157,7 +160,7 @@ export function Sidebar({ projects }: SidebarProps) {
                   `w-full block text-left text-sm font-light transition-colors uppercase tracking-wide truncate px-3 py-1.5 rounded-sm ${
                     isActive
                       ? "bg-black text-white"
-                      : "text-gray-500 hover:text-black hover:bg-gray-100"
+                      : "text-zinc-500 hover:text-black hover:bg-zinc-100"
                   }`
                 }
               >
@@ -169,12 +172,12 @@ export function Sidebar({ projects }: SidebarProps) {
       </nav>
 
       {/* Bottom Settings */}
-      <div className="p-4 mt-auto border-t border-gray-100">
+      <div className="p-4 mt-auto border-t border-zinc-100">
         <NavLink
           to="/settings"
           className={({ isActive }) =>
             `w-full block text-left text-sm font-medium hover:text-black transition-colors uppercase tracking-wide flex items-center gap-2 ${
-              isActive ? "text-black font-bold" : "text-gray-500"
+              isActive ? "text-black font-bold" : "text-zinc-500"
             }`
           }
         >

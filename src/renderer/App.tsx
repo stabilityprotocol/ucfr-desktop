@@ -128,6 +128,7 @@ function AppContent() {
               autoStart={autoStart}
               onToggleAutoStart={toggleAutoStart}
               onLogout={logout}
+              currentUser={currentUser}
             />
           }
         />

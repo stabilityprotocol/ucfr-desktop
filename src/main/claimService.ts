@@ -3,12 +3,8 @@ import fs from "fs/promises";
 import path from "path";
 import { getSettings } from "./settings";
 import { tokenManager } from "./tokenStore";
-import {
-  fetchProject,
-  createProjectClaim,
-  fetchUserProfile,
-} from "../shared/api/client";
-import { Project } from "../shared/api/types";
+import { fetchProject, createProjectClaim } from "../shared/api/client";
+import { fileHistoryService } from "./fileHistory";
 
 // Simple mime type mapping
 const mimeMap: Record<string, string> = {
@@ -109,6 +105,12 @@ export async function handleFileChange(filePath: string, event: string) {
     const mimeType = getMimeType(filePath);
     const fileName = path.basename(filePath);
 
+    // Get previous fingerprint from history
+    const previousFingerprint = await fileHistoryService.getPreviousHash(
+      filePath,
+      fingerprint
+    );
+
     // 2. Get Project & User Info
     // We fetch project to get name and organization
     const project = await fetchProject(projectId, token);
@@ -150,6 +152,7 @@ export async function handleFileChange(filePath: string, event: string) {
         size: stats.size,
         fingerprint: fingerprint,
         lastModified: Math.floor(stats.mtimeMs),
+        ...(previousFingerprint ? { previousFingerprint } : {}),
       },
     };
 

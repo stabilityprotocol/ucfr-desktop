@@ -1,55 +1,78 @@
-import { useParams } from "react-router-dom";
+import { useParams, Link } from "react-router-dom";
 import type { MockProject } from "../../shared/api/types";
 import { ProjectDetailPage } from "./ProjectDetail";
+import { LayoutGrid, ExternalLink } from "lucide-react";
 
 type ProjectsPageProps = {
   projects: MockProject[];
 };
 
-export function ProjectsPage({
-  projects,
-}: ProjectsPageProps) {
+export function ProjectsPage({ projects }: ProjectsPageProps) {
   const { projectId } = useParams();
   const activeProject = projectId
     ? projects.find((p) => p.id === projectId) || null
     : null;
 
-  if (projects.length === 0) {
-    return (
-      <div className="min-h-full flex flex-col items-stretch justify-center p-8 md:p-12 md:px-10">
-        <header className="max-w-[960px] w-full mx-auto mb-6 flex items-center justify-between gap-6">
-          <div>
-            <p className="text-[11px] tracking-[0.2em] uppercase text-muted-foreground font-semibold m-0 mb-1.5">Projects</p>
-            <h1 className="text-[32px] leading-[1.1] tracking-[-0.04em] m-0 mb-1 md:text-[40px] text-foreground">No projects yet</h1>
-            <p className="m-0 text-sm text-muted-foreground">
-              Projects will appear here once they&apos;re available in your
-              UCFR workspace.
-            </p>
-          </div>
-        </header>
-      </div>
-    );
-  }
-
   if (activeProject) {
-    // If routed here with projectId, delegate to ProjectDetailPage.
-    // Though routing should ideally handle this, keeping it here allows
-    // for shared logic if needed or handling direct mounting.
-    // But actually, App.tsx defines routes.
-    // If we keep <Route path="projects/:projectId" element={<ProjectsPage ... />} /> in App.tsx,
-    // then this delegation is correct.
     return <ProjectDetailPage projects={projects} />;
   }
 
-  return (
-    <div className="min-h-full flex flex-col items-stretch justify-center p-8 md:p-12 md:px-10">
-      <header className="max-w-[960px] w-full mx-auto mb-6 flex items-center justify-between gap-6">
-        <div>
-          <p className="text-[11px] tracking-[0.2em] uppercase text-muted-foreground font-semibold m-0 mb-1.5">Projects</p>
-          <h1 className="text-[32px] leading-[1.1] tracking-[-0.04em] m-0 mb-1 md:text-[40px] text-foreground">All projects</h1>
-          <p className="m-0 text-sm text-muted-foreground">Browse the projects that Monolith keeps in sync.</p>
+  // Shared empty/list container style
+  const Container = ({ children }: { children: React.ReactNode }) => (
+    <div className="w-full max-w-5xl mx-auto p-8 md:p-12">
+      <header className="mb-8">
+        <div className="flex items-center gap-3 mb-2">
+          <div className="p-2 bg-zinc-100 rounded-lg">
+            <LayoutGrid className="w-6 h-6 text-zinc-900" />
+          </div>
+          <h1 className="text-2xl font-semibold tracking-tight text-zinc-900">
+            Projects
+          </h1>
         </div>
+        <p className="text-zinc-500 text-sm ml-11">
+          {projects.length === 0
+            ? "Projects will appear here once they're available in your workspace."
+            : "Browse the projects that Monolith keeps in sync."}
+        </p>
       </header>
+      {children}
     </div>
+  );
+
+  if (projects.length === 0) {
+    return (
+      <Container>
+        <div className="rounded-xl border border-dashed border-zinc-200 bg-zinc-50/50 p-12 text-center">
+          <p className="text-zinc-500 text-sm">No projects found.</p>
+        </div>
+      </Container>
+    );
+  }
+
+  return (
+    <Container>
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+        {projects.map((project) => (
+          <Link
+            key={project.id}
+            to={`/projects/${project.id}`}
+            className="group relative flex flex-col gap-2 p-4 rounded-lg border border-zinc-200 bg-white hover:border-zinc-300 hover:shadow-sm transition-all"
+          >
+            <h3 className="font-medium text-zinc-900 truncate pr-6">
+              {project.name}
+            </h3>
+            <div className="flex items-center gap-2 text-xs text-zinc-500">
+              <span className="inline-flex items-center justify-center w-5 h-5 rounded bg-zinc-100 font-medium text-zinc-700">
+                {project.claims}
+              </span>
+              <span>{project.claims === 1 ? "claim" : "claims"}</span>
+            </div>
+            <div className="absolute top-4 right-4 text-zinc-300 group-hover:text-zinc-400 transition-colors">
+              <ExternalLink className="w-4 h-4" />
+            </div>
+          </Link>
+        ))}
+      </div>
+    </Container>
   );
 }

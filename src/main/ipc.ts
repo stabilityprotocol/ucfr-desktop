@@ -14,6 +14,8 @@ import {
   fetchUserProjects,
   fetchOrganizationProjects,
 } from "../shared/api/client";
+import { initDb } from "./db";
+import { fileHistoryService } from "./fileHistory";
 
 let watcher: FolderWatcher | null = null;
 
@@ -93,15 +95,20 @@ function getOrCreateWatcher(): FolderWatcher {
       BrowserWindow.getAllWindows().forEach((win) =>
         win.webContents.send("watcher-event", payload)
       );
-      
+
       // Trigger claim creation logic
       handleFileChange(payload.file, payload.event);
+
+      // Track history
+      fileHistoryService.handleEvent(payload.event, payload.file);
     });
   }
   return watcher;
 }
 
-export function registerIpcHandlers() {
+export async function registerIpcHandlers() {
+  await initDb();
+
   // Initialize watcher with existing folders
   const settings = getSettings();
   const projectFolders = settings.projectFolders || {};
@@ -219,6 +226,13 @@ export function registerIpcHandlers() {
     const currentSettings = getSettings();
     const projectFolders = currentSettings.projectFolders || {};
     return projectFolders[projectId] || [];
+  });
+
+  ipcMain.handle("project/getHistory", async (_event, projectId: string) => {
+    const currentSettings = getSettings();
+    const projectFolders = currentSettings.projectFolders || {};
+    const folders = projectFolders[projectId] || [];
+    return await fileHistoryService.getHistoryForFolders(folders);
   });
 
   ipcMain.handle("app/toggleAutoStart", async (_event, enable: boolean) => {

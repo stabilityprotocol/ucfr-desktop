@@ -1,19 +1,22 @@
-import { LogOut, Settings } from "lucide-react";
+import { LogOut, Settings, ExternalLink } from "lucide-react";
+import { getProfileSettingsUrl, openInWeb } from "../utils/webLinks";
 
 type SettingsPageProps = {
   autoStart: boolean;
   onToggleAutoStart: () => Promise<void> | void;
   onLogout: () => Promise<void> | void;
+  currentUser?: string | null;
 };
 
 export function SettingsPage({
   autoStart,
   onToggleAutoStart,
   onLogout,
+  currentUser,
 }: SettingsPageProps) {
   return (
     <div className="w-full max-w-3xl mx-auto p-8 md:p-12">
-      <header className="mb-12">
+      <header className="mb-8">
         <div className="flex items-center gap-3 mb-2">
           <div className="p-2 bg-zinc-100 rounded-lg">
             <Settings className="w-6 h-6 text-zinc-900" />
@@ -69,13 +72,24 @@ export function SettingsPage({
                   You are currently signed in to Monolith.
                 </p>
               </div>
-              <button
-                onClick={onLogout}
-                className="inline-flex items-center gap-2 px-4 py-2 rounded-md text-sm font-medium text-red-600 bg-red-50 hover:bg-red-100 transition-colors"
-              >
-                <LogOut className="w-4 h-4" />
-                Sign out
-              </button>
+              <div className="flex items-center gap-2">
+                <button
+                  onClick={() =>
+                    openInWeb(getProfileSettingsUrl(currentUser || undefined))
+                  }
+                  className="inline-flex items-center gap-2 px-4 py-2 rounded-md text-sm font-medium text-zinc-600 bg-zinc-50 hover:bg-zinc-100 transition-colors"
+                >
+                  <ExternalLink className="w-4 h-4" />
+                  Settings
+                </button>
+                <button
+                  onClick={onLogout}
+                  className="inline-flex items-center gap-2 px-4 py-2 rounded-md text-sm font-medium text-red-600 bg-red-50 hover:bg-red-100 transition-colors"
+                >
+                  <LogOut className="w-4 h-4" />
+                  Sign out
+                </button>
+              </div>
             </div>
           </div>
         </div>

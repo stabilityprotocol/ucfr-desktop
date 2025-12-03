@@ -14,8 +14,8 @@ export class FolderWatcher {
     this.stop();
     this.watcher = chokidar.watch(folderPath, { ignoreInitial: true });
     this.watcher.on("all", (event, filePath) => {
-      // Only monitor file add and update (change) events
-      if (event === 'add' || event === 'change') {
+      // Monitor add, change, and unlink (for rename detection)
+      if (event === 'add' || event === 'change' || event === 'unlink') {
         this.onEvent({ event, file: filePath });
       }
     });

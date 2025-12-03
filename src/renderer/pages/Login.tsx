@@ -6,30 +6,30 @@ type LoginPageProps = {
 
 export function LoginPage({ onLogin }: LoginPageProps) {
   return (
-    <div className="h-full flex items-center justify-center bg-[radial-gradient(circle_at_top,#ffffff_0,#e4e4e7_100%)]">
-      <div className="max-w-[480px] w-full flex flex-col gap-8 text-center m-auto">
+    <div className="h-full flex items-center justify-center bg-zinc-50">
+      <div className="max-w-[480px] w-full flex flex-col gap-8 text-center m-auto px-4">
         <header className="flex flex-col items-center gap-4 m-0">
           <img src={monolithLogo} alt="Monolith" className="h-12 w-auto mb-2" />
-          <h1 className="text-[32px] leading-[1.1] tracking-[-0.04em] m-0 mb-1 md:text-[40px]">
+          <h1 className="text-3xl font-semibold tracking-tight text-zinc-900 md:text-4xl">
             Connect your desktop to Monolith
           </h1>
-          <p className="m-0 text-sm text-[#71717a] max-w-[360px] m-auto">
+          <p className="text-sm text-zinc-500 max-w-[360px] mx-auto">
             Sign in with your Monolith account to start tracking folders and
             syncing claims in the background.
           </p>
         </header>
 
-        <div className="relative bg-white rounded-[20px] p-5 border border-[#e4e4e7] shadow-[0_4px_6px_-1px_rgba(0,0,0,0.1),0_2px_4px_-1px_rgba(0,0,0,0.06)] text-left">
-          <h2 className="m-0 mb-2 text-sm tracking-[0.18em] uppercase text-[#a1a1aa]">
+        <div className="bg-white rounded-xl p-6 border border-zinc-200 shadow-sm text-left">
+          <h2 className="mb-2 text-xs font-semibold tracking-wider uppercase text-zinc-500">
             Authenticate
           </h2>
-          <p className="m-0 mb-2.5 text-sm text-[#09090b] text-center">
+          <p className="mb-6 text-sm text-zinc-900 text-center">
             We&apos;ll open a secure browser window where you can complete the
             login. Once authorized, you&apos;ll be redirected back here.
           </p>
-          <div className="flex flex-wrap gap-2 items-center mt-6 justify-center">
+          <div className="flex justify-center">
             <button
-              className="inline-flex items-center gap-2 rounded-none bg-primary px-4 py-2 text-sm font-medium text-primary-foreground shadow-sm transition hover:bg-primary/90 w-full justify-center"
+              className="inline-flex items-center justify-center gap-2 rounded-md bg-zinc-900 px-4 py-2 text-sm font-medium text-white shadow-sm transition hover:bg-zinc-800 w-full sm:w-auto min-w-[120px]"
               onClick={onLogin}
             >
               Sign In

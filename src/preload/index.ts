@@ -16,6 +16,7 @@ type RendererAPI = {
     addFolder: (projectId: string) => Promise<string[] | null>;
     removeFolder: (projectId: string, folderPath: string) => Promise<string[]>;
     getFolders: (projectId: string) => Promise<string[]>;
+    getHistory: (projectId: string) => Promise<any[]>;
   };
   app: {
     toggleAutoStart: (enable: boolean) => Promise<boolean>;
@@ -54,6 +55,8 @@ const api: RendererAPI = {
       ipcRenderer.invoke("project/removeFolder", projectId, folderPath),
     getFolders: (projectId) =>
       ipcRenderer.invoke("project/getFolders", projectId),
+    getHistory: (projectId) =>
+      ipcRenderer.invoke("project/getHistory", projectId),
   },
   app: {
     toggleAutoStart: (enable) =>
