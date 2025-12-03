@@ -36,6 +36,12 @@ export function ProjectDetailPage({ projects }: ProjectDetailProps) {
     if (!project) return;
     loadFolders();
     loadHistory();
+
+    const interval = setInterval(() => {
+      loadHistory();
+    }, 2_500);
+
+    return () => clearInterval(interval);
   }, [project?.id]);
 
   const loadFolders = async () => {
