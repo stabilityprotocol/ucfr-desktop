@@ -2,6 +2,7 @@
   "name": "ucfr-desktop",
   "version": "0.1.0",
   "description": "Scaffolded Electron + React desktop app with mocked authentication and API flows.",
+  "author": "Stability Protocol",
   "main": "src/main/main.ts",
   "scripts": {
     "build:preload": "tsc src/preload/index.ts --outDir dist/preload --module commonjs --target ES2020 --moduleResolution node --esModuleInterop --skipLibCheck --declaration false",
@@ -10,14 +11,14 @@
     "renderer": "vite",
     "main": "electron electron-main.js",
     "build:renderer": "vite build",
-    "build": "electron-builder"
+    "build": "electron-builder",
+    "postinstall": "electron-builder install-app-deps"
   },
   "dependencies": {
     "@electric-sql/pglite": "^0.3.14",
     "@tanstack/react-query": "^5.51.2",
     "better-sqlite3": "^12.5.0",
     "chokidar": "^3.6.0",
-    "electron": "^28.3.3",
     "electron-store": "^8.2.0",
     "jotai": "^2.8.0",
     "lucide-react": "^0.555.0",
@@ -33,8 +34,8 @@
     "@vitejs/plugin-react": "^4.3.2",
     "autoprefixer": "^10.4.20",
     "concurrently": "^8.2.2",
+    "electron": "^28.3.3",
     "electron-builder": "26.0.12",
-    "electron-rebuild": "^3.2.9",
     "nodemon": "^3.1.11",
     "postcss": "^8.4.49",
     "tailwindcss": "^4.0.0",
