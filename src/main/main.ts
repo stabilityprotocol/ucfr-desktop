@@ -22,6 +22,7 @@ function createWindow() {
   mainWindow = new BrowserWindow({
     width: 900,
     height: 640,
+    title: "Monolith",
     webPreferences: {
       preload: preloadPath,
       contextIsolation: true,
