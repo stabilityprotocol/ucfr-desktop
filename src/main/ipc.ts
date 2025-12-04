@@ -9,7 +9,7 @@ import {
   fetchUserProjects,
   fetchOrganizationProjects,
 } from "../shared/api/client";
-import { initDb } from "./db";
+import { initDb, dbExec, dbQuery } from "./db";
 import { fileHistoryService } from "./fileHistory";
 
 let watcher: FolderWatcher | null = null;
@@ -253,10 +253,10 @@ export async function registerIpcHandlers() {
     if (!email) return [];
     return fetchUserProjects(email, token);
   });
-  
+
   // Removing api/me as it was using mock and not used in core flow (auth/getUser is used).
   ipcMain.handle("api/me", async () => null);
-  
+
   ipcMain.handle("api/health", async () => {
     return { status: "ok", version: "1.0.0" };
   });
@@ -278,6 +278,19 @@ export async function registerIpcHandlers() {
     if (!token) return [];
     return fetchOrganizationProjects(orgId, token);
   });
+
+  ipcMain.handle("db/exec", async (_event, sql: string) => {
+    await dbExec(sql);
+    return null;
+  });
+
+  ipcMain.handle(
+    "db/query",
+    async (_event, sql: string, params?: unknown[]) => {
+      const rows = await dbQuery(sql, params as any[]);
+      return rows;
+    }
+  );
 
   ipcMain.handle("app/openExternal", async (_event, target: string) => {
     return await shell.openExternal(

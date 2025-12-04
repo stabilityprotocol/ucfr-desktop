@@ -1,50 +1,27 @@
-import { PGlite } from "@electric-sql/pglite";
-import path from "path";
-import { app } from "electron";
-import fs from "fs";
-
-// Ensure the data directory exists
-const userDataPath = app.getPath("userData");
-const dbDir = path.join(userDataPath, "pglite-data");
-
-if (!fs.existsSync(dbDir)) {
-  fs.mkdirSync(dbDir, { recursive: true });
-}
-
-console.log(`[DB] PGlite Database path: ${dbDir}`);
-
-// Initialize PGlite with the file system path for persistence
-const db = new PGlite(dbDir);
+import {
+  dbExec as remoteExec,
+  dbQuery as remoteQuery,
+  initRemoteDb,
+} from "../shared/dbClient";
 
 export async function initDb() {
-  await db.exec(`
-    CREATE TABLE IF NOT EXISTS files (
-      id SERIAL PRIMARY KEY,
-      path TEXT NOT NULL,
-      current_hash TEXT,
-      created_at BIGINT NOT NULL,
-      updated_at BIGINT NOT NULL,
-      UNIQUE(path)
-    );
-
-    CREATE TABLE IF NOT EXISTS file_history (
-      id SERIAL PRIMARY KEY,
-      file_id INTEGER,
-      path TEXT NOT NULL,
-      hash TEXT,
-      event_type TEXT NOT NULL,
-      timestamp BIGINT NOT NULL,
-      FOREIGN KEY(file_id) REFERENCES files(id) ON DELETE CASCADE
-    );
-
-    -- Generic app configuration table (key/value)
-    CREATE TABLE IF NOT EXISTS config (
-      key TEXT PRIMARY KEY,
-      value TEXT NOT NULL,
-      created_at BIGINT NOT NULL,
-      updated_at BIGINT NOT NULL
-    );
-  `);
+  await initRemoteDb();
 }
+
+export async function dbExec(sql: string, params?: any[]): Promise<void> {
+  await remoteExec(sql, params);
+}
+
+export async function dbQuery<T = any>(
+  sql: string,
+  params?: any[]
+): Promise<T[]> {
+  return remoteQuery<T>(sql, params);
+}
+
+const db = {
+  exec: (sql: string, params?: any[]) => dbExec(sql, params),
+  query: <T = any>(sql: string, params?: any[]) => dbQuery<T>(sql, params),
+};
 
 export default db;

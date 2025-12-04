@@ -63,6 +63,14 @@ All routes below are wrapped in `PortalShell` and require authentication.
   - `claimId` - Claim identifier
 - **Authentication**: Required
 
+#### `/claims/fingerprint/:fingerprint`
+
+- **Component**: `FingerprintVerifyPage`
+- **Description**: Fingerprint verification page
+- **Parameters**:
+  - `fingerprint` - Fingerprint identifier
+- **Authentication**: Not required
+
 ### Profile
 
 #### `/profile`

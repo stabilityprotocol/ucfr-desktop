@@ -16,6 +16,9 @@ export const getProfileSettingsUrl = (email?: string) =>
 export const getOrganizationUrl = (orgId: string) =>
   `${WEB_APP_BASE_URL}/workspace/${orgId}`;
 
+export const getFingerprintVerifyUrl = (fingerprint: string) =>
+  `${WEB_APP_BASE_URL}/claims/fingerprint/${encodeURIComponent(fingerprint)}`;
+
 export const openInWeb = async (url: string) => {
   if (window.ucfr?.app?.openExternal) {
     await window.ucfr.app.openExternal(url);
@@ -23,4 +26,3 @@ export const openInWeb = async (url: string) => {
     window.open(url, "_blank");
   }
 };
-

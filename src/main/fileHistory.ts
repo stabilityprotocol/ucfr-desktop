@@ -1,6 +1,6 @@
 import fs from "fs";
 import crypto from "crypto";
-import db from "./db";
+import { dbQuery, dbExec } from "./db";
 
 interface FileRecord {
   id: number;
@@ -49,11 +49,11 @@ export class FileHistoryService {
     if (event === "unlink") {
       // File removed. We need to know its hash to detect renames.
       // We look up the file in the DB.
-      const result = await db.query<FileRecord>(
+      const rows = await dbQuery<FileRecord>(
         "SELECT * FROM files WHERE path = $1",
         [filePath]
       );
-      const file = result.rows[0];
+      const file = rows[0];
 
       if (file) {
         this.pendingRenames.set(filePath, {
@@ -99,19 +99,19 @@ export class FileHistoryService {
   ) {
     console.log(`[FileHistory] Detected RENAME: ${oldPath} -> ${newPath}`);
 
-    const result = await db.query<FileRecord>(
+    const rows = await dbQuery<FileRecord>(
       "SELECT * FROM files WHERE path = $1",
       [oldPath]
     );
-    const file = result.rows[0];
+    const file = rows[0];
 
     if (file) {
-      await db.query(
+      await dbExec(
         "UPDATE files SET path = $1, updated_at = $2 WHERE id = $3",
         [newPath, Math.floor(timestamp / 1000), file.id]
       );
 
-      await db.query(
+      await dbExec(
         `
         INSERT INTO file_history (file_id, path, hash, event_type, timestamp)
         VALUES ($1, $2, $3, 'rename', $4)
@@ -130,7 +130,9 @@ export class FileHistoryService {
     if (folders.length === 0) return [];
 
     // Simple LIKE queries for each folder
-    const conditions = folders.map((_, i) => `path LIKE $${i + 1}`).join(" OR ");
+    const conditions = folders
+      .map((_, i) => `path LIKE $${i + 1}`)
+      .join(" OR ");
     // Ensure folders end with separator to avoid partial matches on similar folder names
     // But we also want to match the folder itself? valid paths usually have files inside.
     const params = folders.map((f) => `${f}%`);
@@ -139,14 +141,14 @@ export class FileHistoryService {
     // PGlite query uses standard postgres parameterization.
 
     try {
-      const result = await db.query(
+      const rows = await dbQuery(
         `SELECT * FROM file_history 
          WHERE ${conditions}
          ORDER BY timestamp DESC
          LIMIT $${folders.length + 1}`,
         [...params, limit]
       );
-      return result.rows;
+      return rows;
     } catch (e) {
       console.error("[FileHistory] Error getting history:", e);
       return [];
@@ -158,11 +160,11 @@ export class FileHistoryService {
     currentRealHash: string
   ): Promise<string | null> {
     try {
-      const result = await db.query<FileRecord>(
+      const rows = await dbQuery<FileRecord>(
         "SELECT * FROM files WHERE path = $1",
         [filePath]
       );
-      const file = result.rows[0];
+      const file = rows[0];
 
       if (!file) {
         // New file or not tracked yet.
@@ -180,7 +182,7 @@ export class FileHistoryService {
       }
 
       // If DB is already updated, look for previous history
-      const historyResult = await db.query<{ hash: string }>(
+      const historyRows = await dbQuery<{ hash: string }>(
         `SELECT hash FROM file_history 
            WHERE file_id = $1 AND hash != $2
            ORDER BY timestamp DESC, id DESC
@@ -188,7 +190,7 @@ export class FileHistoryService {
         [file.id, currentRealHash]
       );
 
-      let historyHash = historyResult.rows[0]?.hash || null;
+      let historyHash = historyRows[0]?.hash || null;
       if (historyHash && !historyHash.startsWith("0x")) {
         historyHash = `0x${historyHash}`;
       }
@@ -208,23 +210,23 @@ export class FileHistoryService {
     event: string,
     timestamp: number
   ) {
-    const result = await db.query<FileRecord>(
+    const rows = await dbQuery<FileRecord>(
       "SELECT * FROM files WHERE path = $1",
       [filePath]
     );
-    const existingFile = result.rows[0];
+    const existingFile = rows[0];
 
     let fileId: number;
 
     if (existingFile) {
       fileId = existingFile.id;
       if (existingFile.current_hash !== hash) {
-        await db.query(
+        await dbExec(
           "UPDATE files SET current_hash = $1, updated_at = $2 WHERE id = $3",
           [hash, Math.floor(timestamp / 1000), fileId]
         );
 
-        await db.query(
+        await dbExec(
           `
                 INSERT INTO file_history (file_id, path, hash, event_type, timestamp)
                 VALUES ($1, $2, $3, 'change', $4)
@@ -233,7 +235,7 @@ export class FileHistoryService {
         );
       }
     } else {
-      const insertResult = await db.query<{ id: number }>(
+      const insertRows = await dbQuery<{ id: number }>(
         "INSERT INTO files (path, current_hash, created_at, updated_at) VALUES ($1, $2, $3, $4) RETURNING id",
         [
           filePath,
@@ -242,9 +244,9 @@ export class FileHistoryService {
           Math.floor(timestamp / 1000),
         ]
       );
-      fileId = insertResult.rows[0].id;
+      fileId = insertRows[0].id;
 
-      await db.query(
+      await dbExec(
         `
             INSERT INTO file_history (file_id, path, hash, event_type, timestamp)
             VALUES ($1, $2, $3, 'add', $4)

@@ -1,4 +1,4 @@
-import db from "./db";
+import { dbQuery } from "./db";
 
 const CONFIG_TABLE = "config";
 
@@ -10,16 +10,16 @@ type ConfigRow = {
 };
 
 async function getConfigRow(key: string): Promise<ConfigRow | null> {
-  const res = await db.query<ConfigRow>(
+  const rows = await dbQuery<ConfigRow>(
     `SELECT key, value, created_at, updated_at FROM ${CONFIG_TABLE} WHERE key = $1`,
     [key]
   );
-  return res.rows[0] ?? null;
+  return rows[0] ?? null;
 }
 
 async function setConfigRow(key: string, value: string): Promise<void> {
   const now = Date.now();
-  await db.query(
+  await dbQuery(
     `
       INSERT INTO ${CONFIG_TABLE} (key, value, created_at, updated_at)
       VALUES ($1, $2, $3, $3)
@@ -31,7 +31,7 @@ async function setConfigRow(key: string, value: string): Promise<void> {
 }
 
 async function deleteConfigRow(key: string): Promise<void> {
-  await db.query(`DELETE FROM ${CONFIG_TABLE} WHERE key = $1`, [key]);
+  await dbQuery(`DELETE FROM ${CONFIG_TABLE} WHERE key = $1`, [key]);
 }
 
 export const configStore = {

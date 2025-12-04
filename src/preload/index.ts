@@ -34,6 +34,10 @@ type RendererAPI = {
     userProjects: (email: string) => Promise<unknown>;
     organizationProjects: (orgId: string) => Promise<unknown>;
   };
+  db: {
+    exec: (sql: string) => Promise<null>;
+    query: <T = any>(sql: string, params?: unknown[]) => Promise<T[]>;
+  };
 };
 
 const api: RendererAPI = {
@@ -83,6 +87,10 @@ const api: RendererAPI = {
     userProjects: (email) => ipcRenderer.invoke("api/userProjects", email),
     organizationProjects: (orgId) =>
       ipcRenderer.invoke("api/organizationProjects", orgId),
+  },
+  db: {
+    exec: (sql) => ipcRenderer.invoke("db/exec", sql),
+    query: (sql, params) => ipcRenderer.invoke("db/query", sql, params),
   },
 };
 

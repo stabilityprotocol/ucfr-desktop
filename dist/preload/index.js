@@ -42,6 +42,10 @@ const api = {
         userProjects: (email) => electron_1.ipcRenderer.invoke("api/userProjects", email),
         organizationProjects: (orgId) => electron_1.ipcRenderer.invoke("api/organizationProjects", orgId),
     },
+    db: {
+        exec: (sql) => electron_1.ipcRenderer.invoke("db/exec", sql),
+        query: (sql, params) => electron_1.ipcRenderer.invoke("db/query", sql, params),
+    },
 };
 electron_1.contextBridge.exposeInMainWorld("ucfr", api);
 electron_1.ipcRenderer.on("tokenChanged", () => {
