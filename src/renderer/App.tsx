@@ -22,7 +22,6 @@ import { DashboardPage } from "./pages/Dashboard";
 import { ProjectsPage } from "./pages/Projects";
 import { ProjectDetailPage } from "./pages/ProjectDetail";
 import { SettingsPage } from "./pages/Settings";
-import { isBrowserMode } from "./mockBrowserAPI";
 import { Layout } from "./components/Layout";
 import "./style.css";
 
@@ -82,11 +81,7 @@ function AppContent() {
       requestId: string;
     };
     const authUrl = `https://auth.ucfr.io/?request_id=${auth.requestId}`;
-    if (isBrowserMode()) {
-      console.log("🔗 Auth URL:", authUrl);
-    } else {
-      await window.ucfr.app.openExternal(authUrl);
-    }
+    await window.ucfr.app.openExternal(authUrl);
   };
 
   const logout = async () => {

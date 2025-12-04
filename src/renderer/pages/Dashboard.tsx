@@ -1,12 +1,12 @@
-import type { MockHealth, MockProject } from "../../shared/api/types";
+import type { Health, Project } from "../../shared/api/types";
 import { ExternalLink, LayoutDashboard } from "lucide-react";
 import { getDashboardUrl, openInWeb } from "../utils/webLinks";
 import { useNavigate } from "react-router-dom";
 
 type DashboardPageProps = {
   currentUser: string | null;
-  health: MockHealth | null;
-  projects: MockProject[];
+  health: Health | null;
+  projects: Project[];
 };
 
 export function DashboardPage({

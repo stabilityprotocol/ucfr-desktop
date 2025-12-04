@@ -1,16 +1,3 @@
-export type MockUser = {
-  id: string;
-  email: string;
-  name: string;
-  token?: string;
-};
-
-export type MockProject = {
-  id: string;
-  name: string;
-  claims: number;
-};
-
 export type Project = {
   id: string;
   name: string;
@@ -28,8 +15,8 @@ export type Project = {
   updatedAt: string;
 };
 
-export type MockHealth = {
-  status: "ok" | "degraded" | "unhealthy";
+export type Health = {
+  status: string;
   version: string;
 };
 

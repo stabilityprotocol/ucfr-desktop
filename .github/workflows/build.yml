@@ -1,0 +1,159 @@
+name: Build & Release (random draft name)
+
+on:
+  push:
+    branches: [main]
+    tags: ["v*.*.*"]
+  workflow_dispatch:
+
+permissions:
+  contents: write
+  packages: write
+
+env:
+  NODE_VERSION: 20
+
+jobs:
+  build-linux:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+
+      - name: Cache yarn dependencies
+        uses: actions/cache@v4
+        with:
+          path: ~/.cache/yarn
+          key: ${{ runner.os }}-yarn-${{ hashFiles('**/yarn.lock') }}
+          restore-keys: |
+            ${{ runner.os }}-yarn-
+
+      - name: Install deps
+        run: yarn install
+
+      - name: Build Linux (AppImage, deb + updater files)
+        run: yarn build --linux deb AppImage --publish never
+
+      - name: Upload linux artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: linux
+          if-no-files-found: error
+          path: |
+            dist/*.AppImage
+            dist/*.deb
+            dist/latest*.yml
+            dist/*.blockmap
+
+  build-win:
+    runs-on: windows-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+
+      - name: Cache yarn dependencies
+        uses: actions/cache@v4
+        with:
+          path: ~\AppData\Local\Yarn\Cache
+          key: ${{ runner.os }}-yarn-${{ hashFiles('**/yarn.lock') }}
+          restore-keys: |
+            ${{ runner.os }}-yarn-
+
+      - name: Install deps
+        run: yarn install
+
+      - name: Build Windows (EXE + updater files)
+        run: yarn build --win --publish never
+
+      - name: Upload win artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: win
+          if-no-files-found: error
+          path: |
+            dist/*.exe
+            dist/latest*.yml
+            dist/*.blockmap
+
+  build-mac:
+    runs-on: macos-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+
+      - name: Cache yarn dependencies
+        uses: actions/cache@v4
+        with:
+          path: ~/.cache/yarn
+          key: ${{ runner.os }}-yarn-${{ hashFiles('**/yarn.lock') }}
+          restore-keys: |
+            ${{ runner.os }}-yarn-
+
+      - name: Force install dmg-license (workaround)
+        run: yarn add -D dmg-license
+
+      - name: Install deps
+        run: yarn install
+
+      - name: Build macOS (DMG + updater files)
+        run: yarn build --mac dmg --publish never
+
+      - name: Upload mac artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: mac
+          if-no-files-found: error
+          path: |
+            dist/*.dmg
+            dist/latest*.yml
+            dist/*.blockmap
+
+  release:
+    needs: [build-win, build-linux, build-mac]
+    runs-on: ubuntu-latest
+    steps:
+      - name: Download linux artifacts
+        uses: actions/download-artifact@v4
+        with:
+          name: linux
+          path: rel/linux
+
+      - name: Download win artifacts
+        uses: actions/download-artifact@v4
+        with:
+          name: win
+          path: rel/windows
+
+      - name: Download mac artifacts
+        uses: actions/download-artifact@v4
+        with:
+          name: mac
+          path: rel/mac
+
+      - name: Create draft release & upload all files
+        uses: softprops/action-gh-release@v2
+        with:
+          draft: true
+          name: monolith-desktop-${{ github.run_id }}-${{ github.run_attempt }}
+          tag_name: monolith-desktop-${{ github.run_id }}-${{ github.run_attempt }}
+          files: |
+            rel/windows/**
+            rel/linux/**
+            rel/mac/**
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

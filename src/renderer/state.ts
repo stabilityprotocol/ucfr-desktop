@@ -1,7 +1,7 @@
 import { atom } from "jotai";
 import type {
-  MockProject,
-  MockHealth,
+  Project,
+  Health,
   Organization,
   UserProfile,
 } from "../shared/api/types";
@@ -11,8 +11,8 @@ export const folderAtom = atom<string | undefined>(undefined);
 export const autoStartAtom = atom<boolean>(false);
 export const logsAtom = atom<Array<{ message: string; ts: number }>>([]);
 export const syncStatusAtom = atom<string>("idle");
-export const projectsAtom = atom<MockProject[]>([]);
-export const healthAtom = atom<MockHealth | null>(null);
+export const projectsAtom = atom<Project[]>([]);
+export const healthAtom = atom<Health | null>(null);
 export const currentUserAtom = atom<string | null>(null);
 export const userProfileAtom = atom<UserProfile | null>(null);
 export const organizationsAtom = atom<Organization[]>([]);

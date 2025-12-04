@@ -5,11 +5,6 @@ import { getSettings, updateSettings } from "./settings";
 import { FolderWatcher } from "./watcher";
 import { handleFileChange } from "./claimService";
 import {
-  fetchProjects,
-  fetchCurrentUser,
-  fetchHealth,
-} from "../shared/api/mockApi";
-import {
   fetchUserProfile,
   fetchUserProjects,
   fetchOrganizationProjects,
@@ -251,9 +246,21 @@ export async function registerIpcHandlers() {
     return true;
   });
 
-  ipcMain.handle("api/projects", async () => fetchProjects());
-  ipcMain.handle("api/me", async () => fetchCurrentUser());
-  ipcMain.handle("api/health", async () => fetchHealth());
+  ipcMain.handle("api/projects", async () => {
+    const token = await tokenManager.getToken();
+    if (!token) return [];
+    const email = (await getAuthorizedUserFromApi()) as string | null;
+    if (!email) return [];
+    return fetchUserProjects(email, token);
+  });
+  
+  // Removing api/me as it was using mock and not used in core flow (auth/getUser is used).
+  ipcMain.handle("api/me", async () => null);
+  
+  ipcMain.handle("api/health", async () => {
+    return { status: "ok", version: "1.0.0" };
+  });
+
   ipcMain.handle("api/userProfile", async (_event, email: string) => {
     const token = await tokenManager.getToken();
     if (!token) return null;

@@ -1,6 +1,6 @@
 import { useState, useEffect } from "react";
 import { useParams } from "react-router-dom";
-import type { MockProject } from "../../shared/api/types";
+import type { Project } from "../../shared/api/types";
 import {
   Folder,
   Plus,
@@ -21,7 +21,7 @@ type HistoryItem = {
 };
 
 type ProjectDetailProps = {
-  projects: MockProject[];
+  projects: Project[];
 };
 
 export function ProjectDetailPage({ projects }: ProjectDetailProps) {
