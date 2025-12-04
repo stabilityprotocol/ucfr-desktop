@@ -4,5 +4,9 @@
     "outDir": "app",
     "rootDir": "src"
   },
-  "include": ["src/main/**/*.ts", "src/shared/**/*.ts"]
+  "include": [
+    "src/main/**/*.ts",
+    "src/shared/**/*.ts",
+    "src/server/dbServer.ts"
+  ]
 }

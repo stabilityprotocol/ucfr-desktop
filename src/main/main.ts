@@ -2,6 +2,7 @@ import { app, BrowserWindow, Menu, Tray, nativeImage } from "electron";
 import path from "path";
 import { registerIpcHandlers, stopWatcher } from "./ipc";
 import { getSettings } from "./settings";
+import { startDbServer } from "../server/dbServer";
 
 let tray: Tray | null = null;
 let mainWindow: BrowserWindow | null = null;
@@ -52,6 +53,8 @@ function createTray() {
 }
 
 app.whenReady().then(async () => {
+  // Start embedded DB server (Express + PGlite) inside this process
+  await startDbServer();
   await registerIpcHandlers();
   createWindow();
   createTray();

@@ -48,5 +48,3 @@ export const configStore = {
     await deleteConfigRow(key);
   },
 };
-
-

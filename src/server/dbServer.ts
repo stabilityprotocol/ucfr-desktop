@@ -91,14 +91,17 @@ app.post("/init", async (_req: Request, res: Response) => {
   }
 });
 
-(async () => {
+export async function startDbServer(port?: number) {
   await initDb();
-  const port = process.env.UCFR_DB_PORT
-    ? Number(process.env.UCFR_DB_PORT)
-    : 4545;
-  app.listen(port, () => {
-    console.log(`[db-server] listening on http://localhost:${port}`);
+  const listenPort =
+    port ??
+    (process.env.UCFR_DB_PORT ? Number(process.env.UCFR_DB_PORT) : 4545);
+  app.listen(listenPort, () => {
+    console.log(`[db-server] listening on http://localhost:${listenPort}`);
   });
-})();
+}
 
-
+// When run directly (dev: ts-node src/server/dbServer.ts), start server.
+if (require.main === module) {
+  void startDbServer();
+}
