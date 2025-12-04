@@ -36,6 +36,14 @@ export async function initDb() {
       timestamp BIGINT NOT NULL,
       FOREIGN KEY(file_id) REFERENCES files(id) ON DELETE CASCADE
     );
+
+    -- Generic app configuration table (key/value)
+    CREATE TABLE IF NOT EXISTS config (
+      key TEXT PRIMARY KEY,
+      value TEXT NOT NULL,
+      created_at BIGINT NOT NULL,
+      updated_at BIGINT NOT NULL
+    );
   `);
 }
 
