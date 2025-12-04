@@ -206,12 +206,14 @@ export function ProjectDetailPage({ projects }: ProjectDetailProps) {
                 </tr>
               </thead>
               <tbody className="divide-y divide-zinc-100">
-              {history.map((item, i) => (
-                <tr
-                  key={item.id || i}
-                  className="hover:bg-zinc-50/50 cursor-pointer"
-                  onClick={() => openInWeb(getFingerprintVerifyUrl(item.hash))}
-                >
+                {history.map((item, i) => (
+                  <tr
+                    key={item.id || i}
+                    className="hover:bg-zinc-50/50 cursor-pointer"
+                    onClick={() =>
+                      openInWeb(getFingerprintVerifyUrl(item.hash))
+                    }
+                  >
                     <td className="px-6 py-3 font-medium text-zinc-700">
                       <div className="flex items-center gap-2">
                         <FileText className="w-4 h-4 text-zinc-400 shrink-0" />
