@@ -9,7 +9,8 @@
     "dev": "yarn build:preload && concurrently -k \"yarn watch:preload\" \"vite --host\" \"wait-on http://localhost:5173 && nodemon --watch src/main --watch dist/preload --exec 'electron electron-main.js'\"",
     "renderer": "vite",
     "main": "electron electron-main.js",
-    "build:renderer": "vite build"
+    "build:renderer": "vite build",
+    "build": "electron-builder"
   },
   "dependencies": {
     "@electric-sql/pglite": "^0.3.14",
@@ -32,6 +33,7 @@
     "@vitejs/plugin-react": "^4.3.2",
     "autoprefixer": "^10.4.20",
     "concurrently": "^8.2.2",
+    "electron-builder": "26.0.12",
     "electron-rebuild": "^3.2.9",
     "nodemon": "^3.1.11",
     "postcss": "^8.4.49",
