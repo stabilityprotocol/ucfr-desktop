@@ -13,3 +13,5 @@ node_modules/
 *.log
 .context/
 dist
+build
+app

@@ -3,16 +3,17 @@
   "version": "0.1.0",
   "description": "Scaffolded Electron + React desktop app with mocked authentication and API flows.",
   "author": "Stability Protocol <contact@stabilityprotocol.com>",
-  "main": "src/main/main.ts",
+  "main": "app/main/main.js",
   "scripts": {
-    "build:preload": "tsc src/preload/index.ts --outDir dist/preload --module commonjs --target ES2020 --moduleResolution node --esModuleInterop --skipLibCheck --declaration false",
-    "watch:preload": "tsc src/preload/index.ts --outDir dist/preload --module commonjs --target ES2020 --moduleResolution node --esModuleInterop --skipLibCheck --declaration false --watch",
-    "dev": "yarn build:preload && concurrently -k \"yarn db-server\" \"yarn watch:preload\" \"vite --host\" \"wait-on http://localhost:5173 && nodemon --watch src/main --watch dist/preload --exec 'electron electron-main.js'\"",
+    "build:preload": "tsc src/preload/index.ts --outDir app/preload --module commonjs --target ES2020 --moduleResolution node --esModuleInterop --skipLibCheck --declaration false",
+    "watch:preload": "tsc src/preload/index.ts --outDir app/preload --module commonjs --target ES2020 --moduleResolution node --esModuleInterop --skipLibCheck --declaration false --watch",
+    "dev": "yarn build:preload && concurrently -k \"yarn db-server\" \"yarn watch:preload\" \"vite --host\" \"wait-on http://localhost:5173 && nodemon --watch src/main --watch app/preload --exec 'electron electron-main.js'\"",
     "db-server": "ts-node src/server/dbServer.ts",
     "renderer": "vite",
     "main": "electron electron-main.js",
     "build:renderer": "vite build",
-    "build": "electron-builder",
+    "build:main": "tsc -p tsconfig.main.json",
+    "build": "yarn build:preload && yarn build:renderer && yarn build:main && electron-builder",
     "postinstall": "electron-builder install-app-deps"
   },
   "dependencies": {

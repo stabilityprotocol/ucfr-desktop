@@ -6,15 +6,15 @@ import { getSettings } from "./settings";
 let tray: Tray | null = null;
 let mainWindow: BrowserWindow | null = null;
 
-const isDev = process.env.NODE_ENV !== "production";
+const isDev = !app.isPackaged;
 
 function createWindow() {
   let preloadPath: string;
   if (isDev) {
-    // In dev mode, preload is compiled to dist/preload/index.js
-    preloadPath = path.resolve(process.cwd(), "dist/preload/index.js");
+    // In dev mode, preload is compiled to app/preload/index.js
+    preloadPath = path.resolve(process.cwd(), "app/preload/index.js");
   } else {
-    // In production, preload is in the same dist structure
+    // In production, preload is in the same app structure
     preloadPath = path.join(__dirname, "../preload/index.js");
   }
 
@@ -31,7 +31,7 @@ function createWindow() {
   if (isDev) {
     mainWindow.loadURL("http://localhost:5173");
   } else {
-    mainWindow.loadFile(path.join(__dirname, "../../dist/renderer/index.html"));
+    mainWindow.loadFile(path.join(__dirname, "../renderer/index.html"));
   }
 }
 
