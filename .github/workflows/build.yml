@@ -25,16 +25,21 @@ jobs:
         with:
           node-version: ${{ env.NODE_VERSION }}
 
-      - name: Cache yarn dependencies
+      - name: Enable Corepack (Yarn Berry)
+        run: corepack enable
+
+      - name: Cache Yarn Berry dependencies
         uses: actions/cache@v4
         with:
-          path: ~/.cache/yarn
-          key: ${{ runner.os }}-yarn-${{ hashFiles('**/yarn.lock') }}
+          path: |
+            .yarn/cache
+            .yarn/install-state.gz
+          key: ${{ runner.os }}-yarn-berry-${{ hashFiles('**/yarn.lock') }}
           restore-keys: |
-            ${{ runner.os }}-yarn-
+            ${{ runner.os }}-yarn-berry-
 
       - name: Install deps
-        run: yarn install
+        run: yarn install --immutable
 
       - name: Build Linux (AppImage, deb + updater files)
         run: yarn build --linux deb AppImage --publish never
@@ -61,16 +66,21 @@ jobs:
         with:
           node-version: ${{ env.NODE_VERSION }}
 
-      - name: Cache yarn dependencies
+      - name: Enable Corepack (Yarn Berry)
+        run: corepack enable
+
+      - name: Cache Yarn Berry dependencies
         uses: actions/cache@v4
         with:
-          path: ~\AppData\Local\Yarn\Cache
-          key: ${{ runner.os }}-yarn-${{ hashFiles('**/yarn.lock') }}
+          path: |
+            .yarn/cache
+            .yarn/install-state.gz
+          key: ${{ runner.os }}-yarn-berry-${{ hashFiles('**/yarn.lock') }}
           restore-keys: |
-            ${{ runner.os }}-yarn-
+            ${{ runner.os }}-yarn-berry-
 
       - name: Install deps
-        run: yarn install
+        run: yarn install --immutable
 
       - name: Build Windows (EXE + updater files)
         run: yarn build --win --publish never
@@ -96,19 +106,24 @@ jobs:
         with:
           node-version: ${{ env.NODE_VERSION }}
 
-      - name: Cache yarn dependencies
+      - name: Enable Corepack (Yarn Berry)
+        run: corepack enable
+
+      - name: Cache Yarn Berry dependencies
         uses: actions/cache@v4
         with:
-          path: ~/.cache/yarn
-          key: ${{ runner.os }}-yarn-${{ hashFiles('**/yarn.lock') }}
+          path: |
+            .yarn/cache
+            .yarn/install-state.gz
+          key: ${{ runner.os }}-yarn-berry-${{ hashFiles('**/yarn.lock') }}
           restore-keys: |
-            ${{ runner.os }}-yarn-
+            ${{ runner.os }}-yarn-berry-
 
       - name: Force install dmg-license (workaround)
         run: yarn add -D dmg-license
 
       - name: Install deps
-        run: yarn install
+        run: yarn install --immutable
 
       - name: Build macOS (DMG + updater files)
         run: yarn build --mac dmg --publish never
