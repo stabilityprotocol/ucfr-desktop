@@ -2,20 +2,43 @@ import { UserProfile, Project } from "./types";
 
 const BASE_URL = "https://api.ucfr.io";
 
+export class TokenExpiredError extends Error {
+  constructor() {
+    super("Token has expired");
+    this.name = "TokenExpiredError";
+  }
+}
+
+async function fetchWithAuth(
+  url: string,
+  token: string,
+  options: RequestInit = {}
+): Promise<Response> {
+  const response = await fetch(url, {
+    ...options,
+    headers: {
+      Authorization: `Bearer ${token}`,
+      "Content-Type": "application/json",
+      ...options.headers,
+    },
+  });
+
+  if (response.status === 401) {
+    throw new TokenExpiredError();
+  }
+
+  return response;
+}
+
 export async function fetchUserProfile(
   email: string,
   token: string
 ): Promise<UserProfile | null> {
   try {
-    const response = await fetch(
+    const response = await fetchWithAuth(
       `${BASE_URL}/api/users/${encodeURIComponent(email)}/profile`,
-      {
-        method: "GET",
-        headers: {
-          Authorization: `Bearer ${token}`,
-          "Content-Type": "application/json",
-        },
-      }
+      token,
+      { method: "GET" }
     );
 
     if (!response.ok) {
@@ -28,6 +51,9 @@ export async function fetchUserProfile(
     const data = await response.json();
     return data;
   } catch (error) {
+    if (error instanceof TokenExpiredError) {
+      throw error;
+    }
     console.error("Error fetching user profile:", error);
     return null;
   }
@@ -38,15 +64,10 @@ export async function fetchUserProjects(
   token: string
 ): Promise<Project[]> {
   try {
-    const response = await fetch(
+    const response = await fetchWithAuth(
       `${BASE_URL}/api/users/${encodeURIComponent(email)}/projects`,
-      {
-        method: "GET",
-        headers: {
-          Authorization: `Bearer ${token}`,
-          "Content-Type": "application/json",
-        },
-      }
+      token,
+      { method: "GET" }
     );
 
     if (!response.ok) {
@@ -59,6 +80,9 @@ export async function fetchUserProjects(
     const data = await response.json();
     return data.projects || [];
   } catch (error) {
+    if (error instanceof TokenExpiredError) {
+      throw error;
+    }
     console.error("Error fetching user projects:", error);
     return [];
   }
@@ -69,15 +93,10 @@ export async function fetchOrganizationProjects(
   token: string
 ): Promise<Project[]> {
   try {
-    const response = await fetch(
+    const response = await fetchWithAuth(
       `${BASE_URL}/api/projects/organization/${orgId}`,
-      {
-        method: "GET",
-        headers: {
-          Authorization: `Bearer ${token}`,
-          "Content-Type": "application/json",
-        },
-      }
+      token,
+      { method: "GET" }
     );
 
     if (!response.ok) {
@@ -90,6 +109,9 @@ export async function fetchOrganizationProjects(
     const data = await response.json();
     return data.projects || [];
   } catch (error) {
+    if (error instanceof TokenExpiredError) {
+      throw error;
+    }
     console.error("Error fetching organization projects:", error);
     return [];
   }
@@ -100,13 +122,11 @@ export async function fetchProject(
   token: string
 ): Promise<Project | null> {
   try {
-    const response = await fetch(`${BASE_URL}/api/projects/${projectId}`, {
-      method: "GET",
-      headers: {
-        Authorization: `Bearer ${token}`,
-        "Content-Type": "application/json",
-      },
-    });
+    const response = await fetchWithAuth(
+      `${BASE_URL}/api/projects/${projectId}`,
+      token,
+      { method: "GET" }
+    );
 
     if (!response.ok) {
       console.error(
@@ -118,6 +138,9 @@ export async function fetchProject(
     const data = await response.json();
     return data;
   } catch (error) {
+    if (error instanceof TokenExpiredError) {
+      throw error;
+    }
     console.error("Error fetching project:", error);
     return null;
   }
@@ -134,14 +157,11 @@ export async function createProjectClaim(
   }
 ): Promise<any | null> {
   try {
-    const response = await fetch(
+    const response = await fetchWithAuth(
       `${BASE_URL}/api/projects/${projectId}/claims`,
+      token,
       {
         method: "POST",
-        headers: {
-          Authorization: `Bearer ${token}`,
-          "Content-Type": "application/json",
-        },
         body: JSON.stringify(payload),
       }
     );
@@ -157,6 +177,9 @@ export async function createProjectClaim(
 
     return await response.json();
   } catch (error) {
+    if (error instanceof TokenExpiredError) {
+      throw error;
+    }
     console.error("Error creating project claim:", error);
     return null;
   }

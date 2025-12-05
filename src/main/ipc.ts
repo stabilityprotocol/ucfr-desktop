@@ -8,6 +8,7 @@ import {
   fetchUserProfile,
   fetchUserProjects,
   fetchOrganizationProjects,
+  TokenExpiredError,
 } from "../shared/api/client";
 import { initDb, dbExec, dbQuery } from "./db";
 import { fileHistoryService } from "./fileHistory";
@@ -251,7 +252,18 @@ export async function registerIpcHandlers() {
     if (!token) return [];
     const email = (await getAuthorizedUserFromApi()) as string | null;
     if (!email) return [];
-    return fetchUserProjects(email, token);
+    try {
+      return await fetchUserProjects(email, token);
+    } catch (error) {
+      if (error instanceof TokenExpiredError) {
+        await tokenManager.clear();
+        BrowserWindow.getAllWindows().forEach((win) =>
+          win.webContents.send("tokenChanged")
+        );
+        return [];
+      }
+      throw error;
+    }
   });
 
   // Removing api/me as it was using mock and not used in core flow (auth/getUser is used).
@@ -264,19 +276,52 @@ export async function registerIpcHandlers() {
   ipcMain.handle("api/userProfile", async (_event, email: string) => {
     const token = await tokenManager.getToken();
     if (!token) return null;
-    return fetchUserProfile(email, token);
+    try {
+      return await fetchUserProfile(email, token);
+    } catch (error) {
+      if (error instanceof TokenExpiredError) {
+        await tokenManager.clear();
+        BrowserWindow.getAllWindows().forEach((win) =>
+          win.webContents.send("tokenChanged")
+        );
+        return null;
+      }
+      throw error;
+    }
   });
 
   ipcMain.handle("api/userProjects", async (_event, email: string) => {
     const token = await tokenManager.getToken();
     if (!token) return [];
-    return fetchUserProjects(email, token);
+    try {
+      return await fetchUserProjects(email, token);
+    } catch (error) {
+      if (error instanceof TokenExpiredError) {
+        await tokenManager.clear();
+        BrowserWindow.getAllWindows().forEach((win) =>
+          win.webContents.send("tokenChanged")
+        );
+        return [];
+      }
+      throw error;
+    }
   });
 
   ipcMain.handle("api/organizationProjects", async (_event, orgId: string) => {
     const token = await tokenManager.getToken();
     if (!token) return [];
-    return fetchOrganizationProjects(orgId, token);
+    try {
+      return await fetchOrganizationProjects(orgId, token);
+    } catch (error) {
+      if (error instanceof TokenExpiredError) {
+        await tokenManager.clear();
+        BrowserWindow.getAllWindows().forEach((win) =>
+          win.webContents.send("tokenChanged")
+        );
+        return [];
+      }
+      throw error;
+    }
   });
 
   ipcMain.handle("db/exec", async (_event, sql: string) => {

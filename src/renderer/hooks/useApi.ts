@@ -31,8 +31,15 @@ export function useBootstrap() {
 
   useEffect(() => {
     async function hydrate() {
-      if (!window.ucfr || !window.ucfr.auth || !window.ucfr.settings || !window.ucfr.api) {
-        console.warn("[useBootstrap] window.ucfr is not available, skipping hydrate.");
+      if (
+        !window.ucfr ||
+        !window.ucfr.auth ||
+        !window.ucfr.settings ||
+        !window.ucfr.api
+      ) {
+        console.warn(
+          "[useBootstrap] window.ucfr is not available, skipping hydrate."
+        );
         return;
       }
       const [token, settings, user, projects, health] = await Promise.all([
@@ -70,11 +77,19 @@ export function useBootstrap() {
 
     const handler = async () => {
       if (!window.ucfr || !window.ucfr.auth) {
-        console.warn("[useBootstrap] window.ucfr is not available, skipping token refresh.");
+        console.warn(
+          "[useBootstrap] window.ucfr is not available, skipping token refresh."
+        );
         return;
       }
       const nextToken = await window.ucfr.auth.getToken();
       setToken(nextToken);
+      if (!nextToken) {
+        setCurrentUser(null);
+        setUserProfile(null);
+        setOrganizations([]);
+        setProjects([]);
+      }
       queryClient.invalidateQueries();
     };
     window.addEventListener("tokenChanged", handler);

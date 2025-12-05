@@ -1,9 +1,14 @@
 import crypto from "crypto";
 import fs from "fs/promises";
 import path from "path";
+import { BrowserWindow } from "electron";
 import { getSettings } from "./settings";
 import { tokenManager } from "./tokenStore";
-import { fetchProject, createProjectClaim } from "../shared/api/client";
+import {
+  fetchProject,
+  createProjectClaim,
+  TokenExpiredError,
+} from "../shared/api/client";
 import { fileHistoryService } from "./fileHistory";
 
 // Simple mime type mapping
@@ -113,7 +118,20 @@ export async function handleFileChange(filePath: string, event: string) {
 
     // 2. Get Project & User Info
     // We fetch project to get name and organization
-    const project = await fetchProject(projectId, token);
+    let project;
+    try {
+      project = await fetchProject(projectId, token);
+    } catch (error) {
+      if (error instanceof TokenExpiredError) {
+        console.log("[ClaimService] Token expired, skipping claim");
+        await tokenManager.clear();
+        BrowserWindow.getAllWindows().forEach((win) =>
+          win.webContents.send("tokenChanged")
+        );
+        return;
+      }
+      throw error;
+    }
     if (!project) {
       console.error(`[ClaimService] Could not fetch project ${projectId}`);
       return;
@@ -167,7 +185,20 @@ export async function handleFileChange(filePath: string, event: string) {
     console.log(
       `[ClaimService] Submitting claim for ${fileName} in project ${project.name}`
     );
-    const result = await createProjectClaim(projectId, token, payload);
+    let result;
+    try {
+      result = await createProjectClaim(projectId, token, payload);
+    } catch (error) {
+      if (error instanceof TokenExpiredError) {
+        console.log("[ClaimService] Token expired, skipping claim");
+        await tokenManager.clear();
+        BrowserWindow.getAllWindows().forEach((win) =>
+          win.webContents.send("tokenChanged")
+        );
+        return;
+      }
+      throw error;
+    }
 
     if (result) {
       console.log(`[ClaimService] Claim submitted successfully: ${result.id}`);
