@@ -23,6 +23,7 @@ function createWindow() {
     width: 900,
     height: 640,
     title: "Monolith",
+    resizable: false,
     webPreferences: {
       preload: preloadPath,
       contextIsolation: true,
