@@ -1266,30 +1266,6 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/ErrorResponse"
-        "401":
-          description: Unauthorized
-          content:
-            application/json:
-              schema:
-                $ref: "#/components/schemas/ErrorResponse"
-        "403":
-          description: User does not have access to the project
-          content:
-            application/json:
-              schema:
-                $ref: "#/components/schemas/ErrorResponse"
-        "404":
-          description: Project not found
-          content:
-            application/json:
-              schema:
-                $ref: "#/components/schemas/ErrorResponse"
-        "409":
-          description: Claim already exists for the specified method/externalId/fingerprint combination
-          content:
-            application/json:
-              schema:
-                $ref: "#/components/schemas/ErrorResponse"
     get:
       summary: List project claims
       description: >
@@ -1570,14 +1546,62 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/RecentClaimsResponse"
-        "400":
-          description: Invalid request parameters
-          content:
-            application/json:
-              schema:
-                $ref: "#/components/schemas/ErrorResponse"
+         "400":
+           description: Invalid request parameters
+           content:
+             application/json:
+               schema:
+                 $ref: "#/components/schemas/ErrorResponse"
 
-  /rpc/{apiKey}:
+   /api/claims/public:
+     get:
+       summary: List public claims
+       description: >
+         Returns the latest claims from public projects, paginated. Use the `imagesOnly`
+         filter to retrieve only image claims (those with pHash in metadata).
+         Results are limited to a maximum of 1000 claims and cached for one minute.
+       tags:
+         - Claims
+       parameters:
+         - name: page
+           in: query
+           required: false
+           schema:
+             type: integer
+             minimum: 1
+             default: 1
+           description: Page number to retrieve. Defaults to 1.
+         - name: pageSize
+           in: query
+           required: false
+           schema:
+             type: integer
+             minimum: 1
+             maximum: 200
+             default: 25
+           description: Number of results per page. Maximum of 200.
+         - name: imagesOnly
+           in: query
+           required: false
+           schema:
+             type: boolean
+             default: false
+           description: When true, only returns claims with pHash (image claims).
+       responses:
+         "200":
+           description: Paginated list of public claims
+           content:
+             application/json:
+               schema:
+                 $ref: "#/components/schemas/ProjectClaimListResponse"
+         "400":
+           description: Invalid request parameters or pagination beyond 1000 results
+           content:
+             application/json:
+               schema:
+                 $ref: "#/components/schemas/ErrorResponse"
+
+   /rpc/{apiKey}:
     post:
       summary: JSON-RPC Endpoint
       description: Main endpoint for all JSON-RPC method calls
@@ -2039,6 +2063,38 @@ components:
           nullable: true
           description: Organization description
 
+    LicenseKey:
+      type: string
+      description: Identifier for predefined license types
+      enum:
+        - MIT
+        - Apache-2.0
+        - GPL-3.0
+        - BSD-3-Clause
+        - CC-BY-4.0
+        - CC-BY-SA-4.0
+        - CC-BY-NC-4.0
+        - CC-BY-NC-SA-4.0
+        - CC0-1.0
+        - UNLICENSED
+
+    License:
+      type: object
+      description: License information with display name and URL
+      required:
+        - name
+        - url
+      properties:
+        name:
+          type: string
+          description: Human-readable license name
+          example: "MIT License"
+        url:
+          type: string
+          format: uri
+          description: URL to the full license text
+          example: "https://opensource.org/licenses/MIT"
+
     Project:
       type: object
       properties:
@@ -2069,6 +2125,13 @@ components:
             - public
             - private
           description: Visibility level controlling who can view claims and project details
+        license:
+          $ref: "#/components/schemas/LicenseKey"
+          nullable: true
+          description: License key for the project. Claims under this project inherit this license setting.
+        allowAiTraining:
+          type: boolean
+          description: Whether AI training is allowed on claims from this project. Claims under this project inherit this setting.
         members:
           type: array
           items:
@@ -2122,6 +2185,12 @@ components:
           type: string
           format: email
           description: Email of the user who owns the project. Either `organizationId` or `ownerUserId` must be provided, but not both. When creating a user-owned project, this must match the authenticated user's email.
+        license:
+          $ref: "#/components/schemas/LicenseKey"
+          description: License key for the project. Claims under this project will inherit this license.
+        allowAiTraining:
+          type: boolean
+          description: Whether AI training is allowed on claims from this project. Claims under this project will inherit this setting. Defaults to true.
 
     UpdateProjectDto:
       type: object
@@ -2141,6 +2210,14 @@ components:
             - public
             - private
           description: Updated visibility level for the project
+        license:
+          allOf:
+            - $ref: "#/components/schemas/LicenseKey"
+          nullable: true
+          description: License key for the project. Set to null to remove the license setting.
+        allowAiTraining:
+          type: boolean
+          description: Whether AI training is allowed on claims from this project. Claims under this project will inherit this setting.
 
     AddMemberDto:
       type: object
@@ -2422,8 +2499,15 @@ components:
           description: Claim fingerprint (hex encoded).
         metadata:
           type: object
-          description: Parsed claim metadata payload. Image claims automatically include `allow_ai_training` (boolean) and `pHash` (0x-prefixed 16-character lowercase hexadecimal perceptual hash string) fields. Returns an empty object when no metadata is stored. In rare cases where parsing fails, the service may temporarily return the raw string payload.
+           description: |
+             Parsed claim metadata payload. The `license` field is an object with `name` (human-readable license name) and `url` (link to full license text) properties, inherited from the project's license setting.
+             Image claims automatically include `pHash` (0x-prefixed 16-character lowercase hexadecimal perceptual hash string) fields. Returns an empty object when no metadata is stored. In rare cases where parsing fails, the service may temporarily return the raw string payload.
           additionalProperties: true
+        previousClaims:
+          type: array
+          description: Ordered list of previous claim objects found by unwinding the `subject.previousFingerprint` chain from the claim metadata. The list starts with the immediate predecessor and follows the chain until a cycle is detected or no previous fingerprint is found.
+          items:
+            $ref: "#/components/schemas/ProjectClaim"
         extURI:
           type: string
           nullable: true

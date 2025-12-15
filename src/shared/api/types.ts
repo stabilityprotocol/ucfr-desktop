@@ -1,15 +1,19 @@
+export type ProjectOrganization = {
+  id: string;
+  name: string;
+  description?: string;
+};
+
 export type Project = {
   id: string;
   name: string;
   description?: string;
   adminEmail: string;
-  organization?: {
-    id: string;
-    name: string;
-    description?: string;
-  };
+  organization?: ProjectOrganization;
   ownerUserId?: string;
   visibility: "public" | "private";
+  license?: string | null;
+  allowAiTraining?: boolean;
   members: string[];
   createdAt: string;
   updatedAt: string;
@@ -61,12 +65,19 @@ export type Organization = {
   updatedAt: string;
 };
 
+export type UserSocialChannel = {
+  platform: string;
+  url: string;
+  handle?: string;
+};
+
 export type UserProfile = {
   email: string;
   displayName?: string;
   websiteUrl?: string;
+  socialChannels?: UserSocialChannel[];
   organizations: Organization[];
   projects: Project[];
-  recentClaims: any[]; // limiting scope for now
+  recentClaims: any[];
   ethAddress?: string;
 };

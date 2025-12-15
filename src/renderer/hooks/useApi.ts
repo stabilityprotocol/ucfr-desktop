@@ -89,6 +89,35 @@ export function useBootstrap() {
         setUserProfile(null);
         setOrganizations([]);
         setProjects([]);
+      } else {
+        // Token is available, fetch user information
+        try {
+          const user = await window.ucfr.auth.getUser();
+          setCurrentUser(user as any);
+          if (user && typeof user === "string") {
+            window.ucfr.api
+              .userProfile(user)
+              .then((profile: any) => {
+                if (profile) {
+                  setUserProfile(profile);
+                  if (profile.organizations) {
+                    setOrganizations(profile.organizations);
+                  }
+                }
+              })
+              .catch((err) => console.error("Failed to fetch profile", err));
+          }
+          // Refresh projects
+          const projects = await window.ucfr.api.projects();
+          setProjects(projects as any);
+          // Refresh health
+          const health = await window.ucfr.api.health();
+          setHealth(health as any);
+        } catch (err) {
+          console.error("Failed to refresh user state after token change", err);
+          // If there's an error, the token might have been cleared
+          // The next tokenChanged event will handle cleanup
+        }
       }
       queryClient.invalidateQueries();
     };
