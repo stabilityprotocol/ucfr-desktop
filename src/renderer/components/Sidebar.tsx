@@ -3,7 +3,7 @@ import { useAtom } from "jotai";
 import { NavLink, useNavigate } from "react-router-dom";
 import { Settings, ChevronDown, User } from "lucide-react";
 import { activeOrgAtom, organizationsAtom } from "../state";
-import monolithLogo from "../../assets/monolith-logo.png";
+import monolithLogo from "../../assets/stability-logo.png";
 
 interface SidebarProps {
   projects: any[];

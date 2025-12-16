@@ -49,6 +49,16 @@ export type ClaimCreateParams = {
   extURI?: string;
 };
 
+// REST DTO for /api/projects/{projectId}/claims
+export type CreateProjectClaimDto = {
+  methodId: number;
+  externalId: number;
+  fingerprint: string;
+  data: string;
+  signature?: string | null;
+  pubKey?: string | null;
+};
+
 export type OrganizationMember = {
   email: string;
   role: "owner" | "member";

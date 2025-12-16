@@ -1,4 +1,4 @@
-import monolithLogo from "../../assets/monolith-logo.png";
+import monolithLogo from "../../assets/stability-logo.png";
 
 type LoginPageProps = {
   onLogin: () => Promise<void> | void;

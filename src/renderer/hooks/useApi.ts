@@ -12,12 +12,6 @@ import {
 } from "../state";
 import { useQueryClient } from "@tanstack/react-query";
 
-declare global {
-  interface Window {
-    ucfr: import("../../preload").RendererAPI;
-  }
-}
-
 export function useBootstrap() {
   const [, setToken] = useAtom(tokenAtom);
   const [, setFolder] = useAtom(folderAtom);

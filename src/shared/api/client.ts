@@ -1,4 +1,4 @@
-import { UserProfile, Project } from "./types";
+import { UserProfile, Project, CreateProjectClaimDto } from "./types";
 
 const BASE_URL = "https://api.ucfr.io";
 
@@ -149,12 +149,7 @@ export async function fetchProject(
 export async function createProjectClaim(
   projectId: string,
   token: string,
-  payload: {
-    methodId: number;
-    externalId: number;
-    fingerprint: string;
-    data: string;
-  }
+  payload: CreateProjectClaimDto
 ): Promise<any | null> {
   try {
     const response = await fetchWithAuth(

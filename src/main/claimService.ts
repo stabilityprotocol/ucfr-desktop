@@ -144,7 +144,16 @@ export async function handleFileChange(filePath: string, event: string) {
     }
 
     // 3. Construct Data JSON
+    // API expects certain top-level fields inside `data`
     const claimData = {
+      // Required by server-side schema
+      filename: fileName,
+      userEmail,
+      projectId,
+      projectName: project.name,
+      fingerprint,
+
+      // Additional descriptive metadata
       version: "1.0",
       lang: "en",
       title: `UCFR Claim for ${fileName}`,
@@ -161,24 +170,58 @@ export async function handleFileChange(filePath: string, event: string) {
       canonicalUrl: "https://www.ucfr.io/",
       author: {
         email: userEmail,
-        organizationId: project.organization?.id || projectId, // specific logic if needed, fallback to project ID for personal?
-        projectId: projectId,
+        organizationId: project.organization?.id || projectId,
+        projectId,
       },
       subject: {
         name: fileName,
         mediaType: mimeType,
         size: stats.size,
-        fingerprint: fingerprint,
+        fingerprint,
         lastModified: Math.floor(stats.mtimeMs),
         ...(previousFingerprint ? { previousFingerprint } : {}),
       },
     };
 
-    // 4. Submit Claim
+    // 4. Defensive validation prior to submit
+    const requiredStrFields: Array<[string, unknown]> = [
+      ["filename", claimData.filename],
+      ["userEmail", claimData.userEmail],
+      ["projectId", claimData.projectId],
+      ["projectName", claimData.projectName],
+      ["fingerprint", claimData.fingerprint],
+    ];
+    const missing = requiredStrFields
+      .filter(([_, v]) => typeof v !== "string" || (v as string).trim() === "")
+      .map(([k]) => k);
+    const fpValid = /^0x[0-9a-f]{64}$/.test(claimData.fingerprint as string);
+    if (missing.length > 0 || !fpValid) {
+      console.error(
+        "[ClaimService] Validation failed; not submitting claim",
+        JSON.stringify(
+          {
+            filePath,
+            projectId,
+            projectName: project.name,
+            missingFields: missing,
+            fingerprintValid: fpValid,
+            fingerprintSample:
+              typeof claimData.fingerprint === "string"
+                ? (claimData.fingerprint as string).slice(0, 10)
+                : null,
+          },
+          null,
+          2
+        )
+      );
+      return;
+    }
+
+    // 5. Submit Claim
     const payload = {
       methodId: 0,
       externalId: 1,
-      fingerprint: fingerprint,
+      fingerprint,
       data: JSON.stringify(claimData),
     };
 
@@ -201,9 +244,18 @@ export async function handleFileChange(filePath: string, event: string) {
     }
 
     if (result) {
-      console.log(`[ClaimService] Claim submitted successfully: ${result.id}`);
+      console.log(
+        `[ClaimService] Claim submitted successfully: ${result.id} (project: ${project.name}, file: ${fileName})`
+      );
     } else {
-      console.error("[ClaimService] Failed to submit claim");
+      console.error(
+        "[ClaimService] Failed to submit claim",
+        JSON.stringify(
+          { projectId, projectName: project.name, fileName },
+          null,
+          2
+        )
+      );
     }
   } catch (err) {
     console.error("[ClaimService] Error handling file change:", err);

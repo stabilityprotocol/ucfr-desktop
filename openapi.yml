@@ -2126,9 +2126,9 @@ components:
             - private
           description: Visibility level controlling who can view claims and project details
         license:
-          $ref: "#/components/schemas/LicenseKey"
+          $ref: "#/components/schemas/License"
           nullable: true
-          description: License key for the project. Claims under this project inherit this license setting.
+          description: License information for the project. Claims under this project inherit this license setting.
         allowAiTraining:
           type: boolean
           description: Whether AI training is allowed on claims from this project. Claims under this project inherit this setting.
