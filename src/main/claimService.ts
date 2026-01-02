@@ -7,29 +7,23 @@ import { tokenManager } from "./tokenStore";
 import {
   fetchProject,
   createProjectClaim,
+  createImageProjectClaim,
   TokenExpiredError,
 } from "../shared/api/client";
 import { fileHistoryService } from "./fileHistory";
 
-// Simple mime type mapping
-const mimeMap: Record<string, string> = {
-  ".js": "text/javascript",
-  ".ts": "text/typescript",
-  ".json": "application/json",
-  ".txt": "text/plain",
-  ".md": "text/markdown",
-  ".html": "text/html",
-  ".css": "text/css",
-  ".png": "image/png",
-  ".jpg": "image/jpeg",
-  ".jpeg": "image/jpeg",
-  ".gif": "image/gif",
-  ".pdf": "application/pdf",
-};
+let mime: any;
 
-function getMimeType(filePath: string): string {
-  const ext = path.extname(filePath).toLowerCase();
-  return mimeMap[ext] || "application/octet-stream";
+async function getMimeType(filePath: string): Promise<string> {
+  if (!mime) {
+    const mimeModule = await import("mime");
+    mime = mimeModule.default || mimeModule;
+  }
+  return mime.getType(filePath) || "application/octet-stream";
+}
+
+async function isImageMimeType(mimeType: string): Promise<boolean> {
+  return mimeType.startsWith("image/");
 }
 
 async function getFileHash(filePath: string): Promise<string> {
@@ -107,7 +101,7 @@ export async function handleFileChange(filePath: string, event: string) {
     // 1. Get File Stats & Hash
     const stats = await fs.stat(filePath);
     const fingerprint = await getFileHash(filePath);
-    const mimeType = getMimeType(filePath);
+    const mimeType = await getMimeType(filePath);
     const fileName = path.basename(filePath);
 
     // Get previous fingerprint from history
@@ -228,9 +222,25 @@ export async function handleFileChange(filePath: string, event: string) {
     console.log(
       `[ClaimService] Submitting claim for ${fileName} in project ${project.name}`
     );
+
+    const isImage = await isImageMimeType(mimeType);
     let result;
+
     try {
-      result = await createProjectClaim(projectId, token, payload);
+      if (isImage) {
+        // Use image upload endpoint for image files
+        const fileBuffer = await fs.readFile(filePath);
+        result = await createImageProjectClaim(
+          projectId,
+          token,
+          payload,
+          filePath,
+          fileBuffer
+        );
+      } else {
+        // Use regular JSON endpoint for non-image files
+        result = await createProjectClaim(projectId, token, payload);
+      }
     } catch (error) {
       if (error instanceof TokenExpiredError) {
         console.log("[ClaimService] Token expired, skipping claim");
@@ -245,13 +255,13 @@ export async function handleFileChange(filePath: string, event: string) {
 
     if (result) {
       console.log(
-        `[ClaimService] Claim submitted successfully: ${result.id} (project: ${project.name}, file: ${fileName})`
+        `[ClaimService] ${isImage ? "Image" : ""} claim submitted successfully: ${result.id} (project: ${project.name}, file: ${fileName})`
       );
     } else {
       console.error(
         "[ClaimService] Failed to submit claim",
         JSON.stringify(
-          { projectId, projectName: project.name, fileName },
+          { projectId, projectName: project.name, fileName, isImage },
           null,
           2
         )

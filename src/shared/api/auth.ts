@@ -2,6 +2,7 @@ export type AuthUserClaims = {
   sub: string;
   email?: string;
   name?: string;
+  exp?: number;
   [key: string]: unknown;
 };
 
@@ -31,4 +32,16 @@ export function decodeUserFromToken(
     return null;
   }
   return payload;
+}
+
+export function isTokenExpired(token: string | null): boolean {
+  if (!token) return true;
+  const claims = decodeUserFromToken(token);
+  if (!claims || typeof claims.exp !== "number") {
+    // If no expiration claim, assume token is valid
+    // This is safe because the API will still validate on calls
+    return false;
+  }
+  // exp is in seconds, Date.now() is in milliseconds
+  return claims.exp * 1000 < Date.now();
 }

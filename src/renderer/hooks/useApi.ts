@@ -11,6 +11,7 @@ import {
   userProfileAtom,
 } from "../state";
 import { useQueryClient } from "@tanstack/react-query";
+import { isTokenExpired } from "../../shared/api/auth";
 
 export function useBootstrap() {
   const [, setToken] = useAtom(tokenAtom);
@@ -36,8 +37,21 @@ export function useBootstrap() {
         );
         return;
       }
-      const [token, settings, user, projects, health] = await Promise.all([
-        window.ucfr.auth.getToken(),
+      const token = await window.ucfr.auth.getToken();
+      
+      // Check if token is expired before making any API calls
+      if (token && isTokenExpired(token)) {
+        console.info("[useBootstrap] Token expired, clearing and showing login");
+        await window.ucfr.auth.clearToken();
+        setToken(null);
+        setCurrentUser(null);
+        setUserProfile(null);
+        setOrganizations([]);
+        setProjects([]);
+        return;
+      }
+      
+      const [settings, user, projects, health] = await Promise.all([
         window.ucfr.settings.get(),
         window.ucfr.auth.getUser(),
         window.ucfr.api.projects(),
@@ -116,7 +130,33 @@ export function useBootstrap() {
       queryClient.invalidateQueries();
     };
     window.addEventListener("tokenChanged", handler);
-    return () => window.removeEventListener("tokenChanged", handler);
+
+    // Periodic token expiration check (every 60 seconds)
+    const TOKEN_CHECK_INTERVAL = 60 * 1000; // 60 seconds
+    const checkTokenExpiration = async () => {
+      if (!window.ucfr || !window.ucfr.auth) {
+        return;
+      }
+      
+      const token = await window.ucfr.auth.getToken();
+      if (token && isTokenExpired(token)) {
+        console.info("[useBootstrap] Periodic check: Token expired, clearing and showing login");
+        await window.ucfr.auth.clearToken();
+        setToken(null);
+        setCurrentUser(null);
+        setUserProfile(null);
+        setOrganizations([]);
+        setProjects([]);
+        queryClient.invalidateQueries();
+      }
+    };
+    
+    const intervalId = setInterval(checkTokenExpiration, TOKEN_CHECK_INTERVAL);
+
+    return () => {
+      window.removeEventListener("tokenChanged", handler);
+      clearInterval(intervalId);
+    };
   }, [
     setToken,
     setFolder,

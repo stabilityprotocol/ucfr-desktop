@@ -179,3 +179,62 @@ export async function createProjectClaim(
     return null;
   }
 }
+
+export async function createImageProjectClaim(
+  projectId: string,
+  token: string,
+  payload: CreateProjectClaimDto,
+  filePath: string,
+  fileBuffer: Buffer
+): Promise<any | null> {
+  try {
+    const formData = new FormData();
+    
+    // Add claim data as JSON string
+    formData.append(
+      "data", 
+      new Blob([JSON.stringify(payload)], { type: "application/json" })
+    );
+    
+    // Add the file
+    const mimeModule = await import("mime");
+    const mimeInstance = (mimeModule as any).default || mimeModule;
+    const mimeType = mimeInstance.getType(filePath) || "application/octet-stream";
+    const fileName = require("path").basename(filePath);
+    const uint8Array = new Uint8Array(fileBuffer);
+    const fileBlob = new Blob([uint8Array], { type: mimeType });
+    formData.append("file", fileBlob, fileName);
+
+    const response = await fetch(
+      `${BASE_URL}/api/projects/${projectId}/claims/image`,
+      {
+        method: "POST",
+        headers: {
+          Authorization: `Bearer ${token}`,
+        },
+        body: formData,
+      }
+    );
+
+    if (response.status === 401) {
+      throw new TokenExpiredError();
+    }
+
+    if (!response.ok) {
+      const errText = await response.text();
+      console.error(
+        `Failed to create image claim: ${response.status} ${response.statusText}`,
+        errText
+      );
+      return null;
+    }
+
+    return await response.json();
+  } catch (error) {
+    if (error instanceof TokenExpiredError) {
+      throw error;
+    }
+    console.error("Error creating image project claim:", error);
+    return null;
+  }
+}
