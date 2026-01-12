@@ -1,9 +1,15 @@
+/**
+ * Settings store for the application
+ * Manages persistent configuration including project folders,
+ * auto-start preferences, and first-time login state
+ */
 import Store from 'electron-store';
 
 type Settings = {
   folderPath?: string;
   autoStart?: boolean;
   projectFolders?: Record<string, string[]>;
+  hasCompletedFirstLogin?: boolean;
 };
 
 const settings = new Store<Settings>({
@@ -11,7 +17,8 @@ const settings = new Store<Settings>({
   defaults: {
     folderPath: undefined,
     autoStart: false,
-    projectFolders: {}
+    projectFolders: {},
+    hasCompletedFirstLogin: false
   }
 });
 

@@ -12,16 +12,35 @@ import {
 } from "../shared/api/client";
 import { fileHistoryService } from "./fileHistory";
 
+/**
+ * Lazily loaded mime module
+ * Using lazy initialization to handle potential import issues in development
+ */
 let mime: any;
 
+/**
+ * Get MIME type for a file path
+ * @param filePath - Path to the file
+ * @returns MIME type string or fallback to application/octet-stream
+ */
 async function getMimeType(filePath: string): Promise<string> {
   if (!mime) {
-    const mimeModule = await import("mime");
-    mime = mimeModule.default || mimeModule;
+    try {
+      // Use require for mime v3 (CommonJS) - works in both dev and production
+      mime = require("mime");
+    } catch (error) {
+      console.error("[ClaimService] Failed to load mime module:", error);
+      return "application/octet-stream";
+    }
   }
   return mime.getType(filePath) || "application/octet-stream";
 }
 
+/**
+ * Check if a MIME type represents an image
+ * @param mimeType - MIME type string to check
+ * @returns true if the MIME type starts with "image/"
+ */
 async function isImageMimeType(mimeType: string): Promise<boolean> {
   return mimeType.startsWith("image/");
 }

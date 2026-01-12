@@ -9,12 +9,6 @@ import {
 } from "../shared/api/client";
 import { dbExec, dbQuery } from "../shared/dbClient";
 
-declare global {
-  interface Window {
-    ucfr?: RendererAPI;
-  }
-}
-
 const CONFIG_TOKEN_KEY = "auth.token";
 const SETTINGS_KEY = "ucfr.settings";
 
@@ -113,7 +107,7 @@ async function webGetAuthorizedUser(token: string): Promise<string | null> {
     );
 
     if (response.status === 401) {
-      setStoredToken(null);
+      await setDbToken(null);
       return null;
     }
 
@@ -166,6 +160,10 @@ function createWebApi(): RendererAPI {
         const token = await getDbToken();
         if (!token) return null;
         return webGetAuthorizedUser(token);
+      },
+      handleFirstLogin: async () => {
+        console.warn("handleFirstLogin is not supported in web environment.");
+        return { skipped: true, reason: "Web environment" };
       },
     },
     settings: {

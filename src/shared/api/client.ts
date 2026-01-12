@@ -180,6 +180,15 @@ export async function createProjectClaim(
   }
 }
 
+/**
+ * Create an image project claim with file upload
+ * @param projectId - ID of the project
+ * @param token - Authentication token
+ * @param payload - Claim data payload
+ * @param filePath - Path to the image file
+ * @param fileBuffer - Buffer containing the file data
+ * @returns Created claim object or null on failure
+ */
 export async function createImageProjectClaim(
   projectId: string,
   token: string,
@@ -197,9 +206,9 @@ export async function createImageProjectClaim(
     );
     
     // Add the file
-    const mimeModule = await import("mime");
-    const mimeInstance = (mimeModule as any).default || mimeModule;
-    const mimeType = mimeInstance.getType(filePath) || "application/octet-stream";
+    // Use require for mime v3 (CommonJS) - works in both dev and production
+    const mime = require("mime");
+    const mimeType = mime.getType(filePath) || "application/octet-stream";
     const fileName = require("path").basename(filePath);
     const uint8Array = new Uint8Array(fileBuffer);
     const fileBlob = new Blob([uint8Array], { type: mimeType });

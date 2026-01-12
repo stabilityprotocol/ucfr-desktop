@@ -77,6 +77,21 @@ export function useBootstrap() {
             }
           })
           .catch((err) => console.error("Failed to fetch profile", err));
+        
+        // Handle first-time login logic
+        window.ucfr.auth
+          .handleFirstLogin()
+          .then((result: any) => {
+            if (result.attached) {
+              console.info(
+                `[First Login] Downloads folder attached to "${result.projectName}"`,
+                result
+              );
+            } else if (result.skipped) {
+              console.info(`[First Login] ${result.reason}`);
+            }
+          })
+          .catch((err) => console.error("Failed to handle first login", err));
       }
       setProjects(projects as any);
       setHealth(health as any);
@@ -114,6 +129,21 @@ export function useBootstrap() {
                 }
               })
               .catch((err) => console.error("Failed to fetch profile", err));
+            
+            // Handle first-time login logic
+            window.ucfr.auth
+              .handleFirstLogin()
+              .then((result: any) => {
+                if (result.attached) {
+                  console.info(
+                    `[First Login] Downloads folder attached to "${result.projectName}"`,
+                    result
+                  );
+                } else if (result.skipped) {
+                  console.info(`[First Login] ${result.reason}`);
+                }
+              })
+              .catch((err) => console.error("Failed to handle first login", err));
           }
           // Refresh projects
           const projects = await window.ucfr.api.projects();

@@ -342,6 +342,102 @@ export async function registerIpcHandlers() {
       target.startsWith("http") ? target : `https://${target}`
     );
   });
+
+  /**
+   * Handles first-time login logic
+   * - Checks if user has completed first login
+   * - Fetches user's projects
+   * - Finds "Private Project" with visibility "private" (personal project only)
+   * - Automatically attaches the Downloads folder
+   * - Marks first login as completed
+   */
+  ipcMain.handle("auth/handleFirstLogin", async () => {
+    const settings = getSettings();
+    
+    // Skip if already completed first login
+    if (settings.hasCompletedFirstLogin) {
+      return { skipped: true, reason: "Already completed first login" };
+    }
+
+    const token = await tokenManager.getToken();
+    if (!token) {
+      return { success: false, error: "No token available" };
+    }
+
+    const email = (await getAuthorizedUserFromApi()) as string | null;
+    if (!email) {
+      return { success: false, error: "No user email available" };
+    }
+
+    try {
+      // Fetch all user projects
+      const projects = await fetchUserProjects(email, token);
+      
+      // Find personal "Private Project" with visibility "private"
+      const privateProject = projects.find(
+        (project) =>
+          project.name === "Private Project" &&
+          project.visibility === "private" &&
+          !project.organization // Ensure it's a personal project
+      );
+
+      if (!privateProject) {
+        // Mark as completed even if no private project found
+        updateSettings({ hasCompletedFirstLogin: true });
+        return {
+          success: true,
+          attached: false,
+          reason: "No matching Private Project found",
+        };
+      }
+
+      // Get Downloads folder path
+      const downloadsPath = app.getPath("downloads");
+
+      // Check if Downloads folder is already attached
+      const currentSettings = getSettings();
+      const projectFolders = currentSettings.projectFolders || {};
+      const currentList = projectFolders[privateProject.id] || [];
+
+      if (!currentList.includes(downloadsPath)) {
+        // Attach Downloads folder to the project
+        const newList = [...currentList, downloadsPath];
+        updateSettings({
+          projectFolders: {
+            ...projectFolders,
+            [privateProject.id]: newList,
+          },
+          hasCompletedFirstLogin: true,
+        });
+
+        // Add to watcher
+        const w = getOrCreateWatcher();
+        w.add(downloadsPath);
+
+        return {
+          success: true,
+          attached: true,
+          projectId: privateProject.id,
+          projectName: privateProject.name,
+          folderPath: downloadsPath,
+        };
+      } else {
+        // Already attached, just mark as completed
+        updateSettings({ hasCompletedFirstLogin: true });
+        return {
+          success: true,
+          attached: false,
+          reason: "Downloads folder already attached",
+        };
+      }
+    } catch (error) {
+      console.error("Error handling first login:", error);
+      return {
+        success: false,
+        error: error instanceof Error ? error.message : "Unknown error",
+      };
+    }
+  });
 }
 
 export function stopWatcher() {

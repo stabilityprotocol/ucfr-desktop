@@ -6,6 +6,7 @@ type RendererAPI = {
     clearToken: () => Promise<null>;
     startLoginFlow: () => Promise<unknown>;
     getUser: () => Promise<unknown>;
+    handleFirstLogin: () => Promise<unknown>;
   };
   settings: {
     get: () => Promise<unknown>;
@@ -46,6 +47,7 @@ const api: RendererAPI = {
     clearToken: () => ipcRenderer.invoke("auth/clearToken"),
     startLoginFlow: () => ipcRenderer.invoke("auth/startLoginFlow"),
     getUser: () => ipcRenderer.invoke("auth/getUser"),
+    handleFirstLogin: () => ipcRenderer.invoke("auth/handleFirstLogin"),
   },
   settings: {
     get: () => ipcRenderer.invoke("settings/get"),
