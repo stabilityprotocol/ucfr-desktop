@@ -16,6 +16,7 @@ import {
   currentUserAtom,
   organizationsAtom,
   activeOrgAtom,
+  isValidatingAtom,
 } from "./state";
 import { LoginPage } from "./pages/Login";
 import { DashboardPage } from "./pages/Dashboard";
@@ -40,6 +41,7 @@ export default function App() {
 function AppContent() {
   useBootstrap();
   const [token, setToken] = useAtom(tokenAtom);
+  const [isValidating] = useAtom(isValidatingAtom);
   const [autoStart, setAutoStart] = useAtom(autoStartAtom);
   const [projects, setProjects] = useAtom(projectsAtom);
   const [health] = useAtom(healthAtom);
@@ -94,6 +96,21 @@ function AppContent() {
     setAutoStart(next);
   };
 
+  // Show loading screen while validating token against the server
+  if (isValidating) {
+    return (
+      <div className="flex items-center justify-center min-h-screen bg-white">
+        <div className="flex flex-col items-center gap-4">
+          <div className="w-6 h-6 border-2 border-zinc-200 border-t-[#ff5f00] rounded-full animate-spin" />
+          <p className="text-sm text-zinc-500 font-medium">
+            Verifying session...
+          </p>
+        </div>
+      </div>
+    );
+  }
+
+  // Auth decision: if no token, show login page
   if (!token) {
     return <LoginPage onLogin={login} />;
   }

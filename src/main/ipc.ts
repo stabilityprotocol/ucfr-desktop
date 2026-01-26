@@ -126,6 +126,48 @@ export async function registerIpcHandlers() {
     return null;
   });
 
+  /**
+   * Validates the stored token against the auth server.
+   * Returns { valid: true } if token is valid, { valid: false } otherwise.
+   * Clears the token if server returns 401 (invalid/expired).
+   * On network errors, returns { valid: true } to allow offline usage.
+   */
+  ipcMain.handle("auth/validateToken", async () => {
+    const token = await tokenManager.getToken();
+    if (!token) return { valid: false };
+
+    try {
+      const response = await fetch(
+        "https://auth.stabilityprotocol.com/v1/auth/is-authorized",
+        {
+          method: "POST",
+          headers: { Authorization: `Bearer ${token}` },
+        }
+      );
+
+      if (response.status === 401) {
+        await tokenManager.clear();
+        return { valid: false };
+      }
+
+      if (!response.ok) {
+        // Server error, allow offline usage
+        console.warn(
+          "[auth/validateToken] Validation failed (non-401), allowing offline:",
+          response.status
+        );
+        return { valid: true };
+      }
+
+      const data = (await response.json()) as { ok: boolean };
+      return { valid: data.ok === true };
+    } catch (err) {
+      // Network error, allow offline usage
+      console.warn("[auth/validateToken] Network error, allowing offline:", err);
+      return { valid: true };
+    }
+  });
+
   ipcMain.handle("auth/startLoginFlow", async () => {
     const requestId = randomUUID();
 

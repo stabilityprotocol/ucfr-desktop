@@ -7,6 +7,7 @@ type RendererAPI = {
     startLoginFlow: () => Promise<unknown>;
     getUser: () => Promise<unknown>;
     handleFirstLogin: () => Promise<unknown>;
+    validateToken: () => Promise<{ valid: boolean }>;
   };
   settings: {
     get: () => Promise<unknown>;
@@ -48,6 +49,7 @@ const api: RendererAPI = {
     startLoginFlow: () => ipcRenderer.invoke("auth/startLoginFlow"),
     getUser: () => ipcRenderer.invoke("auth/getUser"),
     handleFirstLogin: () => ipcRenderer.invoke("auth/handleFirstLogin"),
+    validateToken: () => ipcRenderer.invoke("auth/validateToken"),
   },
   settings: {
     get: () => ipcRenderer.invoke("settings/get"),

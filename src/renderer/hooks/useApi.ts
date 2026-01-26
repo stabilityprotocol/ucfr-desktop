@@ -9,6 +9,7 @@ import {
   currentUserAtom,
   organizationsAtom,
   userProfileAtom,
+  isValidatingAtom,
 } from "../state";
 import { useQueryClient } from "@tanstack/react-query";
 import { isTokenExpired } from "../../shared/api/auth";
@@ -22,10 +23,13 @@ export function useBootstrap() {
   const [, setCurrentUser] = useAtom(currentUserAtom);
   const [, setOrganizations] = useAtom(organizationsAtom);
   const [, setUserProfile] = useAtom(userProfileAtom);
+  const [, setIsValidating] = useAtom(isValidatingAtom);
   const queryClient = useQueryClient();
 
   useEffect(() => {
     async function hydrate() {
+      setIsValidating(true);
+
       if (
         !window.ucfr ||
         !window.ucfr.auth ||
@@ -35,22 +39,51 @@ export function useBootstrap() {
         console.warn(
           "[useBootstrap] window.ucfr is not available, skipping hydrate."
         );
+        setIsValidating(false);
         return;
       }
       const token = await window.ucfr.auth.getToken();
-      
-      // Check if token is expired before making any API calls
+
+      // Quick local check first (fast-fail for obviously expired tokens)
       if (token && isTokenExpired(token)) {
-        console.info("[useBootstrap] Token expired, clearing and showing login");
+        console.info(
+          "[useBootstrap] Token expired locally, clearing and showing login"
+        );
         await window.ucfr.auth.clearToken();
         setToken(null);
         setCurrentUser(null);
         setUserProfile(null);
         setOrganizations([]);
         setProjects([]);
+        setIsValidating(false);
         return;
       }
-      
+
+      // If we have a token, validate it against the server
+      if (token) {
+        const { valid } = await window.ucfr.auth.validateToken();
+        if (!valid) {
+          console.info(
+            "[useBootstrap] Token invalid on server, showing login"
+          );
+          setToken(null);
+          setCurrentUser(null);
+          setUserProfile(null);
+          setOrganizations([]);
+          setProjects([]);
+          setIsValidating(false);
+          return;
+        }
+      }
+
+      // No token means show login
+      if (!token) {
+        setToken(null);
+        setIsValidating(false);
+        return;
+      }
+
+      // Token is valid, proceed with fetching user data
       const [settings, user, projects, health] = await Promise.all([
         window.ucfr.settings.get(),
         window.ucfr.auth.getUser(),
@@ -95,6 +128,7 @@ export function useBootstrap() {
       }
       setProjects(projects as any);
       setHealth(health as any);
+      setIsValidating(false);
     }
     hydrate();
 
@@ -161,17 +195,37 @@ export function useBootstrap() {
     };
     window.addEventListener("tokenChanged", handler);
 
-    // Periodic token expiration check (every 60 seconds)
-    const TOKEN_CHECK_INTERVAL = 60 * 1000; // 60 seconds
+    // Periodic token validation check (every 5 minutes)
+    const TOKEN_CHECK_INTERVAL = 5 * 60 * 1000; // 5 minutes
     const checkTokenExpiration = async () => {
       if (!window.ucfr || !window.ucfr.auth) {
         return;
       }
-      
+
       const token = await window.ucfr.auth.getToken();
-      if (token && isTokenExpired(token)) {
-        console.info("[useBootstrap] Periodic check: Token expired, clearing and showing login");
+      if (!token) return;
+
+      // Quick local check first
+      if (isTokenExpired(token)) {
+        console.info(
+          "[useBootstrap] Periodic check: Token expired locally, clearing"
+        );
         await window.ucfr.auth.clearToken();
+        setToken(null);
+        setCurrentUser(null);
+        setUserProfile(null);
+        setOrganizations([]);
+        setProjects([]);
+        queryClient.invalidateQueries();
+        return;
+      }
+
+      // Validate against the server
+      const { valid } = await window.ucfr.auth.validateToken();
+      if (!valid) {
+        console.info(
+          "[useBootstrap] Periodic check: Token invalid on server, clearing"
+        );
         setToken(null);
         setCurrentUser(null);
         setUserProfile(null);
@@ -180,7 +234,7 @@ export function useBootstrap() {
         queryClient.invalidateQueries();
       }
     };
-    
+
     const intervalId = setInterval(checkTokenExpiration, TOKEN_CHECK_INTERVAL);
 
     return () => {
@@ -196,6 +250,7 @@ export function useBootstrap() {
     setCurrentUser,
     setOrganizations,
     setUserProfile,
+    setIsValidating,
     queryClient,
   ]);
 }
