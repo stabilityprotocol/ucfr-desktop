@@ -721,13 +721,16 @@ paths:
 
   /api/search:
     get:
-      summary: Search profiles and fingerprints
+      summary: Search profiles, organizations, projects, and fingerprints
       description: |
         Authenticated search endpoint backed by PostgreSQL trigram indexes (when available). A valid bearer token is required, so callers must send `Authorization: Bearer <token>`.
-        Provide either a `profile` query (minimum 2 characters) to find matching user emails,
-        an `organization` query (minimum 2 characters) to locate organization names,
-        or a `fingerprint` query (minimum 4 hexadecimal characters, with or without the `0x` prefix) to locate matching claim fingerprints.
-        Any combination of queries may be supplied simultaneously, and results are independently rate limited per IP address.
+        Provide any combination of the following queries:
+        - `profile` query (minimum 2 characters) to find matching user emails
+        - `organization` query (minimum 2 characters) to locate organization names
+        - `project` query (minimum 2 characters) to search project names (only returns projects where the user is owner, admin, or member)
+        - `fingerprint` query (minimum 4 hexadecimal characters, with or without the `0x` prefix) to locate matching claim fingerprints
+
+        All queries may be supplied simultaneously, and results are independently rate limited per IP address.
       tags:
         - Search
       security:
@@ -748,6 +751,17 @@ paths:
           description: >
             Partial organization name to search for. Matching uses trigram similarity against stored organization names and
             falls back to substring ranking when trigram extensions are unavailable. When fewer than two characters are provided the search is skipped.
+            Only returns organizations where the user is owner or member.
+          schema:
+            type: string
+            minLength: 1
+        - name: project
+          in: query
+          required: false
+          description: >
+            Partial project name to search for. Matching uses trigram similarity against stored project names and
+            falls back to substring ranking when trigram extensions are unavailable. When fewer than two characters are provided the search is skipped.
+            Only returns projects where the user is owner, admin, or member.
           schema:
             type: string
             minLength: 1
@@ -763,28 +777,37 @@ paths:
         - name: profilesLimit
           in: query
           required: false
-          description: Maximum number of profile matches to return (default 10, maximum 25).
+          description: Maximum number of profile matches to return (default 10, maximum 25). Set to 0 to skip profile search entirely.
           schema:
             type: integer
-            minimum: 1
+            minimum: 0
             maximum: 25
             default: 10
         - name: organizationsLimit
           in: query
           required: false
-          description: Maximum number of organization matches to return (default 10, maximum 25).
+          description: Maximum number of organization matches to return (default 10, maximum 25). Set to 0 to skip organization search entirely.
           schema:
             type: integer
-            minimum: 1
+            minimum: 0
+            maximum: 25
+            default: 10
+        - name: projectsLimit
+          in: query
+          required: false
+          description: Maximum number of project matches to return (default 10, maximum 25). Set to 0 to skip project search entirely.
+          schema:
+            type: integer
+            minimum: 0
             maximum: 25
             default: 10
         - name: fingerprintsLimit
           in: query
           required: false
-          description: Maximum number of fingerprint matches to return (default 5, maximum 25).
+          description: Maximum number of fingerprint matches to return (default 5, maximum 25). Set to 0 to skip fingerprint search entirely.
           schema:
             type: integer
-            minimum: 1
+            minimum: 0
             maximum: 25
             default: 5
       responses:
@@ -1546,62 +1569,278 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/RecentClaimsResponse"
-         "400":
-           description: Invalid request parameters
-           content:
-             application/json:
-               schema:
-                 $ref: "#/components/schemas/ErrorResponse"
+        "400":
+          description: Invalid request parameters
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
 
-   /api/claims/public:
-     get:
-       summary: List public claims
-       description: >
-         Returns the latest claims from public projects, paginated. Use the `imagesOnly`
-         filter to retrieve only image claims (those with pHash in metadata).
-         Results are limited to a maximum of 1000 claims and cached for one minute.
-       tags:
-         - Claims
-       parameters:
-         - name: page
-           in: query
-           required: false
-           schema:
-             type: integer
-             minimum: 1
-             default: 1
-           description: Page number to retrieve. Defaults to 1.
-         - name: pageSize
-           in: query
-           required: false
-           schema:
-             type: integer
-             minimum: 1
-             maximum: 200
-             default: 25
-           description: Number of results per page. Maximum of 200.
-         - name: imagesOnly
-           in: query
-           required: false
-           schema:
-             type: boolean
-             default: false
-           description: When true, only returns claims with pHash (image claims).
-       responses:
-         "200":
-           description: Paginated list of public claims
-           content:
-             application/json:
-               schema:
-                 $ref: "#/components/schemas/ProjectClaimListResponse"
-         "400":
-           description: Invalid request parameters or pagination beyond 1000 results
-           content:
-             application/json:
-               schema:
-                 $ref: "#/components/schemas/ErrorResponse"
+  /api/claims/public:
+    get:
+      summary: List public claims
+      description: >
+        Returns the latest claims from public projects, paginated. Use the `imagesOnly`
+        filter to retrieve only image claims (those with pHash in metadata).
+        Results are limited to a maximum of 1000 claims and cached for one minute.
+      tags:
+        - Claims
+      parameters:
+        - name: page
+          in: query
+          required: false
+          schema:
+            type: integer
+            minimum: 1
+            default: 1
+          description: Page number to retrieve. Defaults to 1.
+        - name: pageSize
+          in: query
+          required: false
+          schema:
+            type: integer
+            minimum: 1
+            maximum: 200
+            default: 25
+          description: Number of results per page. Maximum of 200.
+        - name: imagesOnly
+          in: query
+          required: false
+          schema:
+            type: boolean
+            default: false
+          description: When true, only returns claims with pHash (image claims).
+      responses:
+        "200":
+          description: Paginated list of public claims
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ProjectClaimListResponse"
+        "400":
+          description: Invalid request parameters or pagination beyond 1000 results
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
 
-   /rpc/{apiKey}:
+  /api/tier/limits:
+    get:
+      summary: Get tier limits and usage
+      description: |
+        Returns the subscription tier information, limits, and current usage for an organization 
+        or user's personal workspace. Requires authentication. If `organizationId` is provided, 
+        returns limits for that organization. Otherwise, returns limits for the authenticated 
+        user's personal workspace.
+      tags:
+        - Tiers
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: organizationId
+          in: query
+          required: false
+          schema:
+            type: string
+            format: uuid
+          description: Organization ID to check limits for. If omitted, returns user workspace limits.
+      responses:
+        "200":
+          description: Tier limits and current usage
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/TierLimitsResponse"
+        "401":
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "404":
+          description: Organization not found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+
+  /api/admin/whitelist:
+    get:
+      summary: List whitelisted emails
+      description: |
+        Returns all emails and patterns in the whitelist. This endpoint is restricted to 
+        Stability Protocol administrators (@stabilityprotocol.com emails only).
+      tags:
+        - Admin
+      security:
+        - BearerAuth: []
+      responses:
+        "200":
+          description: List of whitelisted emails
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  whitelist:
+                    type: array
+                    items:
+                      $ref: "#/components/schemas/EmailWhitelist"
+                  count:
+                    type: integer
+                    description: Total number of whitelist entries
+        "401":
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "403":
+          description: Forbidden - requires @stabilityprotocol.com email
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "500":
+          description: Internal server error
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+    post:
+      summary: Add email to whitelist
+      description: |
+        Adds an email address or domain pattern to the whitelist. Supports exact emails 
+        (user@example.com) and wildcard domains (*@example.com). This endpoint is restricted 
+        to Stability Protocol administrators (@stabilityprotocol.com emails only).
+      tags:
+        - Admin
+      security:
+        - BearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - email
+              properties:
+                email:
+                  type: string
+                  description: Email address or pattern (e.g., user@example.com or *@example.com)
+                  example: user@example.com
+            examples:
+              exactEmail:
+                summary: Exact email address
+                value:
+                  email: user@example.com
+              wildcardDomain:
+                summary: Wildcard domain pattern
+                value:
+                  email: "*@example.com"
+      responses:
+        "201":
+          description: Email added to whitelist successfully
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/EmailWhitelist"
+        "400":
+          description: Invalid email format or pattern
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "401":
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "403":
+          description: Forbidden - requires @stabilityprotocol.com email
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "409":
+          description: Email already exists in whitelist
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "500":
+          description: Internal server error
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+
+  /api/admin/whitelist/{email}:
+    delete:
+      summary: Remove email from whitelist
+      description: |
+        Removes an email address or pattern from the whitelist. This endpoint is restricted 
+        to Stability Protocol administrators (@stabilityprotocol.com emails only).
+      tags:
+        - Admin
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: email
+          in: path
+          required: true
+          schema:
+            type: string
+          description: Email address or pattern to remove
+          example: user@example.com
+      responses:
+        "200":
+          description: Email removed from whitelist successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  message:
+                    type: string
+                    example: Email removed from whitelist successfully
+                  email:
+                    type: string
+                    example: user@example.com
+        "400":
+          description: Invalid email parameter
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "401":
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "403":
+          description: Forbidden - requires @stabilityprotocol.com email
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "404":
+          description: Email not found in whitelist
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "500":
+          description: Internal server error
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+
+  /rpc/{apiKey}:
     post:
       summary: JSON-RPC Endpoint
       description: Main endpoint for all JSON-RPC method calls
@@ -2499,9 +2738,9 @@ components:
           description: Claim fingerprint (hex encoded).
         metadata:
           type: object
-           description: |
-             Parsed claim metadata payload. The `license` field is an object with `name` (human-readable license name) and `url` (link to full license text) properties, inherited from the project's license setting.
-             Image claims automatically include `pHash` (0x-prefixed 16-character lowercase hexadecimal perceptual hash string) fields. Returns an empty object when no metadata is stored. In rare cases where parsing fails, the service may temporarily return the raw string payload.
+          description: |
+            Parsed claim metadata payload. The `license` field is an object with `name` (human-readable license name) and `url` (link to full license text) properties, inherited from the project's license setting.
+            Image claims automatically include `pHash` (0x-prefixed 16-character lowercase hexadecimal perceptual hash string) fields. Returns an empty object when no metadata is stored. In rare cases where parsing fails, the service may temporarily return the raw string payload.
           additionalProperties: true
         previousClaims:
           type: array
@@ -2884,14 +3123,61 @@ components:
           format: float
           description: Trigram similarity score (0–1) representing how closely the organization name matched the query.
 
+    ProjectSearchResult:
+      type: object
+      required:
+        - id
+        - name
+        - adminEmail
+        - createdAt
+        - score
+      properties:
+        id:
+          type: string
+          format: uuid
+          description: Project identifier.
+        name:
+          type: string
+          description: Project name.
+        description:
+          type: string
+          nullable: true
+          description: Optional project description.
+        adminEmail:
+          type: string
+          format: email
+          description: Email of the project admin.
+        organization:
+          type: object
+          nullable: true
+          description: Organization the project belongs to, if any.
+          properties:
+            id:
+              type: string
+              format: uuid
+              description: Organization identifier.
+            name:
+              type: string
+              description: Organization name.
+        createdAt:
+          type: string
+          format: date-time
+          description: Timestamp when the project was created.
+        score:
+          type: number
+          format: float
+          description: Trigram similarity score (0–1) representing how closely the project name matched the query.
+
     SearchResponse:
       type: object
       required:
         - profileSearchApplied
         - organizationSearchApplied
+        - projectSearchApplied
         - fingerprintSearchApplied
         - profiles
         - organizations
+        - projects
         - fingerprints
       properties:
         profileQuery:
@@ -2902,6 +3188,10 @@ components:
           type: string
           nullable: true
           description: Organization query string echoed back when supplied.
+        projectQuery:
+          type: string
+          nullable: true
+          description: Project query string echoed back when supplied.
         fingerprintQuery:
           type: string
           nullable: true
@@ -2912,6 +3202,9 @@ components:
         organizationSearchApplied:
           type: boolean
           description: Indicates whether the organization query satisfied the minimum length and was executed.
+        projectSearchApplied:
+          type: boolean
+          description: Indicates whether the project query satisfied the minimum length and was executed.
         fingerprintSearchApplied:
           type: boolean
           description: Indicates whether the fingerprint query satisfied the minimum length and was executed.
@@ -2923,10 +3216,84 @@ components:
           type: array
           items:
             $ref: "#/components/schemas/OrganizationSearchResult"
+        projects:
+          type: array
+          items:
+            $ref: "#/components/schemas/ProjectSearchResult"
         fingerprints:
           type: array
           items:
             $ref: "#/components/schemas/FingerprintSearchResult"
+
+    TierLimitsResponse:
+      type: object
+      required:
+        - tier
+        - limits
+        - usage
+      properties:
+        tier:
+          type: string
+          enum: [free, pro, ultra]
+          description: Current tier name
+          example: free
+        limits:
+          $ref: "#/components/schemas/TierLimits"
+        usage:
+          $ref: "#/components/schemas/TierUsage"
+
+    TierLimits:
+      type: object
+      required:
+        - dailyClaimLimit
+        - canSwitchVisibility
+        - maxOrganizationMembers
+      properties:
+        dailyClaimLimit:
+          type: integer
+          description: Maximum claims per day. -1 means unlimited
+          example: 100
+        canSwitchVisibility:
+          type: boolean
+          description: Whether projects can be made private
+          example: false
+        maxOrganizationMembers:
+          type: integer
+          description: Maximum members in organization. -1 means unlimited
+          example: 50
+
+    TierUsage:
+      type: object
+      required:
+        - dailyClaims
+      properties:
+        dailyClaims:
+          type: object
+          required:
+            - used
+            - limit
+            - resetsAt
+          properties:
+            used:
+              type: integer
+              example: 5
+            limit:
+              type: integer
+              example: 100
+            resetsAt:
+              type: string
+              format: date-time
+              description: UTC midnight when the daily limit resets
+              example: "2026-01-17T00:00:00.000Z"
+        organizationMembers:
+          type: object
+          properties:
+            used:
+              type: integer
+              example: 3
+            limit:
+              type: integer
+              example: 50
 
     ErrorResponse:
       type: object
@@ -2934,6 +3301,45 @@ components:
         error:
           type: string
           description: Error message
+
+    EmailWhitelist:
+      type: object
+      required:
+        - id
+        - email
+        - isPattern
+        - addedBy
+        - createdAt
+        - updatedAt
+      properties:
+        id:
+          type: string
+          format: uuid
+          description: Unique identifier for the whitelist entry
+          example: 550e8400-e29b-41d4-a716-446655440000
+        email:
+          type: string
+          description: Email address or pattern (e.g., user@example.com or *@example.com)
+          example: user@example.com
+        isPattern:
+          type: boolean
+          description: Whether this is a wildcard pattern or exact email
+          example: false
+        addedBy:
+          type: string
+          format: email
+          description: Email of the administrator who added this entry
+          example: admin@stabilityprotocol.com
+        createdAt:
+          type: string
+          format: date-time
+          description: Timestamp when the entry was created
+          example: "2026-01-19T10:00:00.000Z"
+        updatedAt:
+          type: string
+          format: date-time
+          description: Timestamp when the entry was last updated
+          example: "2026-01-19T10:00:00.000Z"
 
   securitySchemes:
     BearerAuth:
@@ -2955,5 +3361,9 @@ tags:
     description: Search utilities for discovering profiles and claim fingerprints
   - name: Users
     description: User account and profile endpoints
+  - name: Tiers
+    description: Subscription tier information and limits
+  - name: Admin
+    description: Administrative endpoints (restricted to @stabilityprotocol.com)
   - name: Health
     description: Service health and status
