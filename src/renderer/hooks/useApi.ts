@@ -84,12 +84,32 @@ export function useBootstrap() {
       }
 
       // Token is valid, proceed with fetching user data
-      const [settings, user, projects, health] = await Promise.all([
+      // STEP 1: Fetch user first
+      const user = await window.ucfr.auth.getUser();
+      setCurrentUser(user as any);
+
+      // STEP 2: If we have a user, fetch their profile FIRST before any other API calls
+      if (user && typeof user === "string") {
+        try {
+          const profile = (await window.ucfr.api.userProfile(user)) as any;
+          if (profile) {
+            setUserProfile(profile);
+            if (profile.organizations) {
+              setOrganizations(profile.organizations);
+            }
+          }
+        } catch (err) {
+          console.error("Failed to fetch profile", err);
+        }
+      }
+
+      // STEP 3: Now fetch everything else in parallel
+      const [settings, projects, health] = await Promise.all([
         window.ucfr.settings.get(),
-        window.ucfr.auth.getUser(),
         window.ucfr.api.projects(),
         window.ucfr.api.health(),
       ]);
+      
       setToken(token);
       const typedSettings = settings as {
         folderPath?: string;
@@ -97,21 +117,11 @@ export function useBootstrap() {
       };
       setFolder(typedSettings.folderPath);
       setAutoStart(Boolean(typedSettings.autoStart));
-      setCurrentUser(user as any);
+      setProjects(projects as any);
+      setHealth(health as any);
+
+      // Handle first-time login logic (can be async, doesn't block)
       if (user && typeof user === "string") {
-        window.ucfr.api
-          .userProfile(user)
-          .then((profile: any) => {
-            if (profile) {
-              setUserProfile(profile);
-              if (profile.organizations) {
-                setOrganizations(profile.organizations);
-              }
-            }
-          })
-          .catch((err) => console.error("Failed to fetch profile", err));
-        
-        // Handle first-time login logic
         window.ucfr.auth
           .handleFirstLogin()
           .then((result: any) => {
@@ -126,8 +136,7 @@ export function useBootstrap() {
           })
           .catch((err) => console.error("Failed to handle first login", err));
       }
-      setProjects(projects as any);
-      setHealth(health as any);
+
       setIsValidating(false);
     }
     hydrate();
@@ -149,22 +158,25 @@ export function useBootstrap() {
       } else {
         // Token is available, fetch user information
         try {
+          // STEP 1: Fetch user first
           const user = await window.ucfr.auth.getUser();
           setCurrentUser(user as any);
+
+          // STEP 2: Fetch profile FIRST before any other API calls
           if (user && typeof user === "string") {
-            window.ucfr.api
-              .userProfile(user)
-              .then((profile: any) => {
-                if (profile) {
-                  setUserProfile(profile);
-                  if (profile.organizations) {
-                    setOrganizations(profile.organizations);
-                  }
+            try {
+              const profile = (await window.ucfr.api.userProfile(user)) as any;
+              if (profile) {
+                setUserProfile(profile);
+                if (profile.organizations) {
+                  setOrganizations(profile.organizations);
                 }
-              })
-              .catch((err) => console.error("Failed to fetch profile", err));
-            
-            // Handle first-time login logic
+              }
+            } catch (err) {
+              console.error("Failed to fetch profile", err);
+            }
+
+            // Handle first-time login logic (can be async, doesn't block)
             window.ucfr.auth
               .handleFirstLogin()
               .then((result: any) => {
@@ -179,11 +191,13 @@ export function useBootstrap() {
               })
               .catch((err) => console.error("Failed to handle first login", err));
           }
-          // Refresh projects
-          const projects = await window.ucfr.api.projects();
+
+          // STEP 3: Now fetch everything else in parallel
+          const [projects, health] = await Promise.all([
+            window.ucfr.api.projects(),
+            window.ucfr.api.health(),
+          ]);
           setProjects(projects as any);
-          // Refresh health
-          const health = await window.ucfr.api.health();
           setHealth(health as any);
         } catch (err) {
           console.error("Failed to refresh user state after token change", err);
