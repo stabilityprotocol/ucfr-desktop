@@ -13,6 +13,10 @@ import {
 } from "../state";
 import { useQueryClient } from "@tanstack/react-query";
 import { isTokenExpired } from "../../shared/api/auth";
+import { toast } from "sonner";
+
+// Prevent concurrent first login attempts
+let firstLoginInProgress = false;
 
 export function useBootstrap() {
   const [, setToken] = useAtom(tokenAtom);
@@ -121,7 +125,8 @@ export function useBootstrap() {
       setHealth(health as any);
 
       // Handle first-time login logic (can be async, doesn't block)
-      if (user && typeof user === "string") {
+      if (!firstLoginInProgress && user && typeof user === "string") {
+        firstLoginInProgress = true;
         window.ucfr.auth
           .handleFirstLogin()
           .then((result: any) => {
@@ -132,9 +137,14 @@ export function useBootstrap() {
               );
             } else if (result.skipped) {
               console.info(`[First Login] ${result.reason}`);
+            } else if (result.success === false) {
+              console.error(`[First Login] Failed:`, result.error);
             }
           })
-          .catch((err) => console.error("Failed to handle first login", err));
+          .catch((err) => console.error("Failed to handle first login", err))
+          .finally(() => {
+            firstLoginInProgress = false;
+          });
       }
 
       setIsValidating(false);
@@ -177,19 +187,27 @@ export function useBootstrap() {
             }
 
             // Handle first-time login logic (can be async, doesn't block)
-            window.ucfr.auth
-              .handleFirstLogin()
-              .then((result: any) => {
-                if (result.attached) {
-                  console.info(
-                    `[First Login] Downloads folder attached to "${result.projectName}"`,
-                    result
-                  );
-                } else if (result.skipped) {
-                  console.info(`[First Login] ${result.reason}`);
-                }
-              })
-              .catch((err) => console.error("Failed to handle first login", err));
+            if (!firstLoginInProgress) {
+              firstLoginInProgress = true;
+              window.ucfr.auth
+                .handleFirstLogin()
+                .then((result: any) => {
+                  if (result.attached) {
+                    console.info(
+                      `[First Login] Downloads folder attached to "${result.projectName}"`,
+                      result
+                    );
+                  } else if (result.skipped) {
+                    console.info(`[First Login] ${result.reason}`);
+                  } else if (result.success === false) {
+                    console.error(`[First Login] Failed:`, result.error);
+                  }
+                })
+                .catch((err) => console.error("Failed to handle first login", err))
+                .finally(() => {
+                  firstLoginInProgress = false;
+                });
+            }
           }
 
           // STEP 3: Now fetch everything else in parallel
@@ -208,6 +226,21 @@ export function useBootstrap() {
       queryClient.invalidateQueries();
     };
     window.addEventListener("tokenChanged", handler);
+
+    // Listen for notifications from main process
+    const notificationHandler = (event: Event) => {
+      const customEvent = event as CustomEvent<{ type: string; message: string }>;
+      const { type, message } = customEvent.detail;
+      
+      if (type === 'success') {
+        toast.success(message);
+      } else if (type === 'error') {
+        toast.error(message);
+      } else if (type === 'info') {
+        toast.info(message);
+      }
+    };
+    window.addEventListener("notification", notificationHandler);
 
     // Periodic token validation check (every 5 minutes)
     const TOKEN_CHECK_INTERVAL = 5 * 60 * 1000; // 5 minutes
@@ -253,6 +286,7 @@ export function useBootstrap() {
 
     return () => {
       window.removeEventListener("tokenChanged", handler);
+      window.removeEventListener("notification", notificationHandler);
       clearInterval(intervalId);
     };
   }, [

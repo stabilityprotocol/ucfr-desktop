@@ -19,11 +19,19 @@ function createWindow() {
     preloadPath = path.join(__dirname, "../preload/index.js");
   }
 
+  // Determine icon path
+  const iconPath = isDev
+    ? path.join(process.cwd(), 'src/assets/icons/icon.png')
+    : path.join(__dirname, '../assets/icons/icon.png');
+  
+  const icon = nativeImage.createFromPath(iconPath);
+
   mainWindow = new BrowserWindow({
     width: 900,
     height: 640,
     title: "Monolith",
     resizable: false,
+    icon: icon,
     webPreferences: {
       preload: preloadPath,
       contextIsolation: true,
@@ -39,8 +47,15 @@ function createWindow() {
 }
 
 function createTray() {
-  const icon = nativeImage.createEmpty();
-  tray = new Tray(icon);
+  const iconPath = isDev 
+    ? path.join(process.cwd(), 'src/assets/icons/icon.png')
+    : path.join(__dirname, '../assets/icons/icon.png');
+  const icon = nativeImage.createFromPath(iconPath);
+  
+  // Resize icon for tray - macOS tray icons are typically 16px
+  const resizedIcon = icon.resize({ width: 16, height: 16 });
+  
+  tray = new Tray(resizedIcon);
   const menu = Menu.buildFromTemplate([
     { label: "Open App", click: () => mainWindow?.show() },
     {

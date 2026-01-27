@@ -23,7 +23,22 @@ const settings = new Store<Settings>({
 });
 
 export function getSettings(): Settings {
-  return settings.store;
+  const current = settings.store;
+  
+  // Defensive migration: ensure all default fields exist
+  const migrated: Settings = {
+    folderPath: current.folderPath,
+    autoStart: current.autoStart ?? false,
+    projectFolders: current.projectFolders ?? {},
+    hasCompletedFirstLogin: current.hasCompletedFirstLogin ?? false,
+  };
+  
+  // If migration occurred, persist the updated settings
+  if (current.hasCompletedFirstLogin === undefined) {
+    settings.set(migrated);
+  }
+  
+  return migrated;
 }
 
 export function updateSettings(update: Partial<Settings>): Settings {

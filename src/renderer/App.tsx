@@ -1,4 +1,4 @@
-import { useEffect } from "react";
+import { useEffect, useState } from "react";
 import { useAtom } from "jotai";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import {
@@ -24,6 +24,7 @@ import { ProjectsPage } from "./pages/Projects";
 import { ProjectDetailPage } from "./pages/ProjectDetail";
 import { SettingsPage } from "./pages/Settings";
 import { Layout } from "./components/Layout";
+import { ToastProvider } from "./components/ToastProvider";
 import "./style.css";
 
 const queryClient = new QueryClient({
@@ -39,6 +40,7 @@ export default function App() {
   return (
     <QueryClientProvider client={queryClient}>
       <Router>
+        <ToastProvider />
         <AppContent />
       </Router>
     </QueryClientProvider>
@@ -55,6 +57,7 @@ function AppContent() {
   const [currentUser] = useAtom(currentUserAtom);
   const [organizations] = useAtom(organizationsAtom);
   const [activeOrg, setActiveOrg] = useAtom(activeOrgAtom);
+  const [downloadsAttached, setDownloadsAttached] = useState(false);
 
   useEffect(() => {
     async function loadProjects() {
@@ -80,6 +83,24 @@ function AppContent() {
     loadProjects();
   }, [activeOrg, currentUser, setProjects]);
 
+  useEffect(() => {
+    async function checkDownloadsAttachment() {
+      if (token && currentUser) {
+        const settings = (await window.ucfr.settings.get()) as any;
+        const projectFolders = settings.projectFolders || {};
+        const downloadsPath = await window.ucfr.app.getPath("downloads");
+
+        // Check if downloads folder is attached to any project
+        const isAttached = Object.values(projectFolders).some(
+          (folders: any) => folders.includes(downloadsPath)
+        );
+
+        setDownloadsAttached(isAttached);
+      }
+    }
+    checkDownloadsAttachment();
+  }, [token, currentUser]);
+
   const login = async () => {
     if (!window.ucfr) {
       console.error("window.ucfr is not available.");
@@ -101,6 +122,17 @@ function AppContent() {
   const toggleAutoStart = async () => {
     const next = await window.ucfr.app.toggleAutoStart(!autoStart);
     setAutoStart(next);
+  };
+
+  const handleAttachDownloadsFolder = async () => {
+    try {
+      const result = (await window.ucfr.auth.attachDownloadsFolder()) as any;
+      if (result.attached) {
+        setDownloadsAttached(true);
+      }
+    } catch (error) {
+      console.error("Failed to attach downloads folder:", error);
+    }
   };
 
   // Show loading screen while validating token against the server
@@ -148,6 +180,8 @@ function AppContent() {
               onToggleAutoStart={toggleAutoStart}
               onLogout={logout}
               currentUser={currentUser}
+              onAttachDownloadsFolder={handleAttachDownloadsFolder}
+              downloadsAttached={downloadsAttached}
             />
           }
         />

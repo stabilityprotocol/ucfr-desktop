@@ -15,6 +15,13 @@ import { fileHistoryService } from "./fileHistory";
 
 let watcher: FolderWatcher | null = null;
 
+// Helper function to send notifications to renderer process
+function sendNotification(type: 'success' | 'error' | 'info', message: string) {
+  BrowserWindow.getAllWindows().forEach((win) =>
+    win.webContents.send("notification", { type, message })
+  );
+}
+
 async function pollForToken(requestId: string): Promise<string | null> {
   const pollUrl = `https://auth.stabilityprotocol.com/v1/auth/poll/${requestId}`;
   // Poll for up to 5 minutes
@@ -394,26 +401,34 @@ export async function registerIpcHandlers() {
    * - Marks first login as completed
    */
   ipcMain.handle("auth/handleFirstLogin", async () => {
+    console.log('[First Login] Starting first login check...');
     const settings = getSettings();
     
     // Skip if already completed first login
-    if (settings.hasCompletedFirstLogin) {
+    if (settings.hasCompletedFirstLogin === true) {
+      console.log('[First Login] Skipping - already completed');
       return { skipped: true, reason: "Already completed first login" };
     }
 
     const token = await tokenManager.getToken();
     if (!token) {
+      console.log('[First Login] No token available');
       return { success: false, error: "No token available" };
     }
+    console.log('[First Login] Token available: ✓');
 
     const email = (await getAuthorizedUserFromApi()) as string | null;
     if (!email) {
+      console.log('[First Login] No user email available');
       return { success: false, error: "No user email available" };
     }
+    console.log('[First Login] User email:', email);
 
     try {
       // Fetch all user projects
+      console.log('[First Login] Fetching user projects...');
       const projects = await fetchUserProjects(email, token);
+      console.log('[First Login] Found', projects.length, 'projects');
       
       // Find personal "My Workspace" with visibility "private"
       const privateProject = projects.find(
@@ -424,6 +439,8 @@ export async function registerIpcHandlers() {
       );
 
       if (!privateProject) {
+        console.log('[First Login] No private "My Workspace" found');
+        sendNotification('info', 'No private workspace found. Downloads folder will not be auto-tracked.');
         // Mark as completed even if no private project found
         updateSettings({ hasCompletedFirstLogin: true });
         return {
@@ -433,8 +450,11 @@ export async function registerIpcHandlers() {
         };
       }
 
+      console.log('[First Login] Found My Workspace:', privateProject.id, privateProject.name);
+
       // Get Downloads folder path
       const downloadsPath = app.getPath("downloads");
+      console.log('[First Login] Downloads path:', downloadsPath);
 
       // Check if Downloads folder is already attached
       const currentSettings = getSettings();
@@ -442,6 +462,7 @@ export async function registerIpcHandlers() {
       const currentList = projectFolders[privateProject.id] || [];
 
       if (!currentList.includes(downloadsPath)) {
+        console.log('[First Login] Attaching downloads folder to watcher...');
         // Attach Downloads folder to the project
         const newList = [...currentList, downloadsPath];
         updateSettings({
@@ -455,6 +476,9 @@ export async function registerIpcHandlers() {
         // Add to watcher
         const w = getOrCreateWatcher();
         w.add(downloadsPath);
+        console.log('[First Login] Watcher updated successfully ✓');
+
+        sendNotification('success', `Downloads folder connected to "${privateProject.name}"`);
 
         return {
           success: true,
@@ -464,6 +488,7 @@ export async function registerIpcHandlers() {
           folderPath: downloadsPath,
         };
       } else {
+        console.log('[First Login] Downloads folder already attached');
         // Already attached, just mark as completed
         updateSettings({ hasCompletedFirstLogin: true });
         return {
@@ -473,12 +498,90 @@ export async function registerIpcHandlers() {
         };
       }
     } catch (error) {
-      console.error("Error handling first login:", error);
+      console.error("[First Login] Error:", error);
+      const errorMsg = error instanceof Error ? error.message : "Unknown error";
+      sendNotification('error', 'Failed to attach downloads folder: ' + errorMsg);
       return {
         success: false,
-        error: error instanceof Error ? error.message : "Unknown error",
+        error: errorMsg,
       };
     }
+  });
+
+  ipcMain.handle("auth/attachDownloadsFolder", async () => {
+    const token = await tokenManager.getToken();
+    if (!token) {
+      return { success: false, error: "No token available" };
+    }
+
+    const email = (await getAuthorizedUserFromApi()) as string | null;
+    if (!email) {
+      return { success: false, error: "No user email available" };
+    }
+
+    try {
+      const projects = await fetchUserProjects(email, token);
+      const privateProject = projects.find(
+        (project) =>
+          project.name === "My Workspace" &&
+          project.visibility === "private" &&
+          !project.organization
+      );
+
+      if (!privateProject) {
+        sendNotification('error', 'No private "My Workspace" found. Create one first.');
+        return {
+          success: false,
+          error: "No matching My Workspace found",
+        };
+      }
+
+      const downloadsPath = app.getPath("downloads");
+      const currentSettings = getSettings();
+      const projectFolders = currentSettings.projectFolders || {};
+      const currentList = projectFolders[privateProject.id] || [];
+
+      if (currentList.includes(downloadsPath)) {
+        sendNotification('info', 'Downloads folder is already connected to My Workspace');
+        return {
+          success: true,
+          attached: false,
+          reason: "Downloads folder already attached",
+        };
+      }
+
+      const newList = [...currentList, downloadsPath];
+      updateSettings({
+        projectFolders: {
+          ...projectFolders,
+          [privateProject.id]: newList,
+        },
+      });
+
+      const w = getOrCreateWatcher();
+      w.add(downloadsPath);
+
+      sendNotification('success', 'Downloads folder successfully connected to My Workspace');
+      return {
+        success: true,
+        attached: true,
+        projectId: privateProject.id,
+        projectName: privateProject.name,
+        folderPath: downloadsPath,
+      };
+    } catch (error) {
+      console.error("Error attaching downloads folder:", error);
+      const errorMsg = error instanceof Error ? error.message : "Unknown error";
+      sendNotification('error', 'Failed to attach downloads folder: ' + errorMsg);
+      return {
+        success: false,
+        error: errorMsg,
+      };
+    }
+  });
+
+  ipcMain.handle("app/getPath", async (_event, name: string) => {
+    return app.getPath(name as any);
   });
 }
 

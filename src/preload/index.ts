@@ -8,6 +8,7 @@ type RendererAPI = {
     getUser: () => Promise<unknown>;
     handleFirstLogin: () => Promise<unknown>;
     validateToken: () => Promise<{ valid: boolean }>;
+    attachDownloadsFolder: () => Promise<unknown>;
   };
   settings: {
     get: () => Promise<unknown>;
@@ -23,6 +24,7 @@ type RendererAPI = {
   app: {
     toggleAutoStart: (enable: boolean) => Promise<boolean>;
     openExternal: (target: string) => Promise<void>;
+    getPath: (name: string) => Promise<string>;
   };
   sync: {
     startWatcher: (folderPath: string) => Promise<boolean>;
@@ -50,6 +52,7 @@ const api: RendererAPI = {
     getUser: () => ipcRenderer.invoke("auth/getUser"),
     handleFirstLogin: () => ipcRenderer.invoke("auth/handleFirstLogin"),
     validateToken: () => ipcRenderer.invoke("auth/validateToken"),
+    attachDownloadsFolder: () => ipcRenderer.invoke("auth/attachDownloadsFolder"),
   },
   settings: {
     get: () => ipcRenderer.invoke("settings/get"),
@@ -70,6 +73,7 @@ const api: RendererAPI = {
     toggleAutoStart: (enable) =>
       ipcRenderer.invoke("app/toggleAutoStart", enable),
     openExternal: (target) => ipcRenderer.invoke("app/openExternal", target),
+    getPath: (name) => ipcRenderer.invoke("app/getPath", name),
   },
   sync: {
     startWatcher: (folderPath) =>
@@ -102,6 +106,10 @@ contextBridge.exposeInMainWorld("ucfr", api);
 
 ipcRenderer.on("tokenChanged", () => {
   window.dispatchEvent(new Event("tokenChanged"));
+});
+
+ipcRenderer.on("notification", (_event, payload) => {
+  window.dispatchEvent(new CustomEvent("notification", { detail: payload }));
 });
 
 export type { RendererAPI };

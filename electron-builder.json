@@ -1,0 +1,30 @@
+{
+  "appId": "com.stabilityprotocol.ucfr",
+  "productName": "Monolith",
+  "directories": {
+    "output": "dist",
+    "buildResources": "src/assets/icons"
+  },
+  "files": [
+    "app/**/*",
+    "!app/**/*.map"
+  ],
+  "extraResources": [
+    {
+      "from": "src/assets/icons",
+      "to": "assets/icons",
+      "filter": ["**/*"]
+    }
+  ],
+  "mac": {
+    "icon": "src/assets/icons/icon.icns",
+    "category": "public.app-category.utilities"
+  },
+  "win": {
+    "icon": "src/assets/icons/icon.ico"
+  },
+  "linux": {
+    "icon": "src/assets/icons/icon.png",
+    "category": "Utility"
+  }
+}

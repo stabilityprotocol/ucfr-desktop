@@ -6,6 +6,8 @@ type SettingsPageProps = {
   onToggleAutoStart: () => Promise<void> | void;
   onLogout: () => Promise<void> | void;
   currentUser?: string | null;
+  onAttachDownloadsFolder?: () => Promise<void>;
+  downloadsAttached?: boolean;
 };
 
 export function SettingsPage({
@@ -13,6 +15,8 @@ export function SettingsPage({
   onToggleAutoStart,
   onLogout,
   currentUser,
+  onAttachDownloadsFolder,
+  downloadsAttached,
 }: SettingsPageProps) {
   return (
     <div className="w-full max-w-3xl mx-auto p-8 md:p-12">
@@ -57,6 +61,37 @@ export function SettingsPage({
                 } inline-block h-4 w-4 transform rounded-full bg-white transition-transform`}
               />
             </button>
+          </div>
+        </div>
+
+        <div className="rounded-xl border border-zinc-200 bg-white overflow-hidden">
+          <div className="px-6 py-4 border-b border-zinc-100 bg-zinc-50/50">
+            <h2 className="text-sm font-medium text-zinc-900">File Monitoring</h2>
+          </div>
+          <div className="p-6">
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-sm font-medium text-zinc-900">
+                  Auto-track downloads folder
+                </p>
+                <p className="text-sm text-zinc-500 mt-1">
+                  {downloadsAttached
+                    ? "Your downloads folder is connected to My Workspace."
+                    : "Connect your downloads folder to automatically track new files."}
+                </p>
+              </div>
+              <button
+                onClick={onAttachDownloadsFolder}
+                disabled={downloadsAttached}
+                className={`inline-flex items-center gap-2 px-4 py-2 rounded-md text-sm font-medium transition-colors ${
+                  downloadsAttached
+                    ? "text-zinc-400 bg-zinc-100 cursor-not-allowed"
+                    : "text-white bg-zinc-900 hover:bg-zinc-800"
+                }`}
+              >
+                {downloadsAttached ? "Connected" : "Connect"}
+              </button>
+            </div>
           </div>
         </div>
 
