@@ -1,23 +1,23 @@
-export const WEB_APP_BASE_URL = "https://app.ucfr.io";
+export const WEB_APP_BASE_URL = "https://lite.monolith.stabilityprotocol.com";
 
 export const getDashboardUrl = () => `${WEB_APP_BASE_URL}/dashboard`;
 
 export const getProjectUrl = (projectId: string) =>
-  `${WEB_APP_BASE_URL}/projects/${projectId}`;
+  `${WEB_APP_BASE_URL}/project/${projectId}`;
 
 export const getProjectSettingsUrl = (projectId: string) =>
-  `${WEB_APP_BASE_URL}/projects/${projectId}/settings`;
+  `${WEB_APP_BASE_URL}/project/${projectId}`;
 
 export const getProfileSettingsUrl = (email?: string) =>
   email
-    ? `${WEB_APP_BASE_URL}/profile/${email}/settings`
-    : `${WEB_APP_BASE_URL}/profile/settings`;
+    ? `${WEB_APP_BASE_URL}/profile/${email}`
+    : `${WEB_APP_BASE_URL}/profile`;
 
 export const getOrganizationUrl = (orgId: string) =>
   `${WEB_APP_BASE_URL}/workspace/${orgId}`;
 
 export const getFingerprintVerifyUrl = (fingerprint: string) =>
-  `${WEB_APP_BASE_URL}/claims/fingerprint/${encodeURIComponent(fingerprint)}`;
+  `${WEB_APP_BASE_URL}/artifact/fingerprint/${encodeURIComponent(fingerprint)}`;
 
 export const openInWeb = async (url: string) => {
   if (window.ucfr?.app?.openExternal) {
