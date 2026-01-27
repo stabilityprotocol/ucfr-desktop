@@ -216,11 +216,7 @@ paths:
               schema:
                 $ref: "#/components/schemas/ErrorResponse"
         "403":
-          description: Forbidden
-          content:
-            application/json:
-              schema:
-                $ref: "#/components/schemas/ErrorResponse"
+          $ref: "#/components/responses/Forbidden"
         "404":
           description: Organization not found
           content:
@@ -250,11 +246,7 @@ paths:
               schema:
                 $ref: "#/components/schemas/ErrorResponse"
         "403":
-          description: Forbidden
-          content:
-            application/json:
-              schema:
-                $ref: "#/components/schemas/ErrorResponse"
+          $ref: "#/components/responses/Forbidden"
         "404":
           description: Organization not found
           content:
@@ -352,11 +344,7 @@ paths:
               schema:
                 $ref: "#/components/schemas/ErrorResponse"
         "403":
-          description: Forbidden
-          content:
-            application/json:
-              schema:
-                $ref: "#/components/schemas/ErrorResponse"
+          $ref: "#/components/responses/Forbidden"
         "404":
           description: Organization not found
           content:
@@ -405,11 +393,7 @@ paths:
               schema:
                 $ref: "#/components/schemas/ErrorResponse"
         "403":
-          description: Forbidden
-          content:
-            application/json:
-              schema:
-                $ref: "#/components/schemas/ErrorResponse"
+          $ref: "#/components/responses/Forbidden"
         "404":
           description: Organization not found
           content:
@@ -588,11 +572,7 @@ paths:
               schema:
                 $ref: "#/components/schemas/ErrorResponse"
         "403":
-          description: Forbidden when attempting to update another user's profile
-          content:
-            application/json:
-              schema:
-                $ref: "#/components/schemas/ErrorResponse"
+          $ref: "#/components/responses/Forbidden"
         "500":
           description: Unexpected error while retrieving the user profile
           content:
@@ -984,11 +964,7 @@ paths:
               schema:
                 $ref: "#/components/schemas/Project"
         "403":
-          description: User does not have access to the project
-          content:
-            application/json:
-              schema:
-                $ref: "#/components/schemas/ErrorResponse"
+          $ref: "#/components/responses/ProjectAccessDenied"
         "404":
           description: Project not found
           content:
@@ -1272,11 +1248,7 @@ paths:
               schema:
                 $ref: "#/components/schemas/ErrorResponse"
         "403":
-          description: User does not have access to the project
-          content:
-            application/json:
-              schema:
-                $ref: "#/components/schemas/ErrorResponse"
+          $ref: "#/components/responses/ProjectAccessDenied"
         "404":
           description: Project not found
           content:
@@ -1339,11 +1311,7 @@ paths:
               schema:
                 $ref: "#/components/schemas/ErrorResponse"
         "403":
-          description: User does not have access to the project
-          content:
-            application/json:
-              schema:
-                $ref: "#/components/schemas/ErrorResponse"
+          $ref: "#/components/responses/ProjectAccessDenied"
         "404":
           description: Project not found
           content:
@@ -1391,11 +1359,7 @@ paths:
               schema:
                 $ref: "#/components/schemas/ErrorResponse"
         "403":
-          description: User does not have access to the project
-          content:
-            application/json:
-              schema:
-                $ref: "#/components/schemas/ErrorResponse"
+          $ref: "#/components/responses/ProjectAccessDenied"
         "404":
           description: Project or claim not found
           content:
@@ -1671,7 +1635,7 @@ paths:
         Returns all emails and patterns in the whitelist. This endpoint is restricted to 
         Stability Protocol administrators (@stabilityprotocol.com emails only).
       tags:
-        - Admin
+        - Email Whitelist
       security:
         - BearerAuth: []
       responses:
@@ -1696,11 +1660,7 @@ paths:
               schema:
                 $ref: "#/components/schemas/ErrorResponse"
         "403":
-          description: Forbidden - requires @stabilityprotocol.com email
-          content:
-            application/json:
-              schema:
-                $ref: "#/components/schemas/ErrorResponse"
+          $ref: "#/components/responses/AdminOnly"
         "500":
           description: Internal server error
           content:
@@ -1710,11 +1670,11 @@ paths:
     post:
       summary: Add email to whitelist
       description: |
-        Adds an email address or domain pattern to the whitelist. Supports exact emails 
-        (user@example.com) and wildcard domains (*@example.com). This endpoint is restricted 
-        to Stability Protocol administrators (@stabilityprotocol.com emails only).
+        Adds an email address or domain pattern to the whitelist. This endpoint is restricted to 
+        Stability Protocol administrators (@stabilityprotocol.com emails only). 
+        Supports both exact emails (e.g., user@example.com) and wildcard patterns (e.g., *@example.com).
       tags:
-        - Admin
+        - Email Whitelist
       security:
         - BearerAuth: []
       requestBody:
@@ -1728,15 +1688,15 @@ paths:
               properties:
                 email:
                   type: string
-                  description: Email address or pattern (e.g., user@example.com or *@example.com)
+                  description: Email address or wildcard pattern to add
                   example: user@example.com
             examples:
               exactEmail:
-                summary: Exact email address
+                summary: Add exact email
                 value:
                   email: user@example.com
-              wildcardDomain:
-                summary: Wildcard domain pattern
+              wildcardPattern:
+                summary: Add wildcard domain pattern
                 value:
                   email: "*@example.com"
       responses:
@@ -1747,7 +1707,7 @@ paths:
               schema:
                 $ref: "#/components/schemas/EmailWhitelist"
         "400":
-          description: Invalid email format or pattern
+          description: Invalid request body or email format
           content:
             application/json:
               schema:
@@ -1759,11 +1719,7 @@ paths:
               schema:
                 $ref: "#/components/schemas/ErrorResponse"
         "403":
-          description: Forbidden - requires @stabilityprotocol.com email
-          content:
-            application/json:
-              schema:
-                $ref: "#/components/schemas/ErrorResponse"
+          $ref: "#/components/responses/AdminOnly"
         "409":
           description: Email already exists in whitelist
           content:
@@ -1781,10 +1737,10 @@ paths:
     delete:
       summary: Remove email from whitelist
       description: |
-        Removes an email address or pattern from the whitelist. This endpoint is restricted 
+        Removes an email address or domain pattern from the whitelist. This endpoint is restricted 
         to Stability Protocol administrators (@stabilityprotocol.com emails only).
       tags:
-        - Admin
+        - Email Whitelist
       security:
         - BearerAuth: []
       parameters:
@@ -1793,7 +1749,7 @@ paths:
           required: true
           schema:
             type: string
-          description: Email address or pattern to remove
+          description: Email address or pattern to remove (URL-encoded)
           example: user@example.com
       responses:
         "200":
@@ -1805,12 +1761,12 @@ paths:
                 properties:
                   message:
                     type: string
-                    example: Email removed from whitelist successfully
+                    example: "Email removed from whitelist successfully"
                   email:
                     type: string
                     example: user@example.com
         "400":
-          description: Invalid email parameter
+          description: Email parameter is required
           content:
             application/json:
               schema:
@@ -1822,11 +1778,7 @@ paths:
               schema:
                 $ref: "#/components/schemas/ErrorResponse"
         "403":
-          description: Forbidden - requires @stabilityprotocol.com email
-          content:
-            application/json:
-              schema:
-                $ref: "#/components/schemas/ErrorResponse"
+          $ref: "#/components/responses/AdminOnly"
         "404":
           description: Email not found in whitelist
           content:
@@ -1839,7 +1791,172 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/ErrorResponse"
+  /api/admin/whitelist/invites/open:
+    post:
+      summary: Generate open whitelist invite link
+      description: |
+        Generates a time-limited, cryptographically signed open invite token that can be used by ANY email address.
+        This is useful for sharing signup links in public forums, chats, or social media.
+        Tokens are valid for 24 hours and require the user to provide their email when using the signup endpoint.
+        This endpoint is restricted to Stability Protocol administrators (@stabilityprotocol.com emails only).
+      tags:
+        - Email Whitelist
+      security:
+        - BearerAuth: []
+      requestBody:
+        required: false
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                frontendBaseUrl:
+                  type: string
+                  format: uri
+                  description: Optional frontend base URL to construct a complete signup link
+                  example: https://app.example.com
+            examples:
+              withFrontendUrl:
+                summary: Generate open invite with custom frontend URL
+                value:
+                  frontendBaseUrl: https://app.example.com
+              withoutFrontendUrl:
+                summary: Generate open invite without frontend URL
+                value: {}
+      responses:
+        "201":
+          description: Open invite token generated successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                required:
+                  - type
+                  - token
+                  - signature
+                  - frontendUrl
+                  - expiresAt
+                properties:
+                  type:
+                    type: string
+                    enum: [open]
+                    description: Token type indicator
+                    example: open
+                  token:
+                    type: string
+                    description: Base64URL-encoded open invite token
+                    example: "eyJ0eXBlIjoib3BlbiIsImV4cCI6MTczNzM2NDkzNjgsInNpZyI6ImFiMmNjNWRkYjVjMTdiZmFiMmU1ZDI2OTE3NGU2NTJlMTQyMTkyMzAwMDAifQ=="
+                  signature:
+                    type: string
+                    description: HMAC-SHA256 signature
+                    example: "a1b2c3d4e5f6a7b8c9d0e1f2a3b4c5d6e7f8a9b0c1d2e3f4a5b6c7d8e9f0a1b2c3d4e5f6"
+                  frontendUrl:
+                    type: string
+                    description: Complete signup URL (empty if frontendBaseUrl not provided)
+                    example: "https://app.example.com/signup?inviteToken=eyJ0eXBlIjoib3BlbiI..."
+                  expiresAt:
+                    type: string
+                    format: date-time
+                    description: Token expiration timestamp (ISO 8601)
+                    example: "2026-01-27T18:00:00.000Z"
+              examples:
+                withFrontendUrl:
+                  summary: Response with frontend URL
+                  value:
+                    type: open
+                    token: "eyJ0eXBlIjoib3BlbiIsImV4cCI6MTczNzM2NDkzNjgsInNpZyI6ImFiMmNjNWRkYjVjMTdiZmFiMmU1ZDI2OTE3NGU2NTJlMTQyMTkyMzAwMDAifQ=="
+                    signature: "a1b2c3d4e5f6a7b8c9d0e1f2a3b4c5d6e7f8a9b0c1d2e3f4a5b6c7d8e9f0a1b2c3d4e5f6"
+                    frontendUrl: "https://app.example.com/signup?inviteToken=eyJ0eXBlIjoib3BlbiI..."
+                    expiresAt: "2026-01-27T18:00:00.000Z"
+        "401":
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "403":
+          $ref: "#/components/responses/AdminOnly"
+        "500":
+          description: Failed to generate open invite token
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
 
+  /api/whitelist/signup:
+    post:
+      summary: Sign up using open invite link
+      description: |
+        Public endpoint to use a signed open invite token and add email to the whitelist. 
+
+        Users must provide both the token (from the invite link) and their email address.
+        Tokens are validated using HMAC-SHA256 signatures and must be used within 24 hours.
+        This endpoint is rate-limited to prevent abuse. If email is already whitelisted,
+        the request succeeds (idempotent operation).
+      tags:
+        - Email Whitelist
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/UseWhitelistInviteDto"
+            examples:
+              openInviteToken:
+                summary: Open invite token with email
+                value:
+                  token: "eyJ0eXBlIjoib3BlbiIsImV4cCI6MTczNzM2NDkzNjgsInNpZyI6ImFiMmNjNWRkYjVjMTdiZmFiMmU1ZDI2OTE3NGU2NTJlMTQyMTkyMzAwMDAifQ=="
+                  email: user@example.com
+      responses:
+        "200":
+          description: Email added to whitelist successfully
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/WhitelistSignupResponse"
+              examples:
+                success:
+                  summary: Successful signup
+                  value:
+                    success: true
+                    message: "Email successfully added to whitelist"
+                    email: user@example.com
+                alreadyWhitelisted:
+                  summary: Email already whitelisted
+                  value:
+                    success: true
+                    message: "Email successfully added to whitelist"
+                    email: ""
+        "400":
+          description: Invalid request body or malformed token
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "401":
+          description: Invalid invite token signature (tampered or forged)
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "410":
+          description: Invite token has expired (older than 24 hours)
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "429":
+          description: Too many requests from the same IP address (rate limit exceeded)
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "500":
+          description: Internal server error
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
   /rpc/{apiKey}:
     post:
       summary: JSON-RPC Endpoint
@@ -3301,6 +3418,19 @@ components:
         error:
           type: string
           description: Error message
+        code:
+          type: string
+          description: |
+            Optional error code for programmatic error handling.
+            Common codes include:
+            - EMAIL_NOT_WHITELISTED: User's email is not authorized to access the API
+            - FORBIDDEN: User lacks required permissions for this action
+          enum:
+            - EMAIL_NOT_WHITELISTED
+            - FORBIDDEN
+      example:
+        error: "Access forbidden. Email not authorized to access this API."
+        code: "EMAIL_NOT_WHITELISTED"
 
     EmailWhitelist:
       type: object
@@ -3335,11 +3465,108 @@ components:
           format: date-time
           description: Timestamp when the entry was created
           example: "2026-01-19T10:00:00.000Z"
-        updatedAt:
+          updatedAt:
+            type: string
+            format: date-time
+            description: Timestamp when entry was last updated
+            example: "2026-01-19T10:00:00.000Z"
+    UseWhitelistInviteDto:
+      type: object
+      required:
+        - token
+        - email
+      properties:
+        token:
           type: string
-          format: date-time
-          description: Timestamp when the entry was last updated
-          example: "2026-01-19T10:00:00.000Z"
+          description: Base64URL-encoded open invite token
+          minLength: 1
+          example: "eyJ0eXBlIjoib3BlbiIsImV4cCI6MTczNzM2NDkzNjgsInNpZyI6ImFiMmNjNWRkYjVjMTdiZmFiMmU1ZDI2OTE3NGU2NTJlMTQyMTkyMzAwMDAifQ=="
+        email:
+          type: string
+          format: email
+          description: Email address to whitelist
+          example: user@example.com
+    WhitelistSignupResponse:
+      type: object
+      required:
+        - success
+        - message
+      properties:
+        success:
+          type: boolean
+          description: Whether the signup operation succeeded
+          example: true
+        message:
+          type: string
+          description: Human-readable message describing the result
+          example: "Email successfully added to whitelist"
+        email:
+          type: string
+          format: email
+          description: Email address that was whitelisted (empty if already whitelisted)
+          example: user@example.com
+          nullable: true
+
+  responses:
+    Forbidden:
+      description: |
+        Forbidden - Can occur when:
+        - User's email is not whitelisted (code: EMAIL_NOT_WHITELISTED)
+        - User lacks permission for this action (code: FORBIDDEN)
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/ErrorResponse"
+          examples:
+            notWhitelisted:
+              summary: Email not whitelisted
+              value:
+                error: "Access forbidden. Email not authorized to access this API."
+                code: "EMAIL_NOT_WHITELISTED"
+            forbidden:
+              summary: Insufficient permissions
+              value:
+                error: "Forbidden"
+                code: "FORBIDDEN"
+
+    AdminOnly:
+      description: |
+        Forbidden - This endpoint requires an @stabilityprotocol.com email address.
+        Can also occur when user's email is not whitelisted.
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/ErrorResponse"
+          examples:
+            notWhitelisted:
+              summary: Email not whitelisted
+              value:
+                error: "Access forbidden. Email not authorized to access this API."
+                code: "EMAIL_NOT_WHITELISTED"
+            adminOnly:
+              summary: Admin access required
+              value:
+                error: "Forbidden - requires @stabilityprotocol.com email"
+
+    ProjectAccessDenied:
+      description: |
+        Forbidden - User does not have access to this project.
+        Can also occur when user's email is not whitelisted.
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/ErrorResponse"
+          examples:
+            notWhitelisted:
+              summary: Email not whitelisted
+              value:
+                error: "Access forbidden. Email not authorized to access this API."
+                code: "EMAIL_NOT_WHITELISTED"
+            projectAccess:
+              summary: No access to project
+              value:
+                error: "User does not have access to the project"
+                code: "FORBIDDEN"
 
   securitySchemes:
     BearerAuth:
@@ -3365,5 +3592,7 @@ tags:
     description: Subscription tier information and limits
   - name: Admin
     description: Administrative endpoints (restricted to @stabilityprotocol.com)
+  - name: Email Whitelist
+    description: Email whitelist invite links and signup endpoints
   - name: Health
     description: Service health and status

@@ -11,6 +11,7 @@ import {
   TokenExpiredError,
 } from "../shared/api/client";
 import { fileHistoryService } from "./fileHistory";
+import { processImageForClaim } from "./imageTransformService";
 
 /**
  * Lazily loaded mime module
@@ -248,14 +249,25 @@ export async function handleFileChange(filePath: string, event: string) {
     try {
       if (isImage) {
         // Use image upload endpoint for image files
-        const fileBuffer = await fs.readFile(filePath);
+        const originalBuffer = await fs.readFile(filePath);
+
+        // Process image (transform if needed, maintaining original for fingerprint)
+        const processed = await processImageForClaim(originalBuffer, mimeType);
+
         result = await createImageProjectClaim(
           projectId,
           token,
           payload,
           filePath,
-          fileBuffer
+          processed.buffer,
+          processed.mimeType
         );
+
+        if (processed.transformed) {
+          console.log(
+            `[ClaimService] Submitted transformed image for ${fileName}`
+          );
+        }
       } else {
         // Use regular JSON endpoint for non-image files
         result = await createProjectClaim(projectId, token, payload);

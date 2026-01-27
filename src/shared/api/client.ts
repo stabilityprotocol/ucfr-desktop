@@ -194,25 +194,35 @@ export async function createImageProjectClaim(
   token: string,
   payload: CreateProjectClaimDto,
   filePath: string,
-  fileBuffer: Buffer
+  fileBuffer: Buffer,
+  mimeTypeOverride?: string
 ): Promise<any | null> {
   try {
     const formData = new FormData();
     
-    // Add claim data as JSON string
-    formData.append(
-      "data", 
-      new Blob([JSON.stringify(payload)], { type: "application/json" })
-    );
+    // Add individual claim fields as per OpenAPI spec (CreateProjectClaimDto)
+    // Required fields: methodId, externalId, fingerprint, data
+    formData.append("methodId", payload.methodId.toString());
+    formData.append("externalId", payload.externalId.toString());
+    formData.append("fingerprint", payload.fingerprint);
+    formData.append("data", payload.data);
     
-    // Add the file
+    // Optional fields
+    if (payload.signature) {
+      formData.append("signature", payload.signature);
+    }
+    if (payload.pubKey) {
+      formData.append("pubKey", payload.pubKey);
+    }
+    
+    // Add the image file (CreateImageProjectClaimDto requires field name "image")
     // Use require for mime v3 (CommonJS) - works in both dev and production
     const mime = require("mime");
-    const mimeType = mime.getType(filePath) || "application/octet-stream";
+    const mimeType = mimeTypeOverride || mime.getType(filePath) || "application/octet-stream";
     const fileName = require("path").basename(filePath);
     const uint8Array = new Uint8Array(fileBuffer);
     const fileBlob = new Blob([uint8Array], { type: mimeType });
-    formData.append("file", fileBlob, fileName);
+    formData.append("image", fileBlob, fileName);
 
     const response = await fetch(
       `${BASE_URL}/api/projects/${projectId}/claims/image`,
