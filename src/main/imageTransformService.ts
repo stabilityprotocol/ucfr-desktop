@@ -3,8 +3,8 @@
  *
  * Handles image processing for claim submissions:
  * - Extracts image metadata (dimensions, format, etc.)
- * - Determines if transformation is needed (width > 2000px)
- * - Transforms images to max 2000px width with WebP optimization
+ * - Determines if transformation is needed (either dimension > 2000px)
+ * - Transforms images to max 2000px per dimension with WebP optimization
  * - Maintains aspect ratio and transparency
  * - Provides graceful fallbacks on errors
  */
@@ -45,7 +45,7 @@ export interface TransformationResult {
  * Options for image transformation
  */
 export interface TransformationOptions {
-  maxWidth?: number; // Default: 2000
+  maxDimension?: number; // Default: 2000 (applies to both width and height)
   quality?: number; // Default: 85 (WebP/JPEG quality)
   alphaQuality?: number; // Default: 90 (WebP alpha quality)
   effort?: number; // Default: 4 (WebP encoding effort 1-6)
@@ -56,7 +56,7 @@ export interface TransformationOptions {
  * Default transformation options
  */
 const DEFAULT_OPTIONS: Required<TransformationOptions> = {
-  maxWidth: 2000,
+  maxDimension: 2000,
   quality: 85,
   alphaQuality: 90,
   effort: 4,
@@ -127,10 +127,10 @@ export function shouldTransformImage(
     return false;
   }
 
-  const maxWidth = options?.maxWidth || DEFAULT_OPTIONS.maxWidth;
+  const maxDim = options?.maxDimension || DEFAULT_OPTIONS.maxDimension;
 
-  // Transform if width exceeds threshold
-  return metadata.width > maxWidth;
+  // Transform if either width or height exceeds threshold
+  return metadata.width > maxDim || metadata.height > maxDim;
 }
 
 /**
@@ -157,11 +157,8 @@ export async function transformImage(
   const opts = { ...DEFAULT_OPTIONS, ...options };
 
   // Calculate target dimensions maintaining aspect ratio
-  const aspectRatio = metadata.height / metadata.width;
-  const targetWidth = Math.min(metadata.width, opts.maxWidth);
-  const targetHeight = Math.round(targetWidth * aspectRatio);
-
-  let pipeline = sharp(buffer).resize(targetWidth, targetHeight, {
+  // Using Sharp's 'fit: inside' to constrain to max dimension while preserving aspect ratio
+  let pipeline = sharp(buffer).resize(opts.maxDimension, opts.maxDimension, {
     fit: "inside",
     withoutEnlargement: true,
   });
@@ -213,6 +210,11 @@ export async function transformImage(
   }
 
   const transformedBuffer = await pipeline.toBuffer();
+
+  // Get actual dimensions of transformed image
+  const transformedMetadata = await sharp(transformedBuffer).metadata();
+  const targetWidth = transformedMetadata.width || metadata.width;
+  const targetHeight = transformedMetadata.height || metadata.height;
 
   return {
     buffer: transformedBuffer,
@@ -288,7 +290,7 @@ export async function processImageForClaim(
 
     // Step 3: Transform
     console.log(
-      `[ImageTransformService] Transforming image: ${metadata.width}x${metadata.height}px → max ${options?.maxWidth || DEFAULT_OPTIONS.maxWidth}px width`,
+      `[ImageTransformService] Transforming image: ${metadata.width}x${metadata.height}px → max ${options?.maxDimension || DEFAULT_OPTIONS.maxDimension}px (longest side)`,
     );
 
     const result = await transformImage(buffer, metadata, options);
