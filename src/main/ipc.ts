@@ -389,7 +389,7 @@ export async function registerIpcHandlers() {
    * Handles first-time login logic
    * - Checks if user has completed first login
    * - Fetches user's projects
-   * - Finds "Private Project" with visibility "private" (personal project only)
+   * - Finds "My Workspace" with visibility "private" (personal project only)
    * - Automatically attaches the Downloads folder
    * - Marks first login as completed
    */
@@ -415,10 +415,10 @@ export async function registerIpcHandlers() {
       // Fetch all user projects
       const projects = await fetchUserProjects(email, token);
       
-      // Find personal "Private Project" with visibility "private"
+      // Find personal "My Workspace" with visibility "private"
       const privateProject = projects.find(
         (project) =>
-          project.name === "Private Project" &&
+          project.name === "My Workspace" &&
           project.visibility === "private" &&
           !project.organization // Ensure it's a personal project
       );
@@ -429,7 +429,7 @@ export async function registerIpcHandlers() {
         return {
           success: true,
           attached: false,
-          reason: "No matching Private Project found",
+          reason: "No matching My Workspace found",
         };
       }
 

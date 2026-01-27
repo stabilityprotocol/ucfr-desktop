@@ -26,7 +26,14 @@ import { SettingsPage } from "./pages/Settings";
 import { Layout } from "./components/Layout";
 import "./style.css";
 
-const queryClient = new QueryClient();
+const queryClient = new QueryClient({
+  defaultOptions: {
+    queries: {
+      refetchInterval: 60000, // Auto-refetch every 1 minute
+      refetchOnWindowFocus: true, // Refetch when window regains focus
+    },
+  },
+});
 
 export default function App() {
   return (

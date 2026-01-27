@@ -43,7 +43,7 @@ export function ProjectDetailPage({ projects }: ProjectDetailProps) {
 
     const interval = setInterval(() => {
       loadHistory();
-    }, 2_500);
+    }, 5_000);
 
     return () => clearInterval(interval);
   }, [project?.id]);
