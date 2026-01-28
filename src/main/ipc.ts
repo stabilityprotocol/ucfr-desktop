@@ -16,9 +16,9 @@ import { fileHistoryService } from "./fileHistory";
 let watcher: FolderWatcher | null = null;
 
 // Helper function to send notifications to renderer process
-function sendNotification(type: 'success' | 'error' | 'info', message: string) {
+function sendNotification(type: "success" | "error" | "info", message: string) {
   BrowserWindow.getAllWindows().forEach((win) =>
-    win.webContents.send("notification", { type, message })
+    win.webContents.send("notification", { type, message }),
   );
 }
 
@@ -61,7 +61,7 @@ async function getAuthorizedUserFromApi(): Promise<unknown | null> {
         headers: {
           Authorization: `Bearer ${token}`,
         },
-      }
+      },
     );
 
     if (response.status === 401) {
@@ -96,7 +96,7 @@ function getOrCreateWatcher(): FolderWatcher {
     watcher = new FolderWatcher((payload) => {
       console.log("Sync event", payload);
       BrowserWindow.getAllWindows().forEach((win) =>
-        win.webContents.send("watcher-event", payload)
+        win.webContents.send("watcher-event", payload),
       );
 
       // Trigger claim creation logic
@@ -149,7 +149,7 @@ export async function registerIpcHandlers() {
         {
           method: "POST",
           headers: { Authorization: `Bearer ${token}` },
-        }
+        },
       );
 
       if (response.status === 401) {
@@ -161,7 +161,7 @@ export async function registerIpcHandlers() {
         // Server error, allow offline usage
         console.warn(
           "[auth/validateToken] Validation failed (non-401), allowing offline:",
-          response.status
+          response.status,
         );
         return { valid: true };
       }
@@ -170,7 +170,10 @@ export async function registerIpcHandlers() {
       return { valid: data.ok === true };
     } catch (err) {
       // Network error, allow offline usage
-      console.warn("[auth/validateToken] Network error, allowing offline:", err);
+      console.warn(
+        "[auth/validateToken] Network error, allowing offline:",
+        err,
+      );
       return { valid: true };
     }
   });
@@ -185,7 +188,7 @@ export async function registerIpcHandlers() {
         await tokenManager.setToken(token);
         // Notify all renderer windows that the token has changed
         BrowserWindow.getAllWindows().forEach((win) =>
-          win.webContents.send("tokenChanged")
+          win.webContents.send("tokenChanged"),
         );
       } else {
         console.error("Authentication timed out or failed.");
@@ -202,7 +205,7 @@ export async function registerIpcHandlers() {
     async (_event, update: Partial<ReturnType<typeof getSettings>>) => {
       const next = updateSettings(update);
       return next;
-    }
+    },
   );
 
   ipcMain.handle("folder/select", async () => {
@@ -264,7 +267,7 @@ export async function registerIpcHandlers() {
         watcher.unwatch(folderPath);
       }
       return newList;
-    }
+    },
   );
 
   ipcMain.handle("project/getFolders", async (_event, projectId: string) => {
@@ -307,7 +310,7 @@ export async function registerIpcHandlers() {
       if (error instanceof TokenExpiredError) {
         await tokenManager.clear();
         BrowserWindow.getAllWindows().forEach((win) =>
-          win.webContents.send("tokenChanged")
+          win.webContents.send("tokenChanged"),
         );
         return [];
       }
@@ -331,7 +334,7 @@ export async function registerIpcHandlers() {
       if (error instanceof TokenExpiredError) {
         await tokenManager.clear();
         BrowserWindow.getAllWindows().forEach((win) =>
-          win.webContents.send("tokenChanged")
+          win.webContents.send("tokenChanged"),
         );
         return null;
       }
@@ -348,7 +351,7 @@ export async function registerIpcHandlers() {
       if (error instanceof TokenExpiredError) {
         await tokenManager.clear();
         BrowserWindow.getAllWindows().forEach((win) =>
-          win.webContents.send("tokenChanged")
+          win.webContents.send("tokenChanged"),
         );
         return [];
       }
@@ -365,7 +368,7 @@ export async function registerIpcHandlers() {
       if (error instanceof TokenExpiredError) {
         await tokenManager.clear();
         BrowserWindow.getAllWindows().forEach((win) =>
-          win.webContents.send("tokenChanged")
+          win.webContents.send("tokenChanged"),
         );
         return [];
       }
@@ -383,12 +386,12 @@ export async function registerIpcHandlers() {
     async (_event, sql: string, params?: unknown[]) => {
       const rows = await dbQuery(sql, params as any[]);
       return rows;
-    }
+    },
   );
 
   ipcMain.handle("app/openExternal", async (_event, target: string) => {
     return await shell.openExternal(
-      target.startsWith("http") ? target : `https://${target}`
+      target.startsWith("http") ? target : `https://${target}`,
     );
   });
 
@@ -396,65 +399,72 @@ export async function registerIpcHandlers() {
    * Handles first-time login logic
    * - Checks if user has completed first login
    * - Fetches user's projects
-   * - Finds "My Workspace" with visibility "private" (personal project only)
+   * - Finds "My Artifacts" with visibility "private" (personal project only)
    * - Automatically attaches the Downloads folder
    * - Marks first login as completed
    */
   ipcMain.handle("auth/handleFirstLogin", async () => {
-    console.log('[First Login] Starting first login check...');
+    console.log("[First Login] Starting first login check...");
     const settings = getSettings();
-    
+
     // Skip if already completed first login
     if (settings.hasCompletedFirstLogin === true) {
-      console.log('[First Login] Skipping - already completed');
+      console.log("[First Login] Skipping - already completed");
       return { skipped: true, reason: "Already completed first login" };
     }
 
     const token = await tokenManager.getToken();
     if (!token) {
-      console.log('[First Login] No token available');
+      console.log("[First Login] No token available");
       return { success: false, error: "No token available" };
     }
-    console.log('[First Login] Token available: ✓');
+    console.log("[First Login] Token available: ✓");
 
     const email = (await getAuthorizedUserFromApi()) as string | null;
     if (!email) {
-      console.log('[First Login] No user email available');
+      console.log("[First Login] No user email available");
       return { success: false, error: "No user email available" };
     }
-    console.log('[First Login] User email:', email);
+    console.log("[First Login] User email:", email);
 
     try {
       // Fetch all user projects
-      console.log('[First Login] Fetching user projects...');
+      console.log("[First Login] Fetching user projects...");
       const projects = await fetchUserProjects(email, token);
-      console.log('[First Login] Found', projects.length, 'projects');
-      
-      // Find personal "My Workspace" with visibility "private"
+      console.log("[First Login] Found", projects.length, "projects");
+
+      // Find personal "My Artifacts" with visibility "private"
       const privateProject = projects.find(
         (project) =>
-          project.name === "My Workspace" &&
+          project.name === "My Artifacts" &&
           project.visibility === "private" &&
-          !project.organization // Ensure it's a personal project
+          !project.organization, // Ensure it's a personal project
       );
 
       if (!privateProject) {
-        console.log('[First Login] No private "My Workspace" found');
-        sendNotification('info', 'No private workspace found. Downloads folder will not be auto-tracked.');
+        console.log('[First Login] No private "My Artifacts" found');
+        sendNotification(
+          "info",
+          "No private workspace found. Downloads folder will not be auto-tracked.",
+        );
         // Mark as completed even if no private project found
         updateSettings({ hasCompletedFirstLogin: true });
         return {
           success: true,
           attached: false,
-          reason: "No matching My Workspace found",
+          reason: "No matching My Artifacts found",
         };
       }
 
-      console.log('[First Login] Found My Workspace:', privateProject.id, privateProject.name);
+      console.log(
+        "[First Login] Found My Artifacts:",
+        privateProject.id,
+        privateProject.name,
+      );
 
       // Get Downloads folder path
       const downloadsPath = app.getPath("downloads");
-      console.log('[First Login] Downloads path:', downloadsPath);
+      console.log("[First Login] Downloads path:", downloadsPath);
 
       // Check if Downloads folder is already attached
       const currentSettings = getSettings();
@@ -462,7 +472,7 @@ export async function registerIpcHandlers() {
       const currentList = projectFolders[privateProject.id] || [];
 
       if (!currentList.includes(downloadsPath)) {
-        console.log('[First Login] Attaching downloads folder to watcher...');
+        console.log("[First Login] Attaching downloads folder to watcher...");
         // Attach Downloads folder to the project
         const newList = [...currentList, downloadsPath];
         updateSettings({
@@ -476,9 +486,12 @@ export async function registerIpcHandlers() {
         // Add to watcher
         const w = getOrCreateWatcher();
         w.add(downloadsPath);
-        console.log('[First Login] Watcher updated successfully ✓');
+        console.log("[First Login] Watcher updated successfully ✓");
 
-        sendNotification('success', `Downloads folder connected to "${privateProject.name}"`);
+        sendNotification(
+          "success",
+          `Downloads folder connected to "${privateProject.name}"`,
+        );
 
         return {
           success: true,
@@ -488,7 +501,7 @@ export async function registerIpcHandlers() {
           folderPath: downloadsPath,
         };
       } else {
-        console.log('[First Login] Downloads folder already attached');
+        console.log("[First Login] Downloads folder already attached");
         // Already attached, just mark as completed
         updateSettings({ hasCompletedFirstLogin: true });
         return {
@@ -500,7 +513,10 @@ export async function registerIpcHandlers() {
     } catch (error) {
       console.error("[First Login] Error:", error);
       const errorMsg = error instanceof Error ? error.message : "Unknown error";
-      sendNotification('error', 'Failed to attach downloads folder: ' + errorMsg);
+      sendNotification(
+        "error",
+        "Failed to attach downloads folder: " + errorMsg,
+      );
       return {
         success: false,
         error: errorMsg,
@@ -523,16 +539,19 @@ export async function registerIpcHandlers() {
       const projects = await fetchUserProjects(email, token);
       const privateProject = projects.find(
         (project) =>
-          project.name === "My Workspace" &&
+          project.name === "My Artifacts" &&
           project.visibility === "private" &&
-          !project.organization
+          !project.organization,
       );
 
       if (!privateProject) {
-        sendNotification('error', 'No private "My Workspace" found. Create one first.');
+        sendNotification(
+          "error",
+          'No private "My Artifacts" found. Create one first.',
+        );
         return {
           success: false,
-          error: "No matching My Workspace found",
+          error: "No matching My Artifacts found",
         };
       }
 
@@ -542,7 +561,10 @@ export async function registerIpcHandlers() {
       const currentList = projectFolders[privateProject.id] || [];
 
       if (currentList.includes(downloadsPath)) {
-        sendNotification('info', 'Downloads folder is already connected to My Workspace');
+        sendNotification(
+          "info",
+          "Downloads folder is already connected to My Artifacts",
+        );
         return {
           success: true,
           attached: false,
@@ -561,7 +583,10 @@ export async function registerIpcHandlers() {
       const w = getOrCreateWatcher();
       w.add(downloadsPath);
 
-      sendNotification('success', 'Downloads folder successfully connected to My Workspace');
+      sendNotification(
+        "success",
+        "Downloads folder successfully connected to My Artifacts",
+      );
       return {
         success: true,
         attached: true,
@@ -572,7 +597,10 @@ export async function registerIpcHandlers() {
     } catch (error) {
       console.error("Error attaching downloads folder:", error);
       const errorMsg = error instanceof Error ? error.message : "Unknown error";
-      sendNotification('error', 'Failed to attach downloads folder: ' + errorMsg);
+      sendNotification(
+        "error",
+        "Failed to attach downloads folder: " + errorMsg,
+      );
       return {
         success: false,
         error: errorMsg,

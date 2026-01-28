@@ -66,7 +66,9 @@ export function SettingsPage({
 
         <div className="rounded-xl border border-zinc-200 bg-white overflow-hidden">
           <div className="px-6 py-4 border-b border-zinc-100 bg-zinc-50/50">
-            <h2 className="text-sm font-medium text-zinc-900">File Monitoring</h2>
+            <h2 className="text-sm font-medium text-zinc-900">
+              File Monitoring
+            </h2>
           </div>
           <div className="p-6">
             <div className="flex items-center justify-between">
@@ -76,7 +78,7 @@ export function SettingsPage({
                 </p>
                 <p className="text-sm text-zinc-500 mt-1">
                   {downloadsAttached
-                    ? "Your downloads folder is connected to My Workspace."
+                    ? "Your downloads folder is connected to My Artifacts."
                     : "Connect your downloads folder to automatically track new files."}
                 </p>
               </div>
