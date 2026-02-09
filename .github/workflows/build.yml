@@ -125,13 +125,39 @@ jobs:
       - name: Install deps
         run: yarn install --immutable
 
+      - name: Import signing certificate
+        env:
+          CSC_LINK: ${{ secrets.CSC_LINK }}
+          CSC_KEY_PASSWORD: ${{ secrets.CSC_KEY_PASSWORD }}
+        run: |
+          # Decode the .p12 certificate from base64
+          echo "$CSC_LINK" | base64 --decode > /tmp/certificate.p12
+          # Create a temporary keychain
+          security create-keychain -p actions build.keychain
+          security default-keychain -s build.keychain
+          security unlock-keychain -p actions build.keychain
+          # Import the certificate into the keychain
+          security import /tmp/certificate.p12 -k build.keychain -P "$CSC_KEY_PASSWORD" -T /usr/bin/codesign -T /usr/bin/security
+          # Allow codesign to access the keychain without prompting
+          security set-key-partition-list -S apple-tool:,apple:,codesign: -s -k actions build.keychain
+          # Verify the identity was imported
+          security find-identity -v -p codesigning build.keychain
+          # Cleanup the temp file
+          rm /tmp/certificate.p12
+
       - name: Build macOS (DMG + updater files)
         run: yarn build --mac dmg --publish never
         env:
+          DEBUG: electron-builder,electron-builder:*
           CSC_LINK: ${{ secrets.CSC_LINK }}
+          CSC_KEY_PASSWORD: ${{ secrets.CSC_KEY_PASSWORD }}
           APPLE_ID: ${{ secrets.APPLE_ID }}
           APPLE_APP_SPECIFIC_PASSWORD: ${{ secrets.APPLE_APP_SPECIFIC_PASSWORD }}
           APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
+
+      - name: Cleanup keychain
+        if: always()
+        run: security delete-keychain build.keychain || true
 
       - name: Upload mac artifacts
         uses: actions/upload-artifact@v4
