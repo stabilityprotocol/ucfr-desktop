@@ -19,7 +19,6 @@
   "mac": {
     "icon": "src/assets/icons/icon.icns",
     "category": "public.app-category.utilities",
-    "identity": "auto",
     "hardenedRuntime": true,
     "gatekeeperAssess": false,
     "entitlements": "build/entitlements.mac.plist",
