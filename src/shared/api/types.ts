@@ -11,7 +11,7 @@
 
 /**
  * License information with display name and URL.
- * Used by projects to define licensing terms for claims.
+ * Used by marks to define licensing terms for artifacts.
  */
 export type License = {
   name: string;
@@ -39,8 +39,8 @@ export type LicenseKey =
 // =============================================================================
 
 /**
- * Organization details embedded in projects.
- * Nullable for user-owned projects that don't belong to an organization.
+ * Organization details embedded in marks.
+ * Nullable for user-owned marks that don't belong to an organization.
  */
 export type ProjectOrganization = {
   id: string;
@@ -71,12 +71,17 @@ export type Organization = {
 };
 
 // =============================================================================
-// Project Types
+// Mark Types (API type name kept as Project for backend compatibility)
+
+// =============================================================================
+// Artifact Types (API uses 'Claim' terminology for backend compatibility)
+// =============================================================================
 // =============================================================================
 
 /**
- * Project entity representing a collection of claims.
- * Projects can belong to an organization or be user-owned.
+ * Mark entity representing a collection of artifacts.
+ * Marks can belong to an organization or be user-owned.
+ * Note: API type name kept as `Project` for backend compatibility.
  */
 export type Project = {
   id: string;
@@ -111,8 +116,9 @@ export type ClaimCreateParams = {
 };
 
 /**
- * REST DTO for POST /api/projects/{projectId}/claims endpoint.
- * Used when submitting claims through the REST API.
+ * REST DTO for POST /api/projects/{markId}/claims endpoint.
+ * Used when submitting artifacts through the REST API.
+ * Note: API type name kept as `CreateProjectClaimDto` for backend compatibility.
  */
 export type CreateProjectClaimDto = {
   methodId: number;
@@ -137,7 +143,7 @@ export type UserSocialChannel = {
 };
 
 /**
- * User profile with organizations, projects, and recent claims.
+ * User profile with organizations, marks, and recent artifacts.
  * Returned by GET /api/users/{email}/profile endpoint.
  */
 export type UserProfile = {
@@ -169,7 +175,7 @@ export type ProfileSearchResult = {
 };
 
 /**
- * Organization search result with membership and project counts.
+ * Organization search result with membership and mark counts.
  * Part of the SearchResponse from GET /api/search endpoint.
  */
 export type OrganizationSearchResult = {
@@ -183,7 +189,7 @@ export type OrganizationSearchResult = {
 };
 
 /**
- * Project search result with organization context.
+ * Mark search result with organization context.
  * Part of the SearchResponse from GET /api/search endpoint.
  */
 export type ProjectSearchResult = {
@@ -200,7 +206,7 @@ export type ProjectSearchResult = {
 };
 
 /**
- * Fingerprint search result with claim context.
+ * Fingerprint search result with artifact context.
  * Part of the SearchResponse from GET /api/search endpoint.
  */
 export type FingerprintSearchResult = {
@@ -216,7 +222,7 @@ export type FingerprintSearchResult = {
 
 /**
  * Combined search response from GET /api/search endpoint.
- * Supports searching profiles, organizations, projects, and fingerprints.
+ * Supports searching profiles, organizations, marks, and fingerprints.
  */
 export type SearchResponse = {
   profileQuery?: string | null;

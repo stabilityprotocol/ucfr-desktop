@@ -3,11 +3,11 @@ import { randomUUID } from "crypto";
 import { tokenManager } from "./tokenStore";
 import { getSettings, updateSettings } from "./settings";
 import { FolderWatcher } from "./watcher";
-import { handleFileChange } from "./claimService";
+import { handleFileChange } from "./artifactService";
 import {
   fetchUserProfile,
-  fetchUserProjects,
-  fetchOrganizationProjects,
+  fetchUserMarks,
+  fetchOrganizationMarks,
   TokenExpiredError,
 } from "../shared/api/client";
 import { initDb, dbExec, dbQuery } from "./db";
@@ -99,7 +99,7 @@ function getOrCreateWatcher(): FolderWatcher {
         win.webContents.send("watcher-event", payload),
       );
 
-      // Trigger claim creation logic
+      // Trigger artifact creation logic
       handleFileChange(payload.file, payload.event);
 
       // Track history
@@ -114,8 +114,8 @@ export async function registerIpcHandlers() {
 
   // Initialize watcher with existing folders
   const settings = getSettings();
-  const projectFolders = settings.projectFolders || {};
-  const allFolders = Object.values(projectFolders).flat();
+  const markFolders = settings.projectFolders || {};
+  const allFolders = Object.values(markFolders).flat();
 
   if (allFolders.length > 0) {
     const w = getOrCreateWatcher();
@@ -220,22 +220,22 @@ export async function registerIpcHandlers() {
     return null;
   });
 
-  ipcMain.handle("project/addFolder", async (_event, projectId: string) => {
+  ipcMain.handle("mark/addFolder", async (_event, markId: string) => {
     const result = await dialog.showOpenDialog({
       properties: ["openDirectory"],
     });
     if (!result.canceled && result.filePaths.length) {
       const folderPath = result.filePaths[0];
       const currentSettings = getSettings();
-      const projectFolders = currentSettings.projectFolders || {};
-      const currentList = projectFolders[projectId] || [];
+      const markFolders = currentSettings.projectFolders || {};
+      const currentList = markFolders[markId] || [];
 
       if (!currentList.includes(folderPath)) {
         const newList = [...currentList, folderPath];
         updateSettings({
           projectFolders: {
-            ...projectFolders,
-            [projectId]: newList,
+            ...markFolders,
+            [markId]: newList,
           },
         });
 
@@ -250,17 +250,17 @@ export async function registerIpcHandlers() {
   });
 
   ipcMain.handle(
-    "project/removeFolder",
-    async (_event, projectId: string, folderPath: string) => {
+    "mark/removeFolder",
+    async (_event, markId: string, folderPath: string) => {
       const currentSettings = getSettings();
-      const projectFolders = currentSettings.projectFolders || {};
-      const currentList = projectFolders[projectId] || [];
+      const markFolders = currentSettings.projectFolders || {};
+      const currentList = markFolders[markId] || [];
 
       const newList = currentList.filter((p) => p !== folderPath);
       updateSettings({
         projectFolders: {
-          ...projectFolders,
-          [projectId]: newList,
+          ...markFolders,
+          [markId]: newList,
         },
       });
       if (watcher) {
@@ -270,16 +270,16 @@ export async function registerIpcHandlers() {
     },
   );
 
-  ipcMain.handle("project/getFolders", async (_event, projectId: string) => {
+  ipcMain.handle("mark/getFolders", async (_event, markId: string) => {
     const currentSettings = getSettings();
-    const projectFolders = currentSettings.projectFolders || {};
-    return projectFolders[projectId] || [];
+    const markFolders = currentSettings.projectFolders || {};
+    return markFolders[markId] || [];
   });
 
-  ipcMain.handle("project/getHistory", async (_event, projectId: string) => {
+  ipcMain.handle("mark/getHistory", async (_event, markId: string) => {
     const currentSettings = getSettings();
-    const projectFolders = currentSettings.projectFolders || {};
-    const folders = projectFolders[projectId] || [];
+    const markFolders = currentSettings.projectFolders || {};
+    const folders = markFolders[markId] || [];
     return await fileHistoryService.getHistoryForFolders(folders);
   });
 
@@ -299,13 +299,13 @@ export async function registerIpcHandlers() {
     return true;
   });
 
-  ipcMain.handle("api/projects", async () => {
+  ipcMain.handle("api/marks", async () => {
     const token = await tokenManager.getToken();
     if (!token) return [];
     const email = (await getAuthorizedUserFromApi()) as string | null;
     if (!email) return [];
     try {
-      return await fetchUserProjects(email, token);
+      return await fetchUserMarks(email, token);
     } catch (error) {
       if (error instanceof TokenExpiredError) {
         await tokenManager.clear();
@@ -342,11 +342,11 @@ export async function registerIpcHandlers() {
     }
   });
 
-  ipcMain.handle("api/userProjects", async (_event, email: string) => {
+  ipcMain.handle("api/userMarks", async (_event, email: string) => {
     const token = await tokenManager.getToken();
     if (!token) return [];
     try {
-      return await fetchUserProjects(email, token);
+      return await fetchUserMarks(email, token);
     } catch (error) {
       if (error instanceof TokenExpiredError) {
         await tokenManager.clear();
@@ -359,11 +359,11 @@ export async function registerIpcHandlers() {
     }
   });
 
-  ipcMain.handle("api/organizationProjects", async (_event, orgId: string) => {
+  ipcMain.handle("api/organizationMarks", async (_event, orgId: string) => {
     const token = await tokenManager.getToken();
     if (!token) return [];
     try {
-      return await fetchOrganizationProjects(orgId, token);
+      return await fetchOrganizationMarks(orgId, token);
     } catch (error) {
       if (error instanceof TokenExpiredError) {
         await tokenManager.clear();
@@ -398,8 +398,8 @@ export async function registerIpcHandlers() {
   /**
    * Handles first-time login logic
    * - Checks if user has completed first login
-   * - Fetches user's projects
-   * - Finds "My Artifacts" with visibility "private" (personal project only)
+   * - Fetches user's marks
+   * - Finds "My Artifacts" with visibility "private" (personal mark only)
    * - Automatically attaches the Downloads folder
    * - Marks first login as completed
    */
@@ -428,26 +428,26 @@ export async function registerIpcHandlers() {
     console.log("[First Login] User email:", email);
 
     try {
-      // Fetch all user projects
-      console.log("[First Login] Fetching user projects...");
-      const projects = await fetchUserProjects(email, token);
-      console.log("[First Login] Found", projects.length, "projects");
+      // Fetch all user marks
+      console.log("[First Login] Fetching user marks...");
+      const marks = await fetchUserMarks(email, token);
+      console.log("[First Login] Found", marks.length, "marks");
 
       // Find personal "My Artifacts" with visibility "private"
-      const privateProject = projects.find(
-        (project) =>
-          project.name === "My Artifacts" &&
-          project.visibility === "private" &&
-          !project.organization, // Ensure it's a personal project
+      const privateMark = marks.find(
+        (mark) =>
+          mark.name === "My Artifacts" &&
+          mark.visibility === "private" &&
+          !mark.organization, // Ensure it's a personal mark
       );
 
-      if (!privateProject) {
+      if (!privateMark) {
         console.log('[First Login] No private "My Artifacts" found');
         sendNotification(
           "info",
           "No private workspace found. Downloads folder will not be auto-tracked.",
         );
-        // Mark as completed even if no private project found
+        // Mark as completed even if no private mark found
         updateSettings({ hasCompletedFirstLogin: true });
         return {
           success: true,
@@ -458,8 +458,8 @@ export async function registerIpcHandlers() {
 
       console.log(
         "[First Login] Found My Artifacts:",
-        privateProject.id,
-        privateProject.name,
+        privateMark.id,
+        privateMark.name,
       );
 
       // Get Downloads folder path
@@ -468,17 +468,17 @@ export async function registerIpcHandlers() {
 
       // Check if Downloads folder is already attached
       const currentSettings = getSettings();
-      const projectFolders = currentSettings.projectFolders || {};
-      const currentList = projectFolders[privateProject.id] || [];
+      const markFolders = currentSettings.projectFolders || {};
+      const currentList = markFolders[privateMark.id] || [];
 
       if (!currentList.includes(downloadsPath)) {
         console.log("[First Login] Attaching downloads folder to watcher...");
-        // Attach Downloads folder to the project
+        // Attach Downloads folder to the mark
         const newList = [...currentList, downloadsPath];
         updateSettings({
           projectFolders: {
-            ...projectFolders,
-            [privateProject.id]: newList,
+            ...markFolders,
+            [privateMark.id]: newList,
           },
           hasCompletedFirstLogin: true,
         });
@@ -490,14 +490,14 @@ export async function registerIpcHandlers() {
 
         sendNotification(
           "success",
-          `Downloads folder connected to "${privateProject.name}"`,
+          `Downloads folder connected to "${privateMark.name}"`,
         );
 
         return {
           success: true,
           attached: true,
-          projectId: privateProject.id,
-          projectName: privateProject.name,
+          markId: privateMark.id,
+          markName: privateMark.name,
           folderPath: downloadsPath,
         };
       } else {
@@ -536,15 +536,15 @@ export async function registerIpcHandlers() {
     }
 
     try {
-      const projects = await fetchUserProjects(email, token);
-      const privateProject = projects.find(
-        (project) =>
-          project.name === "My Artifacts" &&
-          project.visibility === "private" &&
-          !project.organization,
+      const marks = await fetchUserMarks(email, token);
+      const privateMark = marks.find(
+        (mark) =>
+          mark.name === "My Artifacts" &&
+          mark.visibility === "private" &&
+          !mark.organization,
       );
 
-      if (!privateProject) {
+      if (!privateMark) {
         sendNotification(
           "error",
           'No private "My Artifacts" found. Create one first.',
@@ -557,8 +557,8 @@ export async function registerIpcHandlers() {
 
       const downloadsPath = app.getPath("downloads");
       const currentSettings = getSettings();
-      const projectFolders = currentSettings.projectFolders || {};
-      const currentList = projectFolders[privateProject.id] || [];
+      const markFolders = currentSettings.projectFolders || {};
+      const currentList = markFolders[privateMark.id] || [];
 
       if (currentList.includes(downloadsPath)) {
         sendNotification(
@@ -575,8 +575,8 @@ export async function registerIpcHandlers() {
       const newList = [...currentList, downloadsPath];
       updateSettings({
         projectFolders: {
-          ...projectFolders,
-          [privateProject.id]: newList,
+          ...markFolders,
+          [privateMark.id]: newList,
         },
       });
 
@@ -590,8 +590,8 @@ export async function registerIpcHandlers() {
       return {
         success: true,
         attached: true,
-        projectId: privateProject.id,
-        projectName: privateProject.name,
+        markId: privateMark.id,
+        markName: privateMark.name,
         folderPath: downloadsPath,
       };
     } catch (error) {

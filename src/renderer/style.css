@@ -181,7 +181,7 @@
   }
 }
 
-@keyframes claim-carousel-left {
+@keyframes artifact-carousel-left {
   0% {
     transform: translateX(0);
   }
@@ -190,7 +190,7 @@
   }
 }
 
-@keyframes claim-carousel-right {
+@keyframes artifact-carousel-right {
   0% {
     transform: translateX(0);
   }
@@ -229,11 +229,11 @@
 }
 
 @layer utilities {
-  .animate-claim-carousel-left {
-    animation: claim-carousel-left 300s linear infinite;
+  .animate-artifact-carousel-left {
+    animation: artifact-carousel-left 300s linear infinite;
   }
-  .animate-claim-carousel-right {
-    animation: claim-carousel-right 360s linear infinite;
+  .animate-artifact-carousel-right {
+    animation: artifact-carousel-right 360s linear infinite;
   }
   .animate-shimmer {
     animation: shimmer 2s ease-in-out infinite;

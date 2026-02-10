@@ -57,10 +57,10 @@ All routes below are wrapped in `PortalShell` and require authentication.
 #### `/projects/:projectId/claims/:claimId`
 
 - **Component**: `ClaimDetailPage`
-- **Description**: Claim detail view
+- **Description**: Artifact detail view
 - **Parameters**:
   - `projectId` - Project identifier
-  - `claimId` - Claim identifier
+  - `claimId` - Artifact identifier
 - **Authentication**: Required
 
 #### `/claims/fingerprint/:fingerprint`
@@ -101,18 +101,18 @@ All routes below are wrapped in `PortalShell` and require authentication.
   - `email` - User email address
 - **Authentication**: Required
 
-### Claims
+### Artifacts
 
 #### `/my-claims`
 
 - **Component**: `MyClaimsPage`
-- **Description**: User's claims listing
+- **Description**: User's artifacts listing
 - **Authentication**: Required
 
 #### `/claims/new`
 
 - **Component**: `CreateClaimPage`
-- **Description**: Create a new claim
+- **Description**: Create a new artifact
 - **Authentication**: Required
 
 ### Organizations (Workspaces)

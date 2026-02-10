@@ -59,7 +59,7 @@ export async function fetchUserProfile(
   }
 }
 
-export async function fetchUserProjects(
+export async function fetchUserMarks(
   email: string,
   token: string
 ): Promise<Project[]> {
@@ -72,7 +72,7 @@ export async function fetchUserProjects(
 
     if (!response.ok) {
       console.error(
-        `Failed to fetch user projects: ${response.status} ${response.statusText}`
+        `Failed to fetch user marks: ${response.status} ${response.statusText}`
       );
       return [];
     }
@@ -83,12 +83,12 @@ export async function fetchUserProjects(
     if (error instanceof TokenExpiredError) {
       throw error;
     }
-    console.error("Error fetching user projects:", error);
+    console.error("Error fetching user marks:", error);
     return [];
   }
 }
 
-export async function fetchOrganizationProjects(
+export async function fetchOrganizationMarks(
   orgId: string,
   token: string
 ): Promise<Project[]> {
@@ -101,7 +101,7 @@ export async function fetchOrganizationProjects(
 
     if (!response.ok) {
       console.error(
-        `Failed to fetch organization projects: ${response.status} ${response.statusText}`
+        `Failed to fetch organization marks: ${response.status} ${response.statusText}`
       );
       return [];
     }
@@ -112,25 +112,25 @@ export async function fetchOrganizationProjects(
     if (error instanceof TokenExpiredError) {
       throw error;
     }
-    console.error("Error fetching organization projects:", error);
+    console.error("Error fetching organization marks:", error);
     return [];
   }
 }
 
-export async function fetchProject(
-  projectId: string,
+export async function fetchMark(
+  markId: string,
   token: string
 ): Promise<Project | null> {
   try {
     const response = await fetchWithAuth(
-      `${BASE_URL}/api/projects/${projectId}`,
+      `${BASE_URL}/api/projects/${markId}`,
       token,
       { method: "GET" }
     );
 
     if (!response.ok) {
       console.error(
-        `Failed to fetch project: ${response.status} ${response.statusText}`
+        `Failed to fetch mark: ${response.status} ${response.statusText}`
       );
       return null;
     }
@@ -141,19 +141,19 @@ export async function fetchProject(
     if (error instanceof TokenExpiredError) {
       throw error;
     }
-    console.error("Error fetching project:", error);
+    console.error("Error fetching mark:", error);
     return null;
   }
 }
 
-export async function createProjectClaim(
-  projectId: string,
+export async function createMarkClaim(
+  markId: string,
   token: string,
   payload: CreateProjectClaimDto
 ): Promise<any | null> {
   try {
     const response = await fetchWithAuth(
-      `${BASE_URL}/api/projects/${projectId}/claims`,
+      `${BASE_URL}/api/projects/${markId}/claims`,
       token,
       {
         method: "POST",
@@ -164,7 +164,7 @@ export async function createProjectClaim(
     if (!response.ok) {
       const errText = await response.text();
       console.error(
-        `Failed to create claim: ${response.status} ${response.statusText}`,
+        `Failed to create artifact: ${response.status} ${response.statusText}`,
         errText
       );
       return null;
@@ -175,22 +175,22 @@ export async function createProjectClaim(
     if (error instanceof TokenExpiredError) {
       throw error;
     }
-    console.error("Error creating project claim:", error);
+    console.error("Error creating mark artifact:", error);
     return null;
   }
 }
 
 /**
- * Create an image project claim with file upload
- * @param projectId - ID of the project
+ * Create an image mark artifact with file upload
+ * @param markId - ID of the mark
  * @param token - Authentication token
- * @param payload - Claim data payload
+ * @param payload - Artifact data payload
  * @param filePath - Path to the image file
  * @param fileBuffer - Buffer containing the file data
- * @returns Created claim object or null on failure
+ * @returns Created artifact object or null on failure
  */
-export async function createImageProjectClaim(
-  projectId: string,
+export async function createImageMarkClaim(
+  markId: string,
   token: string,
   payload: CreateProjectClaimDto,
   filePath: string,
@@ -200,7 +200,7 @@ export async function createImageProjectClaim(
   try {
     const formData = new FormData();
     
-    // Add individual claim fields as per OpenAPI spec (CreateProjectClaimDto)
+    // Add individual artifact fields as per OpenAPI spec (CreateProjectClaimDto)
     // Required fields: methodId, externalId, fingerprint, data
     formData.append("methodId", payload.methodId.toString());
     formData.append("externalId", payload.externalId.toString());
@@ -225,7 +225,7 @@ export async function createImageProjectClaim(
     formData.append("image", fileBlob, fileName);
 
     const response = await fetch(
-      `${BASE_URL}/api/projects/${projectId}/claims/image`,
+      `${BASE_URL}/api/projects/${markId}/claims/image`,
       {
         method: "POST",
         headers: {
@@ -242,7 +242,7 @@ export async function createImageProjectClaim(
     if (!response.ok) {
       const errText = await response.text();
       console.error(
-        `Failed to create image claim: ${response.status} ${response.statusText}`,
+        `Failed to create image artifact: ${response.status} ${response.statusText}`,
         errText
       );
       return null;
@@ -253,7 +253,7 @@ export async function createImageProjectClaim(
     if (error instanceof TokenExpiredError) {
       throw error;
     }
-    console.error("Error creating image project claim:", error);
+    console.error("Error creating image mark artifact:", error);
     return null;
   }
 }

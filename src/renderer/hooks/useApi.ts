@@ -4,7 +4,7 @@ import {
   autoStartAtom,
   folderAtom,
   tokenAtom,
-  projectsAtom,
+  marksAtom,
   healthAtom,
   currentUserAtom,
   organizationsAtom,
@@ -22,7 +22,7 @@ export function useBootstrap() {
   const [, setToken] = useAtom(tokenAtom);
   const [, setFolder] = useAtom(folderAtom);
   const [, setAutoStart] = useAtom(autoStartAtom);
-  const [, setProjects] = useAtom(projectsAtom);
+  const [, setMarks] = useAtom(marksAtom);
   const [, setHealth] = useAtom(healthAtom);
   const [, setCurrentUser] = useAtom(currentUserAtom);
   const [, setOrganizations] = useAtom(organizationsAtom);
@@ -58,7 +58,7 @@ export function useBootstrap() {
         setCurrentUser(null);
         setUserProfile(null);
         setOrganizations([]);
-        setProjects([]);
+        setMarks([]);
         setIsValidating(false);
         return;
       }
@@ -74,7 +74,7 @@ export function useBootstrap() {
           setCurrentUser(null);
           setUserProfile(null);
           setOrganizations([]);
-          setProjects([]);
+          setMarks([]);
           setIsValidating(false);
           return;
         }
@@ -108,9 +108,9 @@ export function useBootstrap() {
       }
 
       // STEP 3: Now fetch everything else in parallel
-      const [settings, projects, health] = await Promise.all([
+      const [settings, marks, health] = await Promise.all([
         window.ucfr.settings.get(),
-        window.ucfr.api.projects(),
+        window.ucfr.api.marks(),
         window.ucfr.api.health(),
       ]);
       
@@ -121,7 +121,7 @@ export function useBootstrap() {
       };
       setFolder(typedSettings.folderPath);
       setAutoStart(Boolean(typedSettings.autoStart));
-      setProjects(projects as any);
+      setMarks(marks as any);
       setHealth(health as any);
 
       // Handle first-time login logic (can be async, doesn't block)
@@ -132,7 +132,7 @@ export function useBootstrap() {
           .then((result: any) => {
             if (result.attached) {
               console.info(
-                `[First Login] Downloads folder attached to "${result.projectName}"`,
+                `[First Login] Downloads folder attached to "${result.markName}"`,
                 result
               );
             } else if (result.skipped) {
@@ -164,7 +164,7 @@ export function useBootstrap() {
         setCurrentUser(null);
         setUserProfile(null);
         setOrganizations([]);
-        setProjects([]);
+        setMarks([]);
       } else {
         // Token is available, fetch user information
         try {
@@ -194,7 +194,7 @@ export function useBootstrap() {
                 .then((result: any) => {
                   if (result.attached) {
                     console.info(
-                      `[First Login] Downloads folder attached to "${result.projectName}"`,
+                      `[First Login] Downloads folder attached to "${result.markName}"`,
                       result
                     );
                   } else if (result.skipped) {
@@ -211,11 +211,11 @@ export function useBootstrap() {
           }
 
           // STEP 3: Now fetch everything else in parallel
-          const [projects, health] = await Promise.all([
-            window.ucfr.api.projects(),
+          const [marks, health] = await Promise.all([
+            window.ucfr.api.marks(),
             window.ucfr.api.health(),
           ]);
-          setProjects(projects as any);
+          setMarks(marks as any);
           setHealth(health as any);
         } catch (err) {
           console.error("Failed to refresh user state after token change", err);
@@ -262,7 +262,7 @@ export function useBootstrap() {
         setCurrentUser(null);
         setUserProfile(null);
         setOrganizations([]);
-        setProjects([]);
+        setMarks([]);
         queryClient.invalidateQueries();
         return;
       }
@@ -277,7 +277,7 @@ export function useBootstrap() {
         setCurrentUser(null);
         setUserProfile(null);
         setOrganizations([]);
-        setProjects([]);
+        setMarks([]);
         queryClient.invalidateQueries();
       }
     };
@@ -293,7 +293,7 @@ export function useBootstrap() {
     setToken,
     setFolder,
     setAutoStart,
-    setProjects,
+    setMarks,
     setHealth,
     setCurrentUser,
     setOrganizations,

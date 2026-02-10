@@ -1,6 +1,6 @@
 /**
  * Settings store for the application
- * Manages persistent configuration including project folders,
+ * Manages persistent configuration including mark folders,
  * auto-start preferences, and first-time login state
  */
 import Store from 'electron-store';

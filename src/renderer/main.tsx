@@ -3,9 +3,9 @@ import ReactDOM from "react-dom/client";
 import App from "./App";
 import type { RendererAPI } from "../preload";
 import {
-  fetchOrganizationProjects,
+  fetchOrganizationMarks,
   fetchUserProfile,
-  fetchUserProjects,
+  fetchUserMarks,
 } from "../shared/api/client";
 import { dbExec, dbQuery } from "../shared/dbClient";
 
@@ -165,6 +165,32 @@ function createWebApi(): RendererAPI {
         console.warn("handleFirstLogin is not supported in web environment.");
         return { skipped: true, reason: "Web environment" };
       },
+      validateToken: async () => {
+        const token = await getDbToken();
+        if (!token) return { valid: false };
+        try {
+          const response = await fetch(
+            "https://auth.stabilityprotocol.com/v1/auth/is-authorized",
+            {
+              method: "POST",
+              headers: { Authorization: `Bearer ${token}` },
+            }
+          );
+          if (response.status === 401) {
+            await setDbToken(null);
+            return { valid: false };
+          }
+          if (!response.ok) return { valid: true };
+          const data = (await response.json()) as { ok: boolean };
+          return { valid: data.ok === true };
+        } catch {
+          return { valid: true };
+        }
+      },
+      attachDownloadsFolder: async () => {
+        console.warn("attachDownloadsFolder is not supported in web environment.");
+        return { success: false, error: "Not supported in web environment" };
+      },
     },
     settings: {
       get: async () => getStoredSettings(),
@@ -174,12 +200,12 @@ function createWebApi(): RendererAPI {
         return null;
       },
     },
-    project: {
+    mark: {
       addFolder: async () => {
         console.warn("addFolder is not supported in web environment.");
         return null;
       },
-      removeFolder: async (_projectId: string, _folderPath: string) => {
+      removeFolder: async (_markId: string, _folderPath: string) => {
         console.warn("removeFolder is not supported in web environment.");
         return [];
       },
@@ -187,7 +213,7 @@ function createWebApi(): RendererAPI {
         console.warn("getFolders is not supported in web environment.");
         return [];
       },
-      getHistory: async (_projectId: string) => {
+      getHistory: async (_markId: string) => {
         // Web environment: show recent global history from shared DB
         try {
           const rows = await dbQuery(
@@ -212,6 +238,10 @@ function createWebApi(): RendererAPI {
         const url = target.startsWith("http") ? target : `https://${target}`;
         window.open(url, "_blank", "noopener,noreferrer");
       },
+      getPath: async (_name: string) => {
+        console.warn("getPath is not supported in web environment.");
+        return "";
+      },
     },
     sync: {
       startWatcher: async () => {
@@ -225,12 +255,12 @@ function createWebApi(): RendererAPI {
     },
     api: {
       me: async () => null,
-      projects: async () => {
+      marks: async () => {
         const token = await getDbToken();
         if (!token) return [];
         const email = await webGetAuthorizedUser(token);
         if (!email) return [];
-        return fetchUserProjects(email, token);
+        return fetchUserMarks(email, token);
       },
       health: async () => {
         return { status: "ok", version: "1.0.0" };
@@ -240,15 +270,15 @@ function createWebApi(): RendererAPI {
         if (!token) return null;
         return fetchUserProfile(email, token);
       },
-      userProjects: async (email: string) => {
+      userMarks: async (email: string) => {
         const token = await getDbToken();
         if (!token) return [];
-        return fetchUserProjects(email, token);
+        return fetchUserMarks(email, token);
       },
-      organizationProjects: async (orgId: string) => {
+      organizationMarks: async (orgId: string) => {
         const token = await getDbToken();
         if (!token) return [];
-        return fetchOrganizationProjects(orgId, token);
+        return fetchOrganizationMarks(orgId, token);
       },
     },
     db: {

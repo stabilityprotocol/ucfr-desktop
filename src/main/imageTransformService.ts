@@ -1,7 +1,7 @@
 /**
  * Image Transformation Service
  *
- * Handles image processing for claim submissions:
+ * Handles image processing for artifact submissions:
  * - Extracts image metadata (dimensions, format, etc.)
  * - Determines if transformation is needed (either dimension > 2000px)
  * - Transforms images to max 2000px per dimension with WebP optimization
@@ -236,7 +236,7 @@ export async function transformImage(
 }
 
 /**
- * Process an image for claim submission
+ * Process an image for artifact submission
  *
  * This is the main entry point that orchestrates the entire transformation process:
  * 1. Extract metadata
@@ -249,7 +249,7 @@ export async function transformImage(
  * @param options - Transformation options
  * @returns Processed image data with transformation status
  */
-export async function processImageForClaim(
+export async function processImageForArtifact(
   buffer: Buffer,
   mimeType: string,
   options?: TransformationOptions,

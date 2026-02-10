@@ -11,7 +11,7 @@ import { useBootstrap } from "./hooks/useApi";
 import {
   tokenAtom,
   autoStartAtom,
-  projectsAtom,
+  marksAtom,
   healthAtom,
   currentUserAtom,
   organizationsAtom,
@@ -20,8 +20,8 @@ import {
 } from "./state";
 import { LoginPage } from "./pages/Login";
 import { DashboardPage } from "./pages/Dashboard";
-import { ProjectsPage } from "./pages/Projects";
-import { ProjectDetailPage } from "./pages/ProjectDetail";
+import { MarksPage } from "./pages/Marks";
+import { MarkDetailPage } from "./pages/MarkDetail";
 import { SettingsPage } from "./pages/Settings";
 import { Layout } from "./components/Layout";
 import { ToastProvider } from "./components/ToastProvider";
@@ -52,7 +52,7 @@ function AppContent() {
   const [token, setToken] = useAtom(tokenAtom);
   const [isValidating] = useAtom(isValidatingAtom);
   const [autoStart, setAutoStart] = useAtom(autoStartAtom);
-  const [projects, setProjects] = useAtom(projectsAtom);
+  const [marks, setMarks] = useAtom(marksAtom);
   const [health] = useAtom(healthAtom);
   const [currentUser] = useAtom(currentUserAtom);
   const [organizations] = useAtom(organizationsAtom);
@@ -60,38 +60,38 @@ function AppContent() {
   const [downloadsAttached, setDownloadsAttached] = useState(false);
 
   useEffect(() => {
-    async function loadProjects() {
+    async function loadMarks() {
       if (!currentUser) return;
 
       try {
-        let fetchedProjects = [];
+        let fetchedMarks = [];
         if (activeOrg) {
-          fetchedProjects = (await window.ucfr.api.organizationProjects(
+          fetchedMarks = (await window.ucfr.api.organizationMarks(
             activeOrg.id
           )) as any[];
         } else {
-          fetchedProjects = (await window.ucfr.api.userProjects(
+          fetchedMarks = (await window.ucfr.api.userMarks(
             currentUser
           )) as any[];
         }
-        setProjects(fetchedProjects as any);
+        setMarks(fetchedMarks as any);
       } catch (error) {
-        console.error("Failed to load projects:", error);
+        console.error("Failed to load marks:", error);
       }
     }
 
-    loadProjects();
-  }, [activeOrg, currentUser, setProjects]);
+    loadMarks();
+  }, [activeOrg, currentUser, setMarks]);
 
   useEffect(() => {
     async function checkDownloadsAttachment() {
       if (token && currentUser) {
         const settings = (await window.ucfr.settings.get()) as any;
-        const projectFolders = settings.projectFolders || {};
+        const markFolders = settings.projectFolders || {};
         const downloadsPath = await window.ucfr.app.getPath("downloads");
 
-        // Check if downloads folder is attached to any project
-        const isAttached = Object.values(projectFolders).some(
+        // Check if downloads folder is attached to any mark
+        const isAttached = Object.values(markFolders).some(
           (folders: any) => folders.includes(downloadsPath)
         );
 
@@ -156,21 +156,21 @@ function AppContent() {
 
   return (
     <Routes>
-      <Route path="/" element={<Layout projects={projects} />}>
+      <Route path="/" element={<Layout marks={marks} />}>
         <Route
           index
           element={
             <DashboardPage
               currentUser={currentUser}
               health={health}
-              projects={projects}
+              marks={marks}
             />
           }
         />
-        <Route path="projects" element={<ProjectsPage projects={projects} />} />
+        <Route path="marks" element={<MarksPage marks={marks} />} />
         <Route
-          path="projects/:projectId"
-          element={<ProjectDetailPage projects={projects} />}
+          path="marks/:markId"
+          element={<MarkDetailPage marks={marks} />}
         />
         <Route
           path="settings"

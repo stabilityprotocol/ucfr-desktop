@@ -12,7 +12,7 @@ import {
 } from "lucide-react";
 import {
   getFingerprintVerifyUrl,
-  getProjectUrl,
+  getMarkUrl,
   openInWeb,
 } from "../utils/webLinks";
 
@@ -20,24 +20,24 @@ type HistoryItem = {
   id: number;
   path: string;
   event_type: string;
-  timestamp: string; // BIGINT returns as string from pg usually, or number if small enough. PGlite might return number or string. Let's assume number or string.
+  timestamp: string;
   hash: string;
 };
 
-type ProjectDetailProps = {
-  projects: Project[];
+type MarkDetailProps = {
+  marks: Project[];
 };
 
-export function ProjectDetailPage({ projects }: ProjectDetailProps) {
-  const { projectId } = useParams();
-  const project = projects.find((p) => p.id === projectId);
+export function MarkDetailPage({ marks }: MarkDetailProps) {
+  const { markId } = useParams();
+  const mark = marks.find((p) => p.id === markId);
 
   const [folders, setFolders] = useState<string[]>([]);
   const [history, setHistory] = useState<HistoryItem[]>([]);
   const [loading, setLoading] = useState(false);
 
   useEffect(() => {
-    if (!project) return;
+    if (!mark) return;
     loadFolders();
     loadHistory();
 
@@ -46,26 +46,26 @@ export function ProjectDetailPage({ projects }: ProjectDetailProps) {
     }, 5_000);
 
     return () => clearInterval(interval);
-  }, [project?.id]);
+  }, [mark?.id]);
 
   const loadFolders = async () => {
-    if (window.ucfr?.project && project) {
-      const list = await window.ucfr.project.getFolders(project.id);
+    if (window.ucfr?.mark && mark) {
+      const list = await window.ucfr.mark.getFolders(mark.id);
       setFolders(list);
     }
   };
 
   const loadHistory = async () => {
-    if (window.ucfr?.project && project) {
-      const logs = await window.ucfr.project.getHistory(project.id);
+    if (window.ucfr?.mark && mark) {
+      const logs = await window.ucfr.mark.getHistory(mark.id);
       setHistory(Array.isArray(logs) ? logs : []);
     }
   };
 
   const handleAddFolder = async () => {
-    if (window.ucfr?.project && project) {
+    if (window.ucfr?.mark && mark) {
       setLoading(true);
-      const newList = await window.ucfr.project.addFolder(project.id);
+      const newList = await window.ucfr.mark.addFolder(mark.id);
       if (newList) setFolders(newList);
       setLoading(false);
     }
@@ -80,8 +80,8 @@ export function ProjectDetailPage({ projects }: ProjectDetailProps) {
       return;
     }
 
-    if (window.ucfr?.project && project) {
-      const newList = await window.ucfr.project.removeFolder(project.id, path);
+    if (window.ucfr?.mark && mark) {
+      const newList = await window.ucfr.mark.removeFolder(mark.id, path);
       setFolders(newList);
     }
   };
@@ -95,10 +95,10 @@ export function ProjectDetailPage({ projects }: ProjectDetailProps) {
     return path.split(/[/\\]/).pop() || path;
   };
 
-  if (!project) {
+  if (!mark) {
     return (
       <div className="min-h-full flex flex-col items-center justify-center text-zinc-500">
-        Project not found
+        Mark not found
       </div>
     );
   }
@@ -112,12 +112,12 @@ export function ProjectDetailPage({ projects }: ProjectDetailProps) {
               <Box className="w-6 h-6 text-zinc-900" />
             </div>
             <h1 className="text-2xl font-semibold tracking-tight text-zinc-900">
-              {project.name}
+              {mark.name}
             </h1>
           </div>
         </div>
         <button
-          onClick={() => openInWeb(getProjectUrl(project.id))}
+          onClick={() => openInWeb(getMarkUrl(mark.id))}
           className="inline-flex items-center gap-2 px-4 py-2 rounded-md text-sm font-medium text-zinc-600 bg-zinc-50 hover:bg-zinc-100 transition-colors border border-zinc-200"
           title="Open in Web App"
         >
@@ -155,7 +155,7 @@ export function ProjectDetailPage({ projects }: ProjectDetailProps) {
               </h3>
               <p className="text-sm text-zinc-500 max-w-sm mx-auto">
                 Add a folder from your computer to start syncing files for this
-                project.
+                mark.
               </p>
             </div>
           ) : (
@@ -188,7 +188,7 @@ export function ProjectDetailPage({ projects }: ProjectDetailProps) {
       <div className="rounded-xl border border-zinc-200 bg-white overflow-hidden mt-6">
         <div className="px-6 py-4 border-b border-zinc-100 bg-zinc-50/50 flex items-center gap-2">
           <Activity className="w-4 h-4 text-zinc-500" />
-          <h2 className="text-sm font-medium text-zinc-900">Recent Claims</h2>
+          <h2 className="text-sm font-medium text-zinc-900">Recent Artifacts</h2>
         </div>
         <div className="overflow-x-auto">
           {history.length === 0 ? (

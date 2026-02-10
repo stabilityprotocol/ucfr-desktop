@@ -15,11 +15,11 @@ type RendererAPI = {
     set: (update: Record<string, unknown>) => Promise<unknown>;
     selectFolder: () => Promise<string | null>;
   };
-  project: {
-    addFolder: (projectId: string) => Promise<string[] | null>;
-    removeFolder: (projectId: string, folderPath: string) => Promise<string[]>;
-    getFolders: (projectId: string) => Promise<string[]>;
-    getHistory: (projectId: string) => Promise<any[]>;
+  mark: {
+    addFolder: (markId: string) => Promise<string[] | null>;
+    removeFolder: (markId: string, folderPath: string) => Promise<string[]>;
+    getFolders: (markId: string) => Promise<string[]>;
+    getHistory: (markId: string) => Promise<any[]>;
   };
   app: {
     toggleAutoStart: (enable: boolean) => Promise<boolean>;
@@ -32,11 +32,11 @@ type RendererAPI = {
   };
   api: {
     me: () => Promise<unknown>;
-    projects: () => Promise<unknown>;
+    marks: () => Promise<unknown>;
     health: () => Promise<unknown>;
     userProfile: (email: string) => Promise<unknown>;
-    userProjects: (email: string) => Promise<unknown>;
-    organizationProjects: (orgId: string) => Promise<unknown>;
+    userMarks: (email: string) => Promise<unknown>;
+    organizationMarks: (orgId: string) => Promise<unknown>;
   };
   db: {
     exec: (sql: string) => Promise<null>;
@@ -59,15 +59,15 @@ const api: RendererAPI = {
     set: (update) => ipcRenderer.invoke("settings/set", update),
     selectFolder: () => ipcRenderer.invoke("folder/select"),
   },
-  project: {
-    addFolder: (projectId) =>
-      ipcRenderer.invoke("project/addFolder", projectId),
-    removeFolder: (projectId, folderPath) =>
-      ipcRenderer.invoke("project/removeFolder", projectId, folderPath),
-    getFolders: (projectId) =>
-      ipcRenderer.invoke("project/getFolders", projectId),
-    getHistory: (projectId) =>
-      ipcRenderer.invoke("project/getHistory", projectId),
+  mark: {
+    addFolder: (markId) =>
+      ipcRenderer.invoke("mark/addFolder", markId),
+    removeFolder: (markId, folderPath) =>
+      ipcRenderer.invoke("mark/removeFolder", markId, folderPath),
+    getFolders: (markId) =>
+      ipcRenderer.invoke("mark/getFolders", markId),
+    getHistory: (markId) =>
+      ipcRenderer.invoke("mark/getHistory", markId),
   },
   app: {
     toggleAutoStart: (enable) =>
@@ -89,12 +89,12 @@ const api: RendererAPI = {
   },
   api: {
     me: () => ipcRenderer.invoke("api/me"),
-    projects: () => ipcRenderer.invoke("api/projects"),
+    marks: () => ipcRenderer.invoke("api/marks"),
     health: () => ipcRenderer.invoke("api/health"),
     userProfile: (email) => ipcRenderer.invoke("api/userProfile", email),
-    userProjects: (email) => ipcRenderer.invoke("api/userProjects", email),
-    organizationProjects: (orgId) =>
-      ipcRenderer.invoke("api/organizationProjects", orgId),
+    userMarks: (email) => ipcRenderer.invoke("api/userMarks", email),
+    organizationMarks: (orgId) =>
+      ipcRenderer.invoke("api/organizationMarks", orgId),
   },
   db: {
     exec: (sql) => ipcRenderer.invoke("db/exec", sql),

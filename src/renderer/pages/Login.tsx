@@ -15,7 +15,7 @@ export function LoginPage({ onLogin }: LoginPageProps) {
           </h1>
           <p className="text-sm text-zinc-500 max-w-[360px] mx-auto">
             Sign in with your Monolith account to start tracking folders and
-            syncing claims in the background.
+            syncing artifacts in the background.
           </p>
         </header>
 

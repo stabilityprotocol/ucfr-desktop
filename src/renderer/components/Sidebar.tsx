@@ -6,10 +6,10 @@ import { activeOrgAtom, organizationsAtom } from "../state";
 import monolithLogo from "../../assets/stability-logo.png";
 
 interface SidebarProps {
-  projects: any[];
+  marks: any[];
 }
 
-export function Sidebar({ projects }: SidebarProps) {
+export function Sidebar({ marks }: SidebarProps) {
   const navigate = useNavigate();
   const [activeOrg, setActiveOrg] = useAtom(activeOrgAtom);
   const [organizations] = useAtom(organizationsAtom);
@@ -49,7 +49,7 @@ export function Sidebar({ projects }: SidebarProps) {
         </NavLink>
       </div>
 
-      {/* Project Selector */}
+      {/* Mark Selector */}
       <div className="px-4 mb-6 relative" ref={dropdownRef}>
         <div
           onClick={() => setIsOrgSelectorOpen(!isOrgSelectorOpen)}
@@ -68,7 +68,7 @@ export function Sidebar({ projects }: SidebarProps) {
               </div>
             )}
             <span className="font-bold text-sm text-zinc-900 uppercase tracking-wide truncate max-w-[140px]">
-              {activeOrg ? activeOrg.name : "Personal Projects"}
+              {activeOrg ? activeOrg.name : "Personal Marks"}
             </span>
           </div>
           <ChevronDown
@@ -94,10 +94,10 @@ export function Sidebar({ projects }: SidebarProps) {
               </div>
               <div className="flex flex-col overflow-hidden">
                 <span className="text-sm font-bold text-zinc-900 uppercase tracking-wide truncate">
-                  PERSONAL PROJECTS
+                  PERSONAL MARKS
                 </span>
                 <span className="text-xs text-zinc-500 truncate">
-                  Your own projects
+                  Your own marks
                 </span>
               </div>
             </div>
@@ -146,16 +146,16 @@ export function Sidebar({ projects }: SidebarProps) {
           </NavLink>
         </div>
 
-        {/* Projects Section */}
+        {/* Marks Section */}
         <div>
           <div className="text-[11px] font-bold text-zinc-400 uppercase tracking-[0.15em] mb-2 px-2">
-            Projects
+            Marks
           </div>
           <div className="flex flex-col gap-1">
-            {projects.map((p) => (
+            {marks.map((p) => (
               <NavLink
                 key={p.id}
-                to={`/projects/${p.id}`}
+                to={`/marks/${p.id}`}
                 className={({ isActive }) =>
                   `w-full block text-left text-sm font-light transition-colors uppercase tracking-wide truncate px-3 py-1.5 rounded-sm ${
                     isActive

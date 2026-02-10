@@ -6,13 +6,13 @@ import { useNavigate } from "react-router-dom";
 type DashboardPageProps = {
   currentUser: string | null;
   health: Health | null;
-  projects: Project[];
+  marks: Project[];
 };
 
 export function DashboardPage({
   currentUser,
   health,
-  projects,
+  marks,
 }: DashboardPageProps) {
   const navigate = useNavigate();
 
@@ -43,32 +43,32 @@ export function DashboardPage({
       </header>
 
       <div className="grid gap-6">
-        {/* Projects Card */}
+        {/* Marks Card */}
         <div className="rounded-xl border border-zinc-200 bg-white overflow-hidden">
           <div className="px-6 py-4 border-b border-zinc-100 bg-zinc-50/50 flex items-center justify-between">
-            <h2 className="text-sm font-medium text-zinc-900">Projects</h2>
+            <h2 className="text-sm font-medium text-zinc-900">Marks</h2>
             <span className="inline-flex items-center justify-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-zinc-100 text-zinc-600">
-              {projects.length}
+              {marks.length}
             </span>
           </div>
 
           <div className="p-6">
-            {projects.length === 0 ? (
+            {marks.length === 0 ? (
               <div className="text-center py-12 rounded-lg border border-dashed border-zinc-200 bg-zinc-50/50">
                 <p className="text-zinc-500 text-sm">
-                  No projects found linked to your account.
+                  No marks found linked to your account.
                 </p>
               </div>
             ) : (
               <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-                {projects.map((project) => (
+                {marks.map((mark) => (
                   <div
-                    key={project.id}
-                    onClick={() => navigate(`/projects/${project.id}`)}
+                    key={mark.id}
+                    onClick={() => navigate(`/marks/${mark.id}`)}
                     className="group relative flex flex-col gap-2 p-4 rounded-lg border border-zinc-200 bg-white hover:border-zinc-300 hover:shadow-sm transition-all cursor-pointer"
                   >
                     <h3 className="font-medium text-zinc-900 truncate pr-6">
-                      {project.name}
+                      {mark.name}
                     </h3>
                     <div className="absolute top-4 right-4 text-zinc-300 group-hover:text-zinc-400 transition-colors">
                       <ExternalLink className="w-4 h-4" />

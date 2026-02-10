@@ -5,13 +5,13 @@ import { BrowserWindow } from "electron";
 import { getSettings } from "./settings";
 import { tokenManager } from "./tokenStore";
 import {
-  fetchProject,
-  createProjectClaim,
-  createImageProjectClaim,
+  fetchMark,
+  createMarkClaim,
+  createImageMarkClaim,
   TokenExpiredError,
 } from "../shared/api/client";
 import { fileHistoryService } from "./fileHistory";
-import { processImageForClaim } from "./imageTransformService";
+import { processImageForArtifact } from "./imageTransformService";
 
 /**
  * Lazily loaded mime module
@@ -30,7 +30,7 @@ async function getMimeType(filePath: string): Promise<string> {
       // Use require for mime v3 (CommonJS) - works in both dev and production
       mime = require("mime");
     } catch (error) {
-      console.error("[ClaimService] Failed to load mime module:", error);
+      console.error("[ArtifactService] Failed to load mime module:", error);
       return "application/octet-stream";
     }
   }
@@ -55,18 +55,6 @@ async function getFileHash(filePath: string): Promise<string> {
 
 async function getAuthorizedEmail(token: string): Promise<string | null> {
   // Verify token and get email.
-  // We can use the existing method in client.ts if it exists, or verify via profile.
-  // For now, let's assume we can get it from the profile endpoint.
-  // But we need to know who "me" is.
-  // The mockAuth implementation in ipc.ts uses `is-authorized`.
-  // We should reuse that logic or expose it.
-  // Since we don't have direct access to `getAuthorizedUserFromApi` from here easily without circular deps or prop drilling,
-  // let's try to fetch the user's own profile using the token, or assume the token works.
-  // Actually, for the `data` JSON, we need the email.
-  // We can decode the JWT if it's a JWT, but it's opaque in this mocked setup?
-  // Let's check ipc.ts again. `getAuthorizedUserFromApi` calls `auth/is-authorized`.
-
-  // To avoid code duplication, we'll just call the endpoint directly here as well.
   try {
     const response = await fetch(
       "https://auth.stabilityprotocol.com/v1/auth/is-authorized",
@@ -93,28 +81,28 @@ export async function handleFileChange(filePath: string, event: string) {
   if (event !== "change" && event !== "add") return;
 
   try {
-    console.log(`[ClaimService] Processing file: ${filePath} (${event})`);
+    console.log(`[ArtifactService] Processing file: ${filePath} (${event})`);
 
     const settings = getSettings();
-    const projectFolders = settings.projectFolders || {};
+    const markFolders = settings.projectFolders || {};
 
-    // Find project ID for this file
-    let projectId: string | null = null;
-    for (const [pid, folders] of Object.entries(projectFolders)) {
+    // Find mark ID for this file
+    let markId: string | null = null;
+    for (const [pid, folders] of Object.entries(markFolders)) {
       if (folders.some((folder) => filePath.startsWith(folder))) {
-        projectId = pid;
+        markId = pid;
         break;
       }
     }
 
-    if (!projectId) {
-      console.log("[ClaimService] No project found for file:", filePath);
+    if (!markId) {
+      console.log("[ArtifactService] No mark found for file:", filePath);
       return;
     }
 
     const token = await tokenManager.getToken();
     if (!token) {
-      console.log("[ClaimService] No token available, skipping claim.");
+      console.log("[ArtifactService] No token available, skipping artifact.");
       return;
     }
 
@@ -130,14 +118,14 @@ export async function handleFileChange(filePath: string, event: string) {
       fingerprint
     );
 
-    // 2. Get Project & User Info
-    // We fetch project to get name and organization
-    let project;
+    // 2. Get Mark & User Info
+    // We fetch the mark to get name and organization
+    let mark;
     try {
-      project = await fetchProject(projectId, token);
+      mark = await fetchMark(markId, token);
     } catch (error) {
       if (error instanceof TokenExpiredError) {
-        console.log("[ClaimService] Token expired, skipping claim");
+        console.log("[ArtifactService] Token expired, skipping artifact");
         await tokenManager.clear();
         BrowserWindow.getAllWindows().forEach((win) =>
           win.webContents.send("tokenChanged")
@@ -146,37 +134,37 @@ export async function handleFileChange(filePath: string, event: string) {
       }
       throw error;
     }
-    if (!project) {
-      console.error(`[ClaimService] Could not fetch project ${projectId}`);
+    if (!mark) {
+      console.error(`[ArtifactService] Could not fetch mark ${markId}`);
       return;
     }
 
     const userEmail = await getAuthorizedEmail(token);
     if (!userEmail) {
-      console.error("[ClaimService] Could not identify user email");
+      console.error("[ArtifactService] Could not identify user email");
       return;
     }
 
     // 3. Construct Data JSON
     // API expects certain top-level fields inside `data`
-    const claimData = {
+    const artifactData = {
       // Required by server-side schema
       filename: fileName,
       userEmail,
-      projectId,
-      projectName: project.name,
+      markId,
+      markName: mark.name,
       fingerprint,
 
       // Additional descriptive metadata
       version: "1.0",
       lang: "en",
-      title: `UCFR Claim for ${fileName}`,
-      description: `Submitted by ${userEmail}. Project ${project.name}. Claim covers ${fileName}`,
+      title: `UCFR Artifact for ${fileName}`,
+      description: `Submitted by ${userEmail}. Mark ${mark.name}. Artifact covers ${fileName}`,
       keywords: [
         "UCFR",
-        "claim",
-        project.organization?.name || "Personal",
-        project.name,
+        "artifact",
+        mark.organization?.name || "Personal",
+        mark.name,
         mimeType,
         fileName,
       ],
@@ -184,8 +172,8 @@ export async function handleFileChange(filePath: string, event: string) {
       canonicalUrl: "https://www.ucfr.io/",
       author: {
         email: userEmail,
-        organizationId: project.organization?.id || projectId,
-        projectId,
+        organizationId: mark.organization?.id || markId,
+        markId,
       },
       subject: {
         name: fileName,
@@ -199,29 +187,29 @@ export async function handleFileChange(filePath: string, event: string) {
 
     // 4. Defensive validation prior to submit
     const requiredStrFields: Array<[string, unknown]> = [
-      ["filename", claimData.filename],
-      ["userEmail", claimData.userEmail],
-      ["projectId", claimData.projectId],
-      ["projectName", claimData.projectName],
-      ["fingerprint", claimData.fingerprint],
+      ["filename", artifactData.filename],
+      ["userEmail", artifactData.userEmail],
+      ["markId", artifactData.markId],
+      ["markName", artifactData.markName],
+      ["fingerprint", artifactData.fingerprint],
     ];
     const missing = requiredStrFields
       .filter(([_, v]) => typeof v !== "string" || (v as string).trim() === "")
       .map(([k]) => k);
-    const fpValid = /^0x[0-9a-f]{64}$/.test(claimData.fingerprint as string);
+    const fpValid = /^0x[0-9a-f]{64}$/.test(artifactData.fingerprint as string);
     if (missing.length > 0 || !fpValid) {
       console.error(
-        "[ClaimService] Validation failed; not submitting claim",
+        "[ArtifactService] Validation failed; not submitting artifact",
         JSON.stringify(
           {
             filePath,
-            projectId,
-            projectName: project.name,
+            markId,
+            markName: mark.name,
             missingFields: missing,
             fingerprintValid: fpValid,
             fingerprintSample:
-              typeof claimData.fingerprint === "string"
-                ? (claimData.fingerprint as string).slice(0, 10)
+              typeof artifactData.fingerprint === "string"
+                ? (artifactData.fingerprint as string).slice(0, 10)
                 : null,
           },
           null,
@@ -231,16 +219,16 @@ export async function handleFileChange(filePath: string, event: string) {
       return;
     }
 
-    // 5. Submit Claim
+    // 5. Submit Artifact
     const payload = {
       methodId: 0,
       externalId: 1,
       fingerprint,
-      data: JSON.stringify(claimData),
+      data: JSON.stringify(artifactData),
     };
 
     console.log(
-      `[ClaimService] Submitting claim for ${fileName} in project ${project.name}`
+      `[ArtifactService] Submitting artifact for ${fileName} in mark ${mark.name}`
     );
 
     const isImage = await isImageMimeType(mimeType);
@@ -252,10 +240,10 @@ export async function handleFileChange(filePath: string, event: string) {
         const originalBuffer = await fs.readFile(filePath);
 
         // Process image (transform if needed, maintaining original for fingerprint)
-        const processed = await processImageForClaim(originalBuffer, mimeType);
+        const processed = await processImageForArtifact(originalBuffer, mimeType);
 
-        result = await createImageProjectClaim(
-          projectId,
+        result = await createImageMarkClaim(
+          markId,
           token,
           payload,
           filePath,
@@ -265,16 +253,16 @@ export async function handleFileChange(filePath: string, event: string) {
 
         if (processed.transformed) {
           console.log(
-            `[ClaimService] Submitted transformed image for ${fileName}`
+            `[ArtifactService] Submitted transformed image for ${fileName}`
           );
         }
       } else {
         // Use regular JSON endpoint for non-image files
-        result = await createProjectClaim(projectId, token, payload);
+        result = await createMarkClaim(markId, token, payload);
       }
     } catch (error) {
       if (error instanceof TokenExpiredError) {
-        console.log("[ClaimService] Token expired, skipping claim");
+        console.log("[ArtifactService] Token expired, skipping artifact");
         await tokenManager.clear();
         BrowserWindow.getAllWindows().forEach((win) =>
           win.webContents.send("tokenChanged")
@@ -286,19 +274,19 @@ export async function handleFileChange(filePath: string, event: string) {
 
     if (result) {
       console.log(
-        `[ClaimService] ${isImage ? "Image" : ""} claim submitted successfully: ${result.id} (project: ${project.name}, file: ${fileName})`
+        `[ArtifactService] ${isImage ? "Image" : ""} artifact submitted successfully: ${result.id} (mark: ${mark.name}, file: ${fileName})`
       );
     } else {
       console.error(
-        "[ClaimService] Failed to submit claim",
+        "[ArtifactService] Failed to submit artifact",
         JSON.stringify(
-          { projectId, projectName: project.name, fileName, isImage },
+          { markId, markName: mark.name, fileName, isImage },
           null,
           2
         )
       );
     }
   } catch (err) {
-    console.error("[ClaimService] Error handling file change:", err);
+    console.error("[ArtifactService] Error handling file change:", err);
   }
 }

@@ -2,11 +2,11 @@ export const WEB_APP_BASE_URL = "https://lite.monolith.stabilityprotocol.com";
 
 export const getDashboardUrl = () => `${WEB_APP_BASE_URL}/dashboard`;
 
-export const getProjectUrl = (projectId: string) =>
-  `${WEB_APP_BASE_URL}/project/${projectId}`;
+export const getMarkUrl = (markId: string) =>
+  `${WEB_APP_BASE_URL}/mark/${markId}`;
 
-export const getProjectSettingsUrl = (projectId: string) =>
-  `${WEB_APP_BASE_URL}/project/${projectId}`;
+export const getMarkSettingsUrl = (markId: string) =>
+  `${WEB_APP_BASE_URL}/mark/${markId}`;
 
 export const getProfileSettingsUrl = (email?: string) =>
   email
