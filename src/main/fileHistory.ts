@@ -204,6 +204,22 @@ export class FileHistoryService {
     }
   }
 
+  async getFileByHash(hash: string): Promise<FileRecord | null> {
+    try {
+      const rows = await dbQuery<FileRecord>(
+        "SELECT * FROM files WHERE current_hash = $1 LIMIT 1",
+        [hash]
+      );
+      return rows[0] || null;
+    } catch (e) {
+      console.error(
+        `[FileHistory] Error getting file by hash ${hash}:`,
+        e
+      );
+      return null;
+    }
+  }
+
   private async processAddOrChange(
     filePath: string,
     hash: string,
@@ -235,8 +251,14 @@ export class FileHistoryService {
         );
       }
     } else {
+      // Use UPSERT to handle race conditions gracefully
       const insertRows = await dbQuery<{ id: number }>(
-        "INSERT INTO files (path, current_hash, created_at, updated_at) VALUES ($1, $2, $3, $4) RETURNING id",
+        `INSERT INTO files (path, current_hash, created_at, updated_at) 
+         VALUES ($1, $2, $3, $4) 
+         ON CONFLICT (path) DO UPDATE SET 
+           current_hash = EXCLUDED.current_hash,
+           updated_at = EXCLUDED.updated_at
+         RETURNING id`,
         [
           filePath,
           hash,

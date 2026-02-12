@@ -109,6 +109,14 @@ export async function handleFileChange(filePath: string, event: string) {
     // 1. Get File Stats & Hash
     const stats = await fs.stat(filePath);
     const fingerprint = await getFileHash(filePath);
+
+    // Check if any file with this hash has already been submitted
+    const existingFileWithHash = await fileHistoryService.getFileByHash(fingerprint);
+    if (existingFileWithHash) {
+      console.log(`[ArtifactService] File with hash ${fingerprint.slice(0, 16)}... already submitted, skipping: ${path.basename(filePath)}`);
+      return;
+    }
+
     const mimeType = await getMimeType(filePath);
     const fileName = path.basename(filePath);
 
