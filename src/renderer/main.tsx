@@ -7,7 +7,6 @@ import {
   fetchUserProfile,
   fetchUserMarks,
 } from "../shared/api/client";
-import { dbExec, dbQuery } from "../shared/dbClient";
 
 const CONFIG_TOKEN_KEY = "auth.token";
 const SETTINGS_KEY = "ucfr.settings";
@@ -22,34 +21,21 @@ function getStoredSettings(): Record<string, unknown> {
   }
 }
 
-async function getDbToken(): Promise<string | null> {
+function getDbToken(): string | null {
   try {
-    const rows = await dbQuery<{ value: string }>(
-      "SELECT value FROM config WHERE key = $1",
-      [CONFIG_TOKEN_KEY]
-    );
-    return rows[0]?.value ?? null;
+    return localStorage.getItem(CONFIG_TOKEN_KEY);
   } catch (err) {
     console.error("getDbToken failed:", err);
     return null;
   }
 }
 
-async function setDbToken(token: string | null): Promise<void> {
+function setDbToken(token: string | null): void {
   try {
     if (token) {
-      const now = Date.now();
-      await dbExec(
-        `
-        INSERT INTO config (key, value, created_at, updated_at)
-        VALUES ($1, $2, $3, $3)
-        ON CONFLICT (key)
-        DO UPDATE SET value = EXCLUDED.value, updated_at = EXCLUDED.updated_at
-      `,
-        [CONFIG_TOKEN_KEY, token, now]
-      );
+      localStorage.setItem(CONFIG_TOKEN_KEY, token);
     } else {
-      await dbExec("DELETE FROM config WHERE key = $1", [CONFIG_TOKEN_KEY]);
+      localStorage.removeItem(CONFIG_TOKEN_KEY);
     }
   } catch (err) {
     console.error("setDbToken failed:", err);
@@ -132,13 +118,13 @@ async function webGetAuthorizedUser(token: string): Promise<string | null> {
 function createWebApi(): RendererAPI {
   return {
     auth: {
-      getToken: async () => getDbToken(),
-      clearToken: async () => {
-        await setDbToken(null);
+      getToken: () => Promise.resolve(getDbToken()),
+      clearToken: () => {
+        setDbToken(null);
         window.dispatchEvent(new Event("tokenChanged"));
-        return null;
+        return Promise.resolve(null);
       },
-      startLoginFlow: async () => {
+      startLoginFlow: () => {
         const requestId =
           typeof crypto !== "undefined" && "randomUUID" in crypto
             ? crypto.randomUUID()
@@ -147,17 +133,17 @@ function createWebApi(): RendererAPI {
         void (async () => {
           const token = await webPollForToken(requestId);
           if (token) {
-            await setDbToken(token);
+            setDbToken(token);
             window.dispatchEvent(new Event("tokenChanged"));
           } else {
             console.error("Web authentication timed out or failed.");
           }
         })();
 
-        return { requestId };
+        return Promise.resolve({ requestId });
       },
       getUser: async () => {
-        const token = await getDbToken();
+        const token = getDbToken();
         if (!token) return null;
         return webGetAuthorizedUser(token);
       },
@@ -166,7 +152,7 @@ function createWebApi(): RendererAPI {
         return { skipped: true, reason: "Web environment" };
       },
       validateToken: async () => {
-        const token = await getDbToken();
+        const token = getDbToken();
         if (!token) return { valid: false };
         try {
           const response = await fetch(
@@ -177,7 +163,7 @@ function createWebApi(): RendererAPI {
             }
           );
           if (response.status === 401) {
-            await setDbToken(null);
+            setDbToken(null);
             return { valid: false };
           }
           if (!response.ok) return { valid: true };
@@ -213,30 +199,10 @@ function createWebApi(): RendererAPI {
         console.warn("getFolders is not supported in web environment.");
         return [];
       },
-      getHistory: async (_markId: string, page: number = 1, pageSize: number = 20) => {
-        // Web environment: show recent global history from shared DB
-        try {
-          const offset = (page - 1) * pageSize;
-          
-          // Get total count
-          const countResult = await dbQuery<{ count: number }>(
-            `SELECT COUNT(*) as count FROM file_history`
-          );
-          const total = countResult[0]?.count || 0;
-          
-          // Get paginated items
-          const items = await dbQuery(
-            `SELECT id, path, hash, event_type, timestamp
-             FROM file_history
-             ORDER BY timestamp DESC
-             LIMIT ${pageSize} OFFSET ${offset}`
-          );
-          
-          return { items, total };
-        } catch (err) {
-          console.error("getHistory (web) failed:", err);
-          return { items: [], total: 0 };
-        }
+      getHistory: async (_markId: string, _page: number = 1, _pageSize: number = 20) => {
+        // Web environment: file history is not supported
+        console.warn("getHistory is not supported in web environment.");
+        return { items: [], total: 0 };
       },
     },
     app: {
@@ -266,7 +232,7 @@ function createWebApi(): RendererAPI {
     api: {
       me: async () => null,
       marks: async () => {
-        const token = await getDbToken();
+        const token = getDbToken();
         if (!token) return [];
         const email = await webGetAuthorizedUser(token);
         if (!email) return [];
@@ -276,17 +242,17 @@ function createWebApi(): RendererAPI {
         return { status: "ok", version: "1.0.0" };
       },
       userProfile: async (email: string) => {
-        const token = await getDbToken();
+        const token = getDbToken();
         if (!token) return null;
         return fetchUserProfile(email, token);
       },
       userMarks: async (email: string) => {
-        const token = await getDbToken();
+        const token = getDbToken();
         if (!token) return [];
         return fetchUserMarks(email, token);
       },
       organizationMarks: async (orgId: string) => {
-        const token = await getDbToken();
+        const token = getDbToken();
         if (!token) return [];
         return fetchOrganizationMarks(orgId, token);
       },
@@ -299,6 +265,10 @@ function createWebApi(): RendererAPI {
       query: async <T = any,>(_sql: string, _params?: unknown[]) => {
         console.warn("db.query is not supported in pure web environment.");
         return [] as T[];
+      },
+      setCurrentUser: async (_email: string | null) => {
+        // No-op in web environment - database is main-process only
+        return null;
       },
     },
   };

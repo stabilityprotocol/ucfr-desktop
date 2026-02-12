@@ -41,6 +41,7 @@ type RendererAPI = {
   db: {
     exec: (sql: string) => Promise<null>;
     query: <T = any>(sql: string, params?: unknown[]) => Promise<T[]>;
+    setCurrentUser: (email: string | null) => Promise<null>;
   };
 };
 
@@ -99,6 +100,7 @@ const api: RendererAPI = {
   db: {
     exec: (sql) => ipcRenderer.invoke("db/exec", sql),
     query: (sql, params) => ipcRenderer.invoke("db/query", sql, params),
+    setCurrentUser: (email) => ipcRenderer.invoke("db/setCurrentUser", email),
   },
 };
 

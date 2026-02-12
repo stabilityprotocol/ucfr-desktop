@@ -24,7 +24,7 @@ export function useBootstrap() {
   const [, setAutoStart] = useAtom(autoStartAtom);
   const [, setMarks] = useAtom(marksAtom);
   const [, setHealth] = useAtom(healthAtom);
-  const [, setCurrentUser] = useAtom(currentUserAtom);
+  const [currentUser, setCurrentUser] = useAtom(currentUserAtom);
   const [, setOrganizations] = useAtom(organizationsAtom);
   const [, setUserProfile] = useAtom(userProfileAtom);
   const [, setIsValidating] = useAtom(isValidatingAtom);
@@ -301,4 +301,11 @@ export function useBootstrap() {
     setIsValidating,
     queryClient,
   ]);
+
+  // Sync current user to main process for database context
+  useEffect(() => {
+    if (window.ucfr?.db?.setCurrentUser) {
+      window.ucfr.db.setCurrentUser(currentUser);
+    }
+  }, [currentUser]);
 }

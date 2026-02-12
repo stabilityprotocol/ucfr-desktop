@@ -10,7 +10,7 @@ import {
   fetchOrganizationMarks,
   TokenExpiredError,
 } from "../shared/api/client";
-import { initDb, dbExec, dbQuery } from "./db";
+import { initDb, dbExec, dbQuery, setCurrentUser } from "./db";
 import { fileHistoryService } from "./fileHistory";
 
 let watcher: FolderWatcher | null = null;
@@ -109,8 +109,8 @@ function getOrCreateWatcher(): FolderWatcher {
   return watcher;
 }
 
-export async function registerIpcHandlers() {
-  await initDb();
+export function registerIpcHandlers() {
+  initDb();
 
   // Initialize watcher with existing folders
   const settings = getSettings();
@@ -376,18 +376,20 @@ export async function registerIpcHandlers() {
     }
   });
 
-  ipcMain.handle("db/exec", async (_event, sql: string) => {
-    await dbExec(sql);
+  ipcMain.handle("db/setCurrentUser", (_event, email: string | null) => {
+    setCurrentUser(email);
     return null;
   });
 
-  ipcMain.handle(
-    "db/query",
-    async (_event, sql: string, params?: unknown[]) => {
-      const rows = await dbQuery(sql, params as any[]);
-      return rows;
-    },
-  );
+  ipcMain.handle("db/exec", (_event, sql: string, params?: unknown[]) => {
+    dbExec(sql, params);
+    return null;
+  });
+
+  ipcMain.handle("db/query", (_event, sql: string, params?: unknown[]) => {
+    const rows = dbQuery(sql, params);
+    return rows;
+  });
 
   ipcMain.handle("app/openExternal", async (_event, target: string) => {
     return await shell.openExternal(

@@ -1,6 +1,15 @@
 import fs from "fs";
 import crypto from "crypto";
-import { dbQuery, dbExec } from "./db";
+import {
+  getFileByPath,
+  getFileByHash,
+  upsertFile,
+  updateFilePath,
+  insertFileHistory,
+  getFileHistoryForFolders,
+  getFileHistoryCountForFolders,
+  getPreviousFileHash,
+} from "./db";
 
 interface FileRecord {
   id: number;
@@ -49,11 +58,7 @@ export class FileHistoryService {
     if (event === "unlink") {
       // File removed. We need to know its hash to detect renames.
       // We look up the file in the DB.
-      const rows = await dbQuery<FileRecord>(
-        "SELECT * FROM files WHERE path = $1",
-        [filePath]
-      );
-      const file = rows[0];
+      const file = await getFileByPath(filePath);
 
       if (file) {
         this.pendingRenames.set(filePath, {
@@ -99,24 +104,17 @@ export class FileHistoryService {
   ) {
     console.log(`[FileHistory] Detected RENAME: ${oldPath} -> ${newPath}`);
 
-    const rows = await dbQuery<FileRecord>(
-      "SELECT * FROM files WHERE path = $1",
-      [oldPath]
-    );
-    const file = rows[0];
+    const file = await getFileByPath(oldPath);
 
     if (file) {
-      await dbExec(
-        "UPDATE files SET path = $1, updated_at = $2 WHERE id = $3",
-        [newPath, Math.floor(timestamp / 1000), file.id]
-      );
+      await updateFilePath(file.id, newPath, Math.floor(timestamp / 1000));
 
-      await dbExec(
-        `
-        INSERT INTO file_history (file_id, path, hash, event_type, timestamp)
-        VALUES ($1, $2, $3, 'rename', $4)
-      `,
-        [file.id, newPath, hash, Math.floor(timestamp / 1000)]
+      await insertFileHistory(
+        file.id,
+        newPath,
+        hash,
+        "rename",
+        Math.floor(timestamp / 1000)
       );
 
       this.pendingRenames.delete(oldPath);
@@ -130,31 +128,16 @@ export class FileHistoryService {
     folders: string[],
     page: number = 1,
     pageSize: number = 20
-  ): Promise<{ items: any[]; total: number }> {
+  ): Promise<{ items: unknown[]; total: number }> {
     if (folders.length === 0) return { items: [], total: 0 };
 
-    const conditions = folders
-      .map((_, i) => `path LIKE $${i + 1}`)
-      .join(" OR ");
-    const params = folders.map((f) => `${f}%`);
     const offset = (page - 1) * pageSize;
 
     try {
-      // Get total count
-      const countResult = await dbQuery<{ count: number }>(
-        `SELECT COUNT(*) as count FROM file_history WHERE ${conditions}`,
-        params
-      );
-      const total = countResult[0]?.count || 0;
-
-      // Get paginated items
-      const items = await dbQuery(
-        `SELECT * FROM file_history 
-         WHERE ${conditions}
-         ORDER BY timestamp DESC
-         LIMIT $${folders.length + 1} OFFSET $${folders.length + 2}`,
-        [...params, pageSize, offset]
-      );
+      const [total, items] = await Promise.all([
+        getFileHistoryCountForFolders(folders),
+        getFileHistoryForFolders(folders, pageSize, offset),
+      ]);
 
       return { items, total };
     } catch (e) {
@@ -168,11 +151,7 @@ export class FileHistoryService {
     currentRealHash: string
   ): Promise<string | null> {
     try {
-      const rows = await dbQuery<FileRecord>(
-        "SELECT * FROM files WHERE path = $1",
-        [filePath]
-      );
-      const file = rows[0];
+      const file = await getFileByPath(filePath);
 
       if (!file) {
         // New file or not tracked yet.
@@ -190,17 +169,10 @@ export class FileHistoryService {
       }
 
       // If DB is already updated, look for previous history
-      const historyRows = await dbQuery<{ hash: string }>(
-        `SELECT hash FROM file_history 
-           WHERE file_id = $1 AND hash != $2
-           ORDER BY timestamp DESC, id DESC
-           LIMIT 1`,
-        [file.id, currentRealHash]
-      );
+      const historyHash = await getPreviousFileHash(file.id, currentRealHash);
 
-      let historyHash = historyRows[0]?.hash || null;
       if (historyHash && !historyHash.startsWith("0x")) {
-        historyHash = `0x${historyHash}`;
+        return `0x${historyHash}`;
       }
       return historyHash;
     } catch (e) {
@@ -214,16 +186,9 @@ export class FileHistoryService {
 
   async getFileByHash(hash: string): Promise<FileRecord | null> {
     try {
-      const rows = await dbQuery<FileRecord>(
-        "SELECT * FROM files WHERE current_hash = $1 LIMIT 1",
-        [hash]
-      );
-      return rows[0] || null;
+      return getFileByHash(hash);
     } catch (e) {
-      console.error(
-        `[FileHistory] Error getting file by hash ${hash}:`,
-        e
-      );
+      console.error(`[FileHistory] Error getting file by hash ${hash}:`, e);
       return null;
     }
   }
@@ -234,55 +199,29 @@ export class FileHistoryService {
     event: string,
     timestamp: number
   ) {
-    const rows = await dbQuery<FileRecord>(
-      "SELECT * FROM files WHERE path = $1",
-      [filePath]
-    );
-    const existingFile = rows[0];
+    const existingFile = await getFileByPath(filePath);
 
     let fileId: number;
 
     if (existingFile) {
       fileId = existingFile.id;
       if (existingFile.current_hash !== hash) {
-        await dbExec(
-          "UPDATE files SET current_hash = $1, updated_at = $2 WHERE id = $3",
-          [hash, Math.floor(timestamp / 1000), fileId]
-        );
+        await upsertFile(filePath, hash, Math.floor(timestamp / 1000));
 
-        await dbExec(
-          `
-                INSERT INTO file_history (file_id, path, hash, event_type, timestamp)
-                VALUES ($1, $2, $3, 'change', $4)
-            `,
-          [fileId, filePath, hash, Math.floor(timestamp / 1000)]
+        await insertFileHistory(
+          fileId,
+          filePath,
+          hash,
+          "change",
+          Math.floor(timestamp / 1000)
         );
       }
     } else {
       // Use UPSERT to handle race conditions gracefully
-      const insertRows = await dbQuery<{ id: number }>(
-        `INSERT INTO files (path, current_hash, created_at, updated_at) 
-         VALUES ($1, $2, $3, $4) 
-         ON CONFLICT (path) DO UPDATE SET 
-           current_hash = EXCLUDED.current_hash,
-           updated_at = EXCLUDED.updated_at
-         RETURNING id`,
-        [
-          filePath,
-          hash,
-          Math.floor(timestamp / 1000),
-          Math.floor(timestamp / 1000),
-        ]
-      );
-      fileId = insertRows[0].id;
+      const result = await upsertFile(filePath, hash, Math.floor(timestamp / 1000));
+      fileId = result.id;
 
-      await dbExec(
-        `
-            INSERT INTO file_history (file_id, path, hash, event_type, timestamp)
-            VALUES ($1, $2, $3, 'add', $4)
-        `,
-        [fileId, filePath, hash, Math.floor(timestamp / 1000)]
-      );
+      await insertFileHistory(fileId, filePath, hash, "add", Math.floor(timestamp / 1000));
     }
   }
 }

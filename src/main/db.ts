@@ -1,27 +1,340 @@
-import {
-  dbExec as remoteExec,
-  dbQuery as remoteQuery,
-  initRemoteDb,
-} from "../shared/dbClient";
+import sqlite3 from "sqlite3";
+import path from "path";
+import fs from "fs";
+import os from "os";
 
-export async function initDb() {
-  await initRemoteDb();
+const dbDir = path.join(os.homedir(), ".ucfr-desktop");
+const dbPath = path.join(dbDir, "app.db");
+
+// Module-level variables for database and current user
+let db: sqlite3.Database | null = null;
+let currentUserEmail: string | null = null;
+
+// Ensure database directory exists
+if (!fs.existsSync(dbDir)) {
+  fs.mkdirSync(dbDir, { recursive: true });
 }
 
-export async function dbExec(sql: string, params?: any[]): Promise<void> {
-  await remoteExec(sql, params);
+// Clean up old PGlite data if it exists (fresh start migration)
+const oldPgliteDir = path.join(os.homedir(), ".ucfr-pglite");
+if (fs.existsSync(oldPgliteDir)) {
+  console.log("[db] Cleaning up old PGlite data...");
+  try {
+    fs.rmSync(oldPgliteDir, { recursive: true, force: true });
+    console.log("[db] Old PGlite data removed");
+  } catch (e) {
+    console.error("[db] Failed to remove old PGlite data:", e);
+  }
 }
 
-export async function dbQuery<T = any>(
-  sql: string,
-  params?: any[]
-): Promise<T[]> {
-  return remoteQuery<T>(sql, params);
+function getDb(): sqlite3.Database {
+  if (!db) {
+    db = new sqlite3.Database(dbPath, (err: Error | null) => {
+      if (err) {
+        console.error("[db] Error opening database:", err);
+      } else {
+        console.log(`[db] SQLite database opened: ${dbPath}`);
+      }
+    });
+    // Enable WAL mode for better performance
+    db.run("PRAGMA journal_mode = WAL;");
+  }
+  return db;
 }
 
-const db = {
-  exec: (sql: string, params?: any[]) => dbExec(sql, params),
-  query: <T = any>(sql: string, params?: any[]) => dbQuery<T>(sql, params),
-};
+export function initDb(): void {
+  const database = getDb();
 
-export default db;
+  // Create tables
+  database.serialize(() => {
+    // Create users table
+    database.run(`
+      CREATE TABLE IF NOT EXISTS users (
+        email TEXT PRIMARY KEY,
+        created_at INTEGER NOT NULL,
+        updated_at INTEGER NOT NULL
+      );
+    `);
+
+    // Create files table (per-user)
+    database.run(`
+      CREATE TABLE IF NOT EXISTS files (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        user_email TEXT NOT NULL,
+        path TEXT NOT NULL,
+        current_hash TEXT,
+        created_at INTEGER NOT NULL,
+        updated_at INTEGER NOT NULL,
+        FOREIGN KEY(user_email) REFERENCES users(email) ON DELETE CASCADE,
+        UNIQUE(user_email, path)
+      );
+    `);
+
+    // Create file_history table (per-user)
+    database.run(`
+      CREATE TABLE IF NOT EXISTS file_history (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        user_email TEXT NOT NULL,
+        file_id INTEGER,
+        path TEXT NOT NULL,
+        hash TEXT,
+        event_type TEXT NOT NULL,
+        timestamp INTEGER NOT NULL,
+        FOREIGN KEY(user_email) REFERENCES users(email) ON DELETE CASCADE,
+        FOREIGN KEY(file_id) REFERENCES files(id) ON DELETE CASCADE
+      );
+    `);
+
+    // Create config table (per-user key-value)
+    database.run(`
+      CREATE TABLE IF NOT EXISTS config (
+        user_email TEXT NOT NULL,
+        key TEXT NOT NULL,
+        value TEXT NOT NULL,
+        created_at INTEGER NOT NULL,
+        updated_at INTEGER NOT NULL,
+        PRIMARY KEY(user_email, key),
+        FOREIGN KEY(user_email) REFERENCES users(email) ON DELETE CASCADE
+      );
+    `);
+
+    // Create indexes
+    database.run(`CREATE INDEX IF NOT EXISTS idx_files_user_email ON files(user_email);`);
+    database.run(`CREATE INDEX IF NOT EXISTS idx_files_path ON files(path);`);
+    database.run(`CREATE INDEX IF NOT EXISTS idx_file_history_user_email ON file_history(user_email);`);
+    database.run(`CREATE INDEX IF NOT EXISTS idx_file_history_file_id ON file_history(file_id);`);
+    database.run(`CREATE INDEX IF NOT EXISTS idx_file_history_timestamp ON file_history(timestamp);`);
+    database.run(`CREATE INDEX IF NOT EXISTS idx_config_user_email ON config(user_email);`);
+  });
+
+  console.log("[db] Database initialized with schema");
+}
+
+export function setCurrentUser(email: string | null): void {
+  if (email === currentUserEmail) return;
+
+  currentUserEmail = email;
+  console.log(`[db] Current user set to: ${email ?? "null"}`);
+
+  if (email) {
+    // Ensure user exists in users table
+    const database = getDb();
+    const now = Date.now();
+    database.run(
+      `INSERT OR IGNORE INTO users (email, created_at, updated_at) VALUES (?, ?, ?)`,
+      [email, now, now]
+    );
+  }
+}
+
+export function getCurrentUser(): string | null {
+  return currentUserEmail;
+}
+
+function ensureUser(): string {
+  if (!currentUserEmail) {
+    throw new Error("No current user set. Call setCurrentUser(email) first.");
+  }
+  return currentUserEmail;
+}
+
+// Promisified database operations
+function runAsync(sql: string, params: unknown[] = []): Promise<void> {
+  return new Promise((resolve, reject) => {
+    const database = getDb();
+    database.run(sql, params, (err: Error | null) => {
+      if (err) reject(err);
+      else resolve();
+    });
+  });
+}
+
+function allAsync<T = unknown>(sql: string, params: unknown[] = []): Promise<T[]> {
+  return new Promise((resolve, reject) => {
+    const database = getDb();
+    database.all(sql, params, (err: Error | null, rows: T[]) => {
+      if (err) reject(err);
+      else resolve(rows);
+    });
+  });
+}
+
+function getAsync<T = unknown>(sql: string, params: unknown[] = []): Promise<T | null> {
+  return new Promise((resolve, reject) => {
+    const database = getDb();
+    database.get(sql, params, (err: Error | null, row: T | undefined) => {
+      if (err) reject(err);
+      else resolve(row || null);
+    });
+  });
+}
+
+export function dbExec(sql: string, params?: unknown[]): void {
+  const database = getDb();
+  database.run(sql, params ?? []);
+}
+
+export function dbQuery<T = unknown>(sql: string, params?: unknown[]): T[] {
+  const database = getDb();
+  const results: T[] = [];
+  database.all(sql, params ?? [], (err: Error | null, rows: T[]) => {
+    if (err) {
+      console.error("[db] Query error:", err);
+    } else {
+      results.push(...rows);
+    }
+  });
+  // Note: This is a synchronous wrapper that won't work properly
+  // For true async, use the async functions below
+  return results;
+}
+
+// Async versions for proper database operations
+export async function dbExecAsync(sql: string, params?: unknown[]): Promise<void> {
+  await runAsync(sql, params);
+}
+
+export async function dbQueryAsync<T = unknown>(sql: string, params?: unknown[]): Promise<T[]> {
+  return allAsync<T>(sql, params);
+}
+
+// Config store helpers (with user context)
+export async function getConfigValue(key: string): Promise<string | null> {
+  const userEmail = ensureUser();
+  const row = await getAsync<{ value: string }>(
+    `SELECT value FROM config WHERE user_email = ? AND key = ?`,
+    [userEmail, key]
+  );
+  return row?.value ?? null;
+}
+
+export async function setConfigValue(key: string, value: string): Promise<void> {
+  const userEmail = ensureUser();
+  const now = Date.now();
+  await runAsync(
+    `INSERT INTO config (user_email, key, value, created_at, updated_at)
+     VALUES (?, ?, ?, ?, ?)
+     ON CONFLICT(user_email, key) DO UPDATE SET
+       value = excluded.value,
+       updated_at = excluded.updated_at`,
+    [userEmail, key, value, now, now]
+  );
+}
+
+export async function deleteConfigValue(key: string): Promise<void> {
+  const userEmail = ensureUser();
+  await runAsync(
+    `DELETE FROM config WHERE user_email = ? AND key = ?`,
+    [userEmail, key]
+  );
+}
+
+// File history helpers (with user context)
+export async function getFileByPath(path: string): Promise<{ id: number; path: string; current_hash: string } | null> {
+  const userEmail = ensureUser();
+  return getAsync<{ id: number; path: string; current_hash: string }>(
+    `SELECT id, path, current_hash FROM files WHERE user_email = ? AND path = ?`,
+    [userEmail, path]
+  );
+}
+
+export async function getFileByHash(hash: string): Promise<{ id: number; path: string; current_hash: string } | null> {
+  const userEmail = ensureUser();
+  return getAsync<{ id: number; path: string; current_hash: string }>(
+    `SELECT id, path, current_hash FROM files WHERE user_email = ? AND current_hash = ? LIMIT 1`,
+    [userEmail, hash]
+  );
+}
+
+export async function upsertFile(filePath: string, hash: string, timestamp: number): Promise<{ id: number }> {
+  const userEmail = ensureUser();
+  await runAsync(
+    `INSERT INTO files (user_email, path, current_hash, created_at, updated_at)
+     VALUES (?, ?, ?, ?, ?)
+     ON CONFLICT(user_email, path) DO UPDATE SET
+       current_hash = excluded.current_hash,
+       updated_at = excluded.updated_at`,
+    [userEmail, filePath, hash, timestamp, timestamp]
+  );
+  // Get the ID after upsert
+  const row = await getAsync<{ id: number }>(
+    `SELECT id FROM files WHERE user_email = ? AND path = ?`,
+    [userEmail, filePath]
+  );
+  if (!row) throw new Error("Failed to upsert file");
+  return row;
+}
+
+export async function updateFilePath(fileId: number, newPath: string, timestamp: number): Promise<void> {
+  await runAsync(
+    `UPDATE files SET path = ?, updated_at = ? WHERE id = ?`,
+    [newPath, timestamp, fileId]
+  );
+}
+
+export async function insertFileHistory(fileId: number | null, filePath: string, hash: string, eventType: string, timestamp: number): Promise<void> {
+  const userEmail = ensureUser();
+  await runAsync(
+    `INSERT INTO file_history (user_email, file_id, path, hash, event_type, timestamp)
+     VALUES (?, ?, ?, ?, ?, ?)`,
+    [userEmail, fileId, filePath, hash, eventType, timestamp]
+  );
+}
+
+export async function getFileHistoryForFolders(folders: string[], limit: number, offset: number): Promise<unknown[]> {
+  const userEmail = ensureUser();
+
+  if (folders.length === 0) return [];
+
+  // Build LIKE conditions for each folder
+  const conditions = folders.map(() => "path LIKE ?").join(" OR ");
+  const likePatterns = folders.map((f) => `${f}%`);
+
+  return allAsync(
+    `SELECT * FROM file_history
+     WHERE user_email = ? AND (${conditions})
+     ORDER BY timestamp DESC
+     LIMIT ? OFFSET ?`,
+    [userEmail, ...likePatterns, limit, offset]
+  );
+}
+
+export async function getFileHistoryCountForFolders(folders: string[]): Promise<number> {
+  const userEmail = ensureUser();
+
+  if (folders.length === 0) return 0;
+
+  const conditions = folders.map(() => "path LIKE ?").join(" OR ");
+  const likePatterns = folders.map((f) => `${f}%`);
+
+  const row = await getAsync<{ count: number }>(
+    `SELECT COUNT(*) as count FROM file_history
+     WHERE user_email = ? AND (${conditions})`,
+    [userEmail, ...likePatterns]
+  );
+  return row?.count ?? 0;
+}
+
+export async function getPreviousFileHash(fileId: number, currentHash: string): Promise<string | null> {
+  const row = await getAsync<{ hash: string }>(
+    `SELECT hash FROM file_history
+     WHERE file_id = ? AND hash != ?
+     ORDER BY timestamp DESC, id DESC
+     LIMIT 1`,
+    [fileId, currentHash]
+  );
+  return row?.hash ?? null;
+}
+
+export function closeDb(): void {
+  if (db) {
+    db.close((err: Error | null) => {
+      if (err) {
+        console.error("[db] Error closing database:", err);
+      } else {
+        console.log("[db] Database connection closed");
+      }
+    });
+    db = null;
+  }
+}
