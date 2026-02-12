@@ -9,6 +9,12 @@ import {
   Box,
   Activity,
   FileText,
+  Image,
+  Video,
+  Music,
+  Archive,
+  FileCode,
+  File,
 } from "lucide-react";
 import {
   getFingerprintVerifyUrl,
@@ -93,6 +99,26 @@ export function MarkDetailPage({ marks }: MarkDetailProps) {
 
   const getFileName = (path: string) => {
     return path.split(/[/\\]/).pop() || path;
+  };
+
+  const getFileIcon = (path: string) => {
+    const ext = path.split('.').pop()?.toLowerCase() || '';
+    
+    const imageExts = ['jpg', 'jpeg', 'png', 'gif', 'bmp', 'webp', 'svg', 'ico', 'tiff', 'tif'];
+    const videoExts = ['mp4', 'avi', 'mov', 'wmv', 'flv', 'webm', 'mkv', 'm4v'];
+    const audioExts = ['mp3', 'wav', 'ogg', 'flac', 'aac', 'm4a', 'wma'];
+    const archiveExts = ['zip', 'rar', '7z', 'tar', 'gz', 'bz2', 'xz'];
+    const codeExts = ['js', 'ts', 'jsx', 'tsx', 'html', 'css', 'scss', 'json', 'xml', 'py', 'java', 'cpp', 'c', 'h', 'php', 'rb', 'go', 'rs'];
+    const docExts = ['pdf', 'doc', 'docx', 'txt', 'rtf', 'odt', 'md'];
+    
+    if (imageExts.includes(ext)) return { Icon: Image, color: 'text-purple-500', bg: 'bg-purple-50' };
+    if (videoExts.includes(ext)) return { Icon: Video, color: 'text-red-500', bg: 'bg-red-50' };
+    if (audioExts.includes(ext)) return { Icon: Music, color: 'text-amber-500', bg: 'bg-amber-50' };
+    if (archiveExts.includes(ext)) return { Icon: Archive, color: 'text-orange-500', bg: 'bg-orange-50' };
+    if (codeExts.includes(ext)) return { Icon: FileCode, color: 'text-cyan-500', bg: 'bg-cyan-50' };
+    if (docExts.includes(ext)) return { Icon: FileText, color: 'text-blue-500', bg: 'bg-blue-50' };
+    
+    return { Icon: File, color: 'text-zinc-400', bg: 'bg-zinc-50' };
   };
 
   if (!mark) {
@@ -186,71 +212,75 @@ export function MarkDetailPage({ marks }: MarkDetailProps) {
       </div>
 
       <div className="rounded-xl border border-zinc-200 bg-white overflow-hidden mt-6">
-        <div className="px-6 py-4 border-b border-zinc-100 bg-zinc-50/50 flex items-center gap-2">
-          <Activity className="w-4 h-4 text-zinc-500" />
-          <h2 className="text-sm font-medium text-zinc-900">Recent Artifacts</h2>
+        <div className="px-6 py-4 border-b border-zinc-100 bg-zinc-50/50 flex items-center justify-between">
+          <div className="flex items-center gap-2">
+            <Activity className="w-4 h-4 text-zinc-500" />
+            <h2 className="text-sm font-medium text-zinc-900">Recent Artifacts</h2>
+          </div>
+          {history.length > 0 && (
+            <span className="inline-flex items-center justify-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-zinc-100 text-zinc-600">
+              {history.length}
+            </span>
+          )}
         </div>
-        <div className="overflow-x-auto">
+        <div className="p-6">
           {history.length === 0 ? (
             <div className="text-center py-8 text-zinc-500 text-sm">
               No recent activity recorded locally.
             </div>
           ) : (
-            <table className="w-full text-sm text-left">
-              <thead className="bg-zinc-50 text-zinc-500 font-medium border-b border-zinc-100">
-                <tr>
-                  <th className="px-6 py-3 w-1/3">File</th>
-                  <th className="px-6 py-3 w-1/6">Event</th>
-                  <th className="px-6 py-3">Time</th>
-                  <th className="px-6 py-3 font-mono text-xs">Hash</th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-zinc-100">
-                {history.map((item, i) => (
-                  <tr
+            <div className="flex flex-col gap-3">
+              {history.map((item, i) => {
+                const { Icon, color, bg } = getFileIcon(item.path);
+                return (
+                  <div
                     key={item.id || i}
-                    className="hover:bg-zinc-50/50 cursor-pointer"
-                    onClick={() =>
-                      openInWeb(getFingerprintVerifyUrl(item.hash))
-                    }
+                    className="group relative p-4 rounded-lg border border-zinc-200 bg-white hover:border-zinc-300 hover:shadow-md hover:-translate-y-0.5 transition-all cursor-pointer"
+                    onClick={() => openInWeb(getFingerprintVerifyUrl(item.hash))}
                   >
-                    <td className="px-6 py-3 font-medium text-zinc-700">
-                      <div className="flex items-center gap-2">
-                        <FileText className="w-4 h-4 text-zinc-400 shrink-0" />
+                    <div className="flex items-start justify-between gap-4">
+                      <div className="flex-1 min-w-0">
+                        <div className="flex items-center gap-3 mb-2">
+                          <div className={`flex-shrink-0 w-8 h-8 rounded-lg ${bg} flex items-center justify-center`}>
+                            <Icon className={`w-4 h-4 ${color}`} />
+                          </div>
+                          <h3
+                            className="font-medium text-zinc-900 truncate pr-6"
+                            title={item.path}
+                          >
+                            {getFileName(item.path)}
+                          </h3>
+                        </div>
+                      <div className="flex items-center gap-4 pl-11">
                         <span
-                          title={item.path}
-                          className="truncate max-w-[200px] block"
+                          className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${
+                            item.event_type === "add"
+                              ? "bg-emerald-50 text-emerald-700 border border-emerald-100"
+                              : item.event_type === "change"
+                              ? "bg-blue-50 text-blue-700 border border-blue-100"
+                              : "bg-zinc-50 text-zinc-600 border border-zinc-200"
+                          }`}
                         >
-                          {getFileName(item.path)}
+                          {item.event_type.toUpperCase()}
+                        </span>
+                        <span className="text-xs text-zinc-400">
+                          {formatTime(item.timestamp)}
                         </span>
                       </div>
-                    </td>
-                    <td className="px-6 py-3">
-                      <span
-                        className={`inline-flex items-center px-2 py-1 rounded-full text-xs font-medium ${
-                          item.event_type === "add"
-                            ? "bg-green-100 text-green-700"
-                            : item.event_type === "change"
-                            ? "bg-blue-100 text-blue-700"
-                            : "bg-gray-100 text-gray-700"
-                        }`}
+                    </div>
+                    <div className="flex-shrink-0 flex flex-col items-end gap-2">
+                      <div
+                        className="text-zinc-400 font-mono text-xs bg-zinc-50 px-2 py-1 rounded"
+                        title={item.hash}
                       >
-                        {item.event_type.toUpperCase()}
-                      </span>
-                    </td>
-                    <td className="px-6 py-3 text-zinc-500 whitespace-nowrap">
-                      {formatTime(item.timestamp)}
-                    </td>
-                    <td
-                      className="px-6 py-3 text-zinc-400 font-mono text-xs truncate max-w-[100px]"
-                      title={item.hash}
-                    >
-                      {item.hash?.substring(0, 10)}...
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
+                        #{item.hash?.substring(0, 8)}
+                      </div>
+                      <ExternalLink className="w-4 h-4 text-zinc-300 group-hover:text-zinc-400 transition-colors" />
+                    </div>
+                  </div>
+                </div>
+              )})}
+            </div>
           )}
         </div>
       </div>
