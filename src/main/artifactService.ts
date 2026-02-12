@@ -173,7 +173,7 @@ export async function handleFileChange(filePath: string, event: string) {
       author: {
         email: userEmail,
         organizationId: mark.organization?.id || markId,
-        markId,
+        projectId: markId,
       },
       subject: {
         name: fileName,
