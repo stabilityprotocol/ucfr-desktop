@@ -217,11 +217,32 @@ export class FileHistoryService {
         );
       }
     } else {
-      // Use UPSERT to handle race conditions gracefully
-      const result = await upsertFile(filePath, hash, Math.floor(timestamp / 1000));
-      fileId = result.id;
+      // Check if this hash already exists at a different path (duplicate detection)
+      const fileByHash = await getFileByHash(hash);
+      
+      if (fileByHash && fileByHash.path !== filePath) {
+        // Hash exists at different path - treat as move/rename
+        console.log(`[FileHistory] Detected DUPLICATE/MOVE: ${fileByHash.path} -> ${filePath}`);
+        fileId = fileByHash.id;
+        
+        // Update the path to new location
+        await updateFilePath(fileId, filePath, Math.floor(timestamp / 1000));
+        
+        // Record as rename in history
+        await insertFileHistory(
+          fileId,
+          filePath,
+          hash,
+          "move",
+          Math.floor(timestamp / 1000)
+        );
+      } else {
+        // New file with unique hash - use UPSERT to handle race conditions gracefully
+        const result = await upsertFile(filePath, hash, Math.floor(timestamp / 1000));
+        fileId = result.id;
 
-      await insertFileHistory(fileId, filePath, hash, "add", Math.floor(timestamp / 1000));
+        await insertFileHistory(fileId, filePath, hash, "add", Math.floor(timestamp / 1000));
+      }
     }
   }
 }
