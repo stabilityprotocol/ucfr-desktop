@@ -104,7 +104,7 @@ export function MarkDetailPage({ marks }: MarkDetailProps) {
   }
 
   return (
-    <div className="w-full max-w-5xl mx-auto p-8 md:p-12 pb-32">
+    <div className="w-full max-w-5xl mx-auto p-4 md:p-6 pb-12">
       <header className="mb-4 flex items-center justify-between">
         <div>
           <div className="flex items-center gap-3 mb-2">

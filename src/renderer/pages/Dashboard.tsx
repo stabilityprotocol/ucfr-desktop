@@ -17,7 +17,7 @@ export function DashboardPage({
   const navigate = useNavigate();
 
   return (
-    <div className="w-full max-w-5xl mx-auto p-8 md:p-12">
+    <div className="w-full max-w-5xl mx-auto p-8 md:p-8">
       <header className="mb-8 flex items-center justify-between">
         <div>
           <div className="flex items-center gap-3 mb-2">
