@@ -1,4 +1,4 @@
-export const WEB_APP_BASE_URL = "https://lite.monolith.stabilityprotocol.com";
+export const WEB_APP_BASE_URL = "https://mnlth.app";
 
 export const getDashboardUrl = () => `${WEB_APP_BASE_URL}/dashboard`;
 
