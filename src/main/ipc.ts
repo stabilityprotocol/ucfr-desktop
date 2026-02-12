@@ -276,11 +276,11 @@ export async function registerIpcHandlers() {
     return markFolders[markId] || [];
   });
 
-  ipcMain.handle("mark/getHistory", async (_event, markId: string) => {
+  ipcMain.handle("mark/getHistory", async (_event, markId: string, page: number = 1, pageSize: number = 20) => {
     const currentSettings = getSettings();
     const markFolders = currentSettings.projectFolders || {};
     const folders = markFolders[markId] || [];
-    return await fileHistoryService.getHistoryForFolders(folders);
+    return await fileHistoryService.getHistoryForFolders(folders, page, pageSize);
   });
 
   ipcMain.handle("app/toggleAutoStart", async (_event, enable: boolean) => {

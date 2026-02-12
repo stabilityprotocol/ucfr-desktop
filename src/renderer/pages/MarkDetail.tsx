@@ -15,6 +15,8 @@ import {
   Archive,
   FileCode,
   File,
+  ChevronLeft,
+  ChevronRight,
 } from "lucide-react";
 import {
   getFingerprintVerifyUrl,
@@ -41,18 +43,28 @@ export function MarkDetailPage({ marks }: MarkDetailProps) {
   const [folders, setFolders] = useState<string[]>([]);
   const [history, setHistory] = useState<HistoryItem[]>([]);
   const [loading, setLoading] = useState(false);
+  const [currentPage, setCurrentPage] = useState(1);
+  const [totalCount, setTotalCount] = useState(0);
+  const pageSize = 20;
 
   useEffect(() => {
     if (!mark) return;
     loadFolders();
-    loadHistory();
+    loadHistory(1);
+    setCurrentPage(1);
+  }, [mark?.id]);
 
+  useEffect(() => {
+    if (!mark) return;
+    
     const interval = setInterval(() => {
-      loadHistory();
+      if (currentPage === 1) {
+        loadHistory(1);
+      }
     }, 5_000);
 
     return () => clearInterval(interval);
-  }, [mark?.id]);
+  }, [mark?.id, currentPage]);
 
   const loadFolders = async () => {
     if (window.ucfr?.mark && mark) {
@@ -61,10 +73,11 @@ export function MarkDetailPage({ marks }: MarkDetailProps) {
     }
   };
 
-  const loadHistory = async () => {
+  const loadHistory = async (page: number = currentPage) => {
     if (window.ucfr?.mark && mark) {
-      const logs = await window.ucfr.mark.getHistory(mark.id);
-      setHistory(Array.isArray(logs) ? logs : []);
+      const result = await window.ucfr.mark.getHistory(mark.id, page, pageSize);
+      setHistory(result.items);
+      setTotalCount(result.total);
     }
   };
 
@@ -217,9 +230,9 @@ export function MarkDetailPage({ marks }: MarkDetailProps) {
             <Activity className="w-4 h-4 text-zinc-500" />
             <h2 className="text-sm font-medium text-zinc-900">Recent Artifacts</h2>
           </div>
-          {history.length > 0 && (
+          {totalCount > 0 && (
             <span className="inline-flex items-center justify-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-zinc-100 text-zinc-600">
-              {history.length}
+              {totalCount}
             </span>
           )}
         </div>
@@ -229,58 +242,97 @@ export function MarkDetailPage({ marks }: MarkDetailProps) {
               No recent activity recorded locally.
             </div>
           ) : (
-            <div className="flex flex-col gap-3">
-              {history.map((item, i) => {
-                const { Icon, color, bg } = getFileIcon(item.path);
-                return (
-                  <div
-                    key={item.id || i}
-                    className="group relative p-4 rounded-lg border border-zinc-200 bg-white hover:border-zinc-300 hover:shadow-md hover:-translate-y-0.5 transition-all cursor-pointer"
-                    onClick={() => openInWeb(getFingerprintVerifyUrl(item.hash))}
-                  >
-                    <div className="flex items-start justify-between gap-4">
-                      <div className="flex-1 min-w-0">
-                        <div className="flex items-center gap-3 mb-2">
-                          <div className={`flex-shrink-0 w-8 h-8 rounded-lg ${bg} flex items-center justify-center`}>
-                            <Icon className={`w-4 h-4 ${color}`} />
+            <>
+              <div className="flex flex-col gap-3">
+                {history.map((item, i) => {
+                  const { Icon, color, bg } = getFileIcon(item.path);
+                  return (
+                    <div
+                      key={item.id || i}
+                      className="group relative p-4 rounded-lg border border-zinc-200 bg-white hover:border-zinc-300 hover:shadow-md hover:-translate-y-0.5 transition-all cursor-pointer"
+                      onClick={() => openInWeb(getFingerprintVerifyUrl(item.hash))}
+                    >
+                      <div className="flex items-start justify-between gap-4">
+                        <div className="flex-1 min-w-0">
+                          <div className="flex items-center gap-3 mb-2">
+                            <div className={`flex-shrink-0 w-8 h-8 rounded-lg ${bg} flex items-center justify-center`}>
+                              <Icon className={`w-4 h-4 ${color}`} />
+                            </div>
+                            <h3
+                              className="font-medium text-zinc-900 truncate pr-6"
+                              title={item.path}
+                            >
+                              {getFileName(item.path)}
+                            </h3>
                           </div>
-                          <h3
-                            className="font-medium text-zinc-900 truncate pr-6"
-                            title={item.path}
+                        <div className="flex items-center gap-4 pl-11">
+                          <span
+                            className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${
+                              item.event_type === "add"
+                                ? "bg-emerald-50 text-emerald-700 border border-emerald-100"
+                                : item.event_type === "change"
+                                ? "bg-blue-50 text-blue-700 border border-blue-100"
+                                : "bg-zinc-50 text-zinc-600 border border-zinc-200"
+                            }`}
                           >
-                            {getFileName(item.path)}
-                          </h3>
+                            {item.event_type.toUpperCase()}
+                          </span>
+                          <span className="text-xs text-zinc-400">
+                            {formatTime(item.timestamp)}
+                          </span>
                         </div>
-                      <div className="flex items-center gap-4 pl-11">
-                        <span
-                          className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${
-                            item.event_type === "add"
-                              ? "bg-emerald-50 text-emerald-700 border border-emerald-100"
-                              : item.event_type === "change"
-                              ? "bg-blue-50 text-blue-700 border border-blue-100"
-                              : "bg-zinc-50 text-zinc-600 border border-zinc-200"
-                          }`}
+                      </div>
+                      <div className="flex-shrink-0 flex flex-col items-end gap-2">
+                        <div
+                          className="text-zinc-400 font-mono text-xs bg-zinc-50 px-2 py-1 rounded"
+                          title={item.hash}
                         >
-                          {item.event_type.toUpperCase()}
-                        </span>
-                        <span className="text-xs text-zinc-400">
-                          {formatTime(item.timestamp)}
-                        </span>
+                          #{item.hash?.substring(0, 8)}
+                        </div>
+                        <ExternalLink className="w-4 h-4 text-zinc-300 group-hover:text-zinc-400 transition-colors" />
                       </div>
-                    </div>
-                    <div className="flex-shrink-0 flex flex-col items-end gap-2">
-                      <div
-                        className="text-zinc-400 font-mono text-xs bg-zinc-50 px-2 py-1 rounded"
-                        title={item.hash}
-                      >
-                        #{item.hash?.substring(0, 8)}
-                      </div>
-                      <ExternalLink className="w-4 h-4 text-zinc-300 group-hover:text-zinc-400 transition-colors" />
                     </div>
                   </div>
+                )})}
+              </div>
+              
+              {totalCount > pageSize && (
+                <div className="flex items-center justify-between mt-6 pt-4 border-t border-zinc-100">
+                  <div className="text-xs text-zinc-500">
+                    Showing {(currentPage - 1) * pageSize + 1}-{Math.min(currentPage * pageSize, totalCount)} of {totalCount}
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <button
+                      onClick={() => {
+                        const newPage = currentPage - 1;
+                        setCurrentPage(newPage);
+                        loadHistory(newPage);
+                      }}
+                      disabled={currentPage === 1}
+                      className="inline-flex items-center gap-1 px-3 py-1.5 text-xs font-medium text-zinc-700 bg-white border border-zinc-200 rounded-md hover:bg-zinc-50 hover:border-zinc-300 disabled:opacity-40 disabled:cursor-not-allowed transition-all"
+                    >
+                      <ChevronLeft className="w-3.5 h-3.5" />
+                      Previous
+                    </button>
+                    <span className="text-xs font-medium text-zinc-600 px-2">
+                      Page {currentPage} of {Math.ceil(totalCount / pageSize)}
+                    </span>
+                    <button
+                      onClick={() => {
+                        const newPage = currentPage + 1;
+                        setCurrentPage(newPage);
+                        loadHistory(newPage);
+                      }}
+                      disabled={currentPage >= Math.ceil(totalCount / pageSize)}
+                      className="inline-flex items-center gap-1 px-3 py-1.5 text-xs font-medium text-zinc-700 bg-white border border-zinc-200 rounded-md hover:bg-zinc-50 hover:border-zinc-300 disabled:opacity-40 disabled:cursor-not-allowed transition-all"
+                    >
+                      Next
+                      <ChevronRight className="w-3.5 h-3.5" />
+                    </button>
+                  </div>
                 </div>
-              )})}
-            </div>
+              )}
+            </>
           )}
         </div>
       </div>

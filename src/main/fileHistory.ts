@@ -126,32 +126,40 @@ export class FileHistoryService {
     }
   }
 
-  async getHistoryForFolders(folders: string[], limit: number = 50) {
-    if (folders.length === 0) return [];
+  async getHistoryForFolders(
+    folders: string[],
+    page: number = 1,
+    pageSize: number = 20
+  ): Promise<{ items: any[]; total: number }> {
+    if (folders.length === 0) return { items: [], total: 0 };
 
-    // Simple LIKE queries for each folder
     const conditions = folders
       .map((_, i) => `path LIKE $${i + 1}`)
       .join(" OR ");
-    // Ensure folders end with separator to avoid partial matches on similar folder names
-    // But we also want to match the folder itself? valid paths usually have files inside.
     const params = folders.map((f) => `${f}%`);
-
-    // We can't use dynamic number of params easily if db.query expects a fixed string literal or specific format?
-    // PGlite query uses standard postgres parameterization.
+    const offset = (page - 1) * pageSize;
 
     try {
-      const rows = await dbQuery(
+      // Get total count
+      const countResult = await dbQuery<{ count: number }>(
+        `SELECT COUNT(*) as count FROM file_history WHERE ${conditions}`,
+        params
+      );
+      const total = countResult[0]?.count || 0;
+
+      // Get paginated items
+      const items = await dbQuery(
         `SELECT * FROM file_history 
          WHERE ${conditions}
          ORDER BY timestamp DESC
-         LIMIT $${folders.length + 1}`,
-        [...params, limit]
+         LIMIT $${folders.length + 1} OFFSET $${folders.length + 2}`,
+        [...params, pageSize, offset]
       );
-      return rows;
+
+      return { items, total };
     } catch (e) {
       console.error("[FileHistory] Error getting history:", e);
-      return [];
+      return { items: [], total: 0 };
     }
   }
 

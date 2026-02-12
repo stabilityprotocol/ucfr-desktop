@@ -19,7 +19,7 @@ type RendererAPI = {
     addFolder: (markId: string) => Promise<string[] | null>;
     removeFolder: (markId: string, folderPath: string) => Promise<string[]>;
     getFolders: (markId: string) => Promise<string[]>;
-    getHistory: (markId: string) => Promise<any[]>;
+    getHistory: (markId: string, page?: number, pageSize?: number) => Promise<{ items: any[]; total: number }>;
   };
   app: {
     toggleAutoStart: (enable: boolean) => Promise<boolean>;
@@ -66,8 +66,8 @@ const api: RendererAPI = {
       ipcRenderer.invoke("mark/removeFolder", markId, folderPath),
     getFolders: (markId) =>
       ipcRenderer.invoke("mark/getFolders", markId),
-    getHistory: (markId) =>
-      ipcRenderer.invoke("mark/getHistory", markId),
+    getHistory: (markId, page, pageSize) =>
+      ipcRenderer.invoke("mark/getHistory", markId, page, pageSize),
   },
   app: {
     toggleAutoStart: (enable) =>

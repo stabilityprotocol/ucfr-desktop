@@ -213,19 +213,29 @@ function createWebApi(): RendererAPI {
         console.warn("getFolders is not supported in web environment.");
         return [];
       },
-      getHistory: async (_markId: string) => {
+      getHistory: async (_markId: string, page: number = 1, pageSize: number = 20) => {
         // Web environment: show recent global history from shared DB
         try {
-          const rows = await dbQuery(
+          const offset = (page - 1) * pageSize;
+          
+          // Get total count
+          const countResult = await dbQuery<{ count: number }>(
+            `SELECT COUNT(*) as count FROM file_history`
+          );
+          const total = countResult[0]?.count || 0;
+          
+          // Get paginated items
+          const items = await dbQuery(
             `SELECT id, path, hash, event_type, timestamp
              FROM file_history
              ORDER BY timestamp DESC
-             LIMIT 50`
+             LIMIT ${pageSize} OFFSET ${offset}`
           );
-          return rows;
+          
+          return { items, total };
         } catch (err) {
           console.error("getHistory (web) failed:", err);
-          return [];
+          return { items: [], total: 0 };
         }
       },
     },
