@@ -3,6 +3,8 @@ import crypto from "crypto";
 import {
   getFileByPath,
   getFileByHash,
+  getSubmittedFileByHash,
+  markFileAsSubmitted,
   upsertFile,
   updateFilePath,
   insertFileHistory,
@@ -190,6 +192,34 @@ export class FileHistoryService {
     } catch (e) {
       console.error(`[FileHistory] Error getting file by hash ${hash}:`, e);
       return null;
+    }
+  }
+
+  /**
+   * getSubmittedFileByHash - Checks whether a file with the given hash has already
+   * been successfully submitted to the API. Returns the file record only if
+   * submitted = 1. Used by artifactService for deduplication before API calls.
+   */
+  async getSubmittedFileByHash(hash: string): Promise<FileRecord | null> {
+    try {
+      return getSubmittedFileByHash(hash);
+    } catch (e) {
+      console.error(`[FileHistory] Error getting submitted file by hash ${hash}:`, e);
+      return null;
+    }
+  }
+
+  /**
+   * markAsSubmitted - Marks a file record as successfully submitted to the API.
+   * Called after a successful artifact creation API response so that future
+   * detections of the same hash are correctly skipped by the dedup check.
+   */
+  async markAsSubmitted(hash: string): Promise<void> {
+    try {
+      await markFileAsSubmitted(hash);
+      console.log(`[FileHistory] Marked hash ${hash.slice(0, 16)}... as submitted`);
+    } catch (e) {
+      console.error(`[FileHistory] Error marking hash as submitted:`, e);
     }
   }
 

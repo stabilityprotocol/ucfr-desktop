@@ -15,6 +15,11 @@ import { fileHistoryService } from "./fileHistory";
 
 let watcher: FolderWatcher | null = null;
 
+// Debounce map: filePath -> timeout, to coalesce rapid add+change events
+const pendingEvents = new Map<string, { event: string; timer: ReturnType<typeof setTimeout> }>();
+// Sequential queue to ensure DB writes complete before processing next event
+let eventQueue: Promise<void> = Promise.resolve();
+
 // Helper function to send notifications to renderer process
 function sendNotification(type: "success" | "error" | "info", message: string) {
   BrowserWindow.getAllWindows().forEach((win) =>
@@ -91,6 +96,20 @@ async function getAuthorizedUserFromApi(): Promise<unknown | null> {
   }
 }
 
+function processEvent(file: string, event: string): void {
+  // Enqueue so each event fully completes before the next starts
+  eventQueue = eventQueue.then(async () => {
+    try {
+      // Track history first so DB has the record before artifact checks it
+      await fileHistoryService.handleEvent(event, file);
+      // Then trigger artifact creation (checks DB for existing hash)
+      await handleFileChange(file, event);
+    } catch (err) {
+      console.error(`[Watcher] Error processing ${event} for ${file}:`, err);
+    }
+  });
+}
+
 function getOrCreateWatcher(): FolderWatcher {
   if (!watcher) {
     watcher = new FolderWatcher((payload) => {
@@ -99,11 +118,24 @@ function getOrCreateWatcher(): FolderWatcher {
         win.webContents.send("watcher-event", payload),
       );
 
-      // Trigger artifact creation logic
-      handleFileChange(payload.file, payload.event);
-
-      // Track history
-      fileHistoryService.handleEvent(payload.event, payload.file);
+      // Debounce: coalesce rapid add+change into a single event.
+      // When a file is created, chokidar often fires `add` immediately followed by `change`
+      // (once the file content is flushed to disk). The 500ms window ensures both events
+      // are merged into a single `add`, even on slower storage or large file writes.
+      const existing = pendingEvents.get(payload.file);
+      if (existing) {
+        clearTimeout(existing.timer);
+      }
+      
+      // Keep the first event type (add takes priority over change)
+      const eventType = existing ? existing.event : payload.event;
+      
+      const timer = setTimeout(() => {
+        pendingEvents.delete(payload.file);
+        processEvent(payload.file, eventType);
+      }, 500);
+      
+      pendingEvents.set(payload.file, { event: eventType, timer });
     });
   }
   return watcher;

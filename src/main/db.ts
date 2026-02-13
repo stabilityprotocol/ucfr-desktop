@@ -57,18 +57,35 @@ export function initDb(): void {
     `);
 
     // Create files table (per-user)
+    // `submitted` tracks whether the file hash has been successfully sent to the API.
+    // 0 = tracked locally but not yet submitted, 1 = successfully submitted to API.
+    // This prevents the race condition where fileHistory records a hash before
+    // artifactService checks for it, causing the dedup check to always skip submission.
     database.run(`
       CREATE TABLE IF NOT EXISTS files (
         id INTEGER PRIMARY KEY AUTOINCREMENT,
         user_email TEXT NOT NULL,
         path TEXT NOT NULL,
         current_hash TEXT,
+        submitted INTEGER NOT NULL DEFAULT 0,
         created_at INTEGER NOT NULL,
         updated_at INTEGER NOT NULL,
         FOREIGN KEY(user_email) REFERENCES users(email) ON DELETE CASCADE,
         UNIQUE(user_email, path)
       );
     `);
+
+    // Migration: add `submitted` column to existing databases that lack it.
+    // ALTER TABLE ... ADD COLUMN is a no-op if the column already exists in SQLite,
+    // so we wrap it in a try/catch to handle the "duplicate column name" error gracefully.
+    database.run(
+      `ALTER TABLE files ADD COLUMN submitted INTEGER NOT NULL DEFAULT 0`,
+      (err: Error | null) => {
+        if (err && !err.message.includes("duplicate column name")) {
+          console.error("[db] Error adding submitted column:", err);
+        }
+      }
+    );
 
     // Create file_history table (per-user)
     database.run(`
@@ -105,6 +122,13 @@ export function initDb(): void {
     database.run(`CREATE INDEX IF NOT EXISTS idx_file_history_file_id ON file_history(file_id);`);
     database.run(`CREATE INDEX IF NOT EXISTS idx_file_history_timestamp ON file_history(timestamp);`);
     database.run(`CREATE INDEX IF NOT EXISTS idx_config_user_email ON config(user_email);`);
+    
+    // Add unique constraint on hash per user to prevent duplicates
+    database.run(`CREATE UNIQUE INDEX IF NOT EXISTS idx_files_user_hash ON files(user_email, current_hash);`);
+    
+    // Add unique constraint on file_history to prevent duplicate hash entries per user/file
+    database.run(`DROP INDEX IF EXISTS idx_file_history_unique;`);
+    database.run(`CREATE UNIQUE INDEX IF NOT EXISTS idx_file_history_user_file_hash ON file_history(user_email, file_id, hash);`);
   });
 
   console.log("[db] Database initialized with schema");
@@ -248,6 +272,23 @@ export async function getFileByHash(hash: string): Promise<{ id: number; path: s
 
 export async function upsertFile(filePath: string, hash: string, timestamp: number): Promise<{ id: number }> {
   const userEmail = ensureUser();
+  
+  // Check if this hash already exists for this user (duplicate detection)
+  const existingByHash = await getAsync<{ id: number; path: string }>(
+    `SELECT id, path FROM files WHERE user_email = ? AND current_hash = ?`,
+    [userEmail, hash]
+  );
+  
+  if (existingByHash && existingByHash.path !== filePath) {
+    // Hash exists at different path - update path to new location
+    await runAsync(
+      `UPDATE files SET path = ?, updated_at = ? WHERE id = ?`,
+      [filePath, timestamp, existingByHash.id]
+    );
+    return { id: existingByHash.id };
+  }
+  
+  // Normal upsert on path
   await runAsync(
     `INSERT INTO files (user_email, path, current_hash, created_at, updated_at)
      VALUES (?, ?, ?, ?, ?)
@@ -256,6 +297,7 @@ export async function upsertFile(filePath: string, hash: string, timestamp: numb
        updated_at = excluded.updated_at`,
     [userEmail, filePath, hash, timestamp, timestamp]
   );
+  
   // Get the ID after upsert
   const row = await getAsync<{ id: number }>(
     `SELECT id FROM files WHERE user_email = ? AND path = ?`,
@@ -276,7 +318,8 @@ export async function insertFileHistory(fileId: number | null, filePath: string,
   const userEmail = ensureUser();
   await runAsync(
     `INSERT INTO file_history (user_email, file_id, path, hash, event_type, timestamp)
-     VALUES (?, ?, ?, ?, ?, ?)`,
+     VALUES (?, ?, ?, ?, ?, ?)
+     ON CONFLICT(user_email, file_id, hash) DO NOTHING`,
     [userEmail, fileId, filePath, hash, eventType, timestamp]
   );
 }
@@ -324,6 +367,34 @@ export async function getPreviousFileHash(fileId: number, currentHash: string): 
     [fileId, currentHash]
   );
   return row?.hash ?? null;
+}
+
+/**
+ * getSubmittedFileByHash - Returns a file record only if it has been successfully
+ * submitted to the API (submitted = 1). Used by artifactService to decide whether
+ * to skip a file that has already been claimed on the backend.
+ * This is distinct from getFileByHash() which returns any tracked file regardless
+ * of submission status (used by fileHistory for move/rename detection).
+ */
+export async function getSubmittedFileByHash(hash: string): Promise<{ id: number; path: string; current_hash: string } | null> {
+  const userEmail = ensureUser();
+  return getAsync<{ id: number; path: string; current_hash: string }>(
+    `SELECT id, path, current_hash FROM files WHERE user_email = ? AND current_hash = ? AND submitted = 1 LIMIT 1`,
+    [userEmail, hash]
+  );
+}
+
+/**
+ * markFileAsSubmitted - Sets the submitted flag to 1 for a file record matching
+ * the given hash. Called by artifactService after a successful API submission
+ * so that future detections of the same hash are correctly skipped.
+ */
+export async function markFileAsSubmitted(hash: string): Promise<void> {
+  const userEmail = ensureUser();
+  await runAsync(
+    `UPDATE files SET submitted = 1 WHERE user_email = ? AND current_hash = ?`,
+    [userEmail, hash]
+  );
 }
 
 export function closeDb(): void {

@@ -107,15 +107,40 @@ export async function handleFileChange(filePath: string, event: string) {
     }
 
     // 1. Get File Stats & Hash
-    const stats = await fs.stat(filePath);
-    const fingerprint = await getFileHash(filePath);
-
-    // Check if any file with this hash has already been submitted
-    const existingFileWithHash = await fileHistoryService.getFileByHash(fingerprint);
-    if (existingFileWithHash) {
-      console.log(`[ArtifactService] File with hash ${fingerprint.slice(0, 16)}... already submitted, skipping: ${path.basename(filePath)}`);
+    let stats;
+    try {
+      stats = await fs.stat(filePath);
+    } catch (statErr) {
+      console.error(`[ArtifactService] Failed to stat file ${filePath}:`, statErr);
       return;
     }
+
+    let fingerprint: string;
+    try {
+      fingerprint = await getFileHash(filePath);
+    } catch (hashErr) {
+      console.error(`[ArtifactService] Failed to hash file ${filePath}:`, hashErr);
+      return;
+    }
+
+    // Check if a file with this hash has already been successfully submitted to the API.
+    // We use getSubmittedFileByHash (checks submitted=1) instead of getFileByHash, because
+    // fileHistory.handleEvent() runs before this function and writes the hash to the DB
+    // with submitted=0. Using getFileByHash here would always find the just-recorded hash,
+    // causing every submission to be incorrectly skipped as a "duplicate".
+    console.log(`[ArtifactService] Checking if hash was already submitted to API: ${fingerprint.slice(0, 16)}...`);
+    let alreadySubmitted;
+    try {
+      alreadySubmitted = await fileHistoryService.getSubmittedFileByHash(fingerprint);
+    } catch (dbErr) {
+      console.error(`[ArtifactService] Database error checking submitted hash:`, dbErr);
+      alreadySubmitted = null;
+    }
+    if (alreadySubmitted) {
+      console.log(`[ArtifactService] Hash ${fingerprint.slice(0, 16)}... already submitted to API, skipping: ${path.basename(filePath)}`);
+      return;
+    }
+    console.log(`[ArtifactService] Hash not yet submitted to API, proceeding with submission`);
 
     const mimeType = await getMimeType(filePath);
     const fileName = path.basename(filePath);
@@ -128,6 +153,7 @@ export async function handleFileChange(filePath: string, event: string) {
 
     // 2. Get Mark & User Info
     // We fetch the mark to get name and organization
+    console.log(`[ArtifactService] Fetching mark ${markId}...`);
     let mark;
     try {
       mark = await fetchMark(markId, token);
@@ -140,18 +166,22 @@ export async function handleFileChange(filePath: string, event: string) {
         );
         return;
       }
-      throw error;
-    }
-    if (!mark) {
-      console.error(`[ArtifactService] Could not fetch mark ${markId}`);
+      console.error(`[ArtifactService] Error fetching mark ${markId}:`, error);
       return;
     }
+    if (!mark) {
+      console.error(`[ArtifactService] Could not fetch mark ${markId} (returned null)`);
+      return;
+    }
+    console.log(`[ArtifactService] Successfully fetched mark: ${mark.name}`);
 
+    console.log(`[ArtifactService] Fetching authorized email...`);
     const userEmail = await getAuthorizedEmail(token);
     if (!userEmail) {
       console.error("[ArtifactService] Could not identify user email");
       return;
     }
+    console.log(`[ArtifactService] Got user email: ${userEmail}`);
 
     // 3. Construct Data JSON
     // API expects certain top-level fields inside `data`
@@ -284,9 +314,17 @@ export async function handleFileChange(filePath: string, event: string) {
       console.log(
         `[ArtifactService] ${isImage ? "Image" : ""} artifact submitted successfully: ${result.id} (mark: ${mark.name}, file: ${fileName})`
       );
+
+      // Mark the file hash as submitted in the database so future detections
+      // of the same hash are correctly skipped by the dedup check.
+      // If this fails, the worst case is a duplicate submission on next detection,
+      // which the API should handle idempotently.
+      await fileHistoryService.markAsSubmitted(fingerprint);
     } else {
+      // API returned null (non-2xx response). The file stays submitted=0 in the DB,
+      // so it will be retried on the next file change or app restart detection.
       console.error(
-        "[ArtifactService] Failed to submit artifact",
+        "[ArtifactService] Failed to submit artifact (will retry on next detection)",
         JSON.stringify(
           { markId, markName: mark.name, fileName, isImage },
           null,
@@ -296,5 +334,7 @@ export async function handleFileChange(filePath: string, event: string) {
     }
   } catch (err) {
     console.error("[ArtifactService] Error handling file change:", err);
+    console.error("[ArtifactService] Error stack:", (err as Error).stack);
+    console.error("[ArtifactService] File that caused error:", filePath);
   }
 }
