@@ -3664,6 +3664,13 @@ __metadata:
   languageName: node
   linkType: hard
 
+"date-fns@npm:^4.1.0":
+  version: 4.1.0
+  resolution: "date-fns@npm:4.1.0"
+  checksum: 10c0/b79ff32830e6b7faa009590af6ae0fb8c3fd9ffad46d930548fbb5acf473773b4712ae887e156ba91a7b3dc30591ce0f517d69fd83bd9c38650fdc03b4e0bac8
+  languageName: node
+  linkType: hard
+
 "debounce-fn@npm:^4.0.0":
   version: 4.0.0
   resolution: "debounce-fn@npm:4.0.0"
@@ -8966,6 +8973,7 @@ __metadata:
     chokidar: "npm:^3.6.0"
     concurrently: "npm:^8.2.2"
     cors: "npm:^2.8.5"
+    date-fns: "npm:^4.1.0"
     electron: "npm:^28.3.3"
     electron-builder: "npm:26.0.12"
     electron-icon-builder: "npm:^2.0.1"

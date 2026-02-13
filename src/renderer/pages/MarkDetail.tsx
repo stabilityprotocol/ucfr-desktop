@@ -1,5 +1,6 @@
 import { useState, useEffect } from "react";
 import { useParams } from "react-router-dom";
+import { formatDistanceToNow } from "date-fns";
 import type { Project } from "../../shared/api/types";
 import {
   Folder,
@@ -56,7 +57,7 @@ export function MarkDetailPage({ marks }: MarkDetailProps) {
 
   useEffect(() => {
     if (!mark) return;
-    
+
     const interval = setInterval(() => {
       if (currentPage === 1) {
         loadHistory(1);
@@ -93,7 +94,7 @@ export function MarkDetailPage({ marks }: MarkDetailProps) {
   const handleRemoveFolder = async (path: string) => {
     if (
       !window.confirm(
-        `Are you sure you want to stop watching this folder?\n\n${path}`
+        `Are you sure you want to stop watching this folder?\n\n${path}`,
       )
     ) {
       return;
@@ -107,6 +108,12 @@ export function MarkDetailPage({ marks }: MarkDetailProps) {
 
   const formatTime = (ts: string | number) => {
     const date = new Date(Number(ts) * 1000);
+    const now = new Date();
+    const hoursDiff = (now.getTime() - date.getTime()) / (1000 * 60 * 60);
+
+    if (hoursDiff < 24) {
+      return formatDistanceToNow(date, { addSuffix: true });
+    }
     return date.toLocaleString();
   };
 
@@ -115,23 +122,59 @@ export function MarkDetailPage({ marks }: MarkDetailProps) {
   };
 
   const getFileIcon = (path: string) => {
-    const ext = path.split('.').pop()?.toLowerCase() || '';
-    
-    const imageExts = ['jpg', 'jpeg', 'png', 'gif', 'bmp', 'webp', 'svg', 'ico', 'tiff', 'tif'];
-    const videoExts = ['mp4', 'avi', 'mov', 'wmv', 'flv', 'webm', 'mkv', 'm4v'];
-    const audioExts = ['mp3', 'wav', 'ogg', 'flac', 'aac', 'm4a', 'wma'];
-    const archiveExts = ['zip', 'rar', '7z', 'tar', 'gz', 'bz2', 'xz'];
-    const codeExts = ['js', 'ts', 'jsx', 'tsx', 'html', 'css', 'scss', 'json', 'xml', 'py', 'java', 'cpp', 'c', 'h', 'php', 'rb', 'go', 'rs'];
-    const docExts = ['pdf', 'doc', 'docx', 'txt', 'rtf', 'odt', 'md'];
-    
-    if (imageExts.includes(ext)) return { Icon: Image, color: 'text-purple-500', bg: 'bg-purple-50' };
-    if (videoExts.includes(ext)) return { Icon: Video, color: 'text-red-500', bg: 'bg-red-50' };
-    if (audioExts.includes(ext)) return { Icon: Music, color: 'text-amber-500', bg: 'bg-amber-50' };
-    if (archiveExts.includes(ext)) return { Icon: Archive, color: 'text-orange-500', bg: 'bg-orange-50' };
-    if (codeExts.includes(ext)) return { Icon: FileCode, color: 'text-cyan-500', bg: 'bg-cyan-50' };
-    if (docExts.includes(ext)) return { Icon: FileText, color: 'text-blue-500', bg: 'bg-blue-50' };
-    
-    return { Icon: File, color: 'text-zinc-400', bg: 'bg-zinc-50' };
+    const ext = path.split(".").pop()?.toLowerCase() || "";
+
+    const imageExts = [
+      "jpg",
+      "jpeg",
+      "png",
+      "gif",
+      "bmp",
+      "webp",
+      "svg",
+      "ico",
+      "tiff",
+      "tif",
+    ];
+    const videoExts = ["mp4", "avi", "mov", "wmv", "flv", "webm", "mkv", "m4v"];
+    const audioExts = ["mp3", "wav", "ogg", "flac", "aac", "m4a", "wma"];
+    const archiveExts = ["zip", "rar", "7z", "tar", "gz", "bz2", "xz"];
+    const codeExts = [
+      "js",
+      "ts",
+      "jsx",
+      "tsx",
+      "html",
+      "css",
+      "scss",
+      "json",
+      "xml",
+      "py",
+      "java",
+      "cpp",
+      "c",
+      "h",
+      "php",
+      "rb",
+      "go",
+      "rs",
+    ];
+    const docExts = ["pdf", "doc", "docx", "txt", "rtf", "odt", "md"];
+
+    if (imageExts.includes(ext))
+      return { Icon: Image, color: "text-purple-500", bg: "bg-purple-50" };
+    if (videoExts.includes(ext))
+      return { Icon: Video, color: "text-red-500", bg: "bg-red-50" };
+    if (audioExts.includes(ext))
+      return { Icon: Music, color: "text-amber-500", bg: "bg-amber-50" };
+    if (archiveExts.includes(ext))
+      return { Icon: Archive, color: "text-orange-500", bg: "bg-orange-50" };
+    if (codeExts.includes(ext))
+      return { Icon: FileCode, color: "text-cyan-500", bg: "bg-cyan-50" };
+    if (docExts.includes(ext))
+      return { Icon: FileText, color: "text-blue-500", bg: "bg-blue-50" };
+
+    return { Icon: File, color: "text-zinc-400", bg: "bg-zinc-50" };
   };
 
   if (!mark) {
@@ -228,7 +271,9 @@ export function MarkDetailPage({ marks }: MarkDetailProps) {
         <div className="px-6 py-4 border-b border-zinc-100 bg-zinc-50/50 flex items-center justify-between">
           <div className="flex items-center gap-2">
             <Activity className="w-4 h-4 text-zinc-500" />
-            <h2 className="text-sm font-medium text-zinc-900">Recent Artifacts</h2>
+            <h2 className="text-sm font-medium text-zinc-900">
+              Recent Artifacts
+            </h2>
           </div>
           {totalCount > 0 && (
             <span className="inline-flex items-center justify-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-zinc-100 text-zinc-600">
@@ -250,12 +295,16 @@ export function MarkDetailPage({ marks }: MarkDetailProps) {
                     <div
                       key={item.id || i}
                       className="group relative p-4 rounded-lg border border-zinc-200 bg-white hover:border-zinc-300 hover:shadow-md hover:-translate-y-0.5 transition-all cursor-pointer"
-                      onClick={() => openInWeb(getFingerprintVerifyUrl(item.hash))}
+                      onClick={() =>
+                        openInWeb(getFingerprintVerifyUrl(item.hash))
+                      }
                     >
-                      <div className="flex items-start justify-between gap-4">
+                      <div className="flex items-center justify-between gap-4">
                         <div className="flex-1 min-w-0">
                           <div className="flex items-center gap-3 mb-2">
-                            <div className={`flex-shrink-0 w-8 h-8 rounded-lg ${bg} flex items-center justify-center`}>
+                            <div
+                              className={`flex-shrink-0 w-8 h-8 rounded-lg ${bg} flex items-center justify-center`}
+                            >
                               <Icon className={`w-4 h-4 ${color}`} />
                             </div>
                             <h3
@@ -265,41 +314,44 @@ export function MarkDetailPage({ marks }: MarkDetailProps) {
                               {getFileName(item.path)}
                             </h3>
                           </div>
-                        <div className="flex items-center gap-4 pl-11">
-                          <span
-                            className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${
-                              item.event_type === "add"
-                                ? "bg-emerald-50 text-emerald-700 border border-emerald-100"
-                                : item.event_type === "change"
-                                ? "bg-blue-50 text-blue-700 border border-blue-100"
-                                : "bg-zinc-50 text-zinc-600 border border-zinc-200"
-                            }`}
+                          <div className="flex items-center gap-4">
+                            <span
+                              className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${
+                                item.event_type === "add"
+                                  ? "bg-emerald-50 text-emerald-700 border border-emerald-100"
+                                  : item.event_type === "change"
+                                    ? "bg-blue-50 text-blue-700 border border-blue-100"
+                                    : "bg-zinc-50 text-zinc-600 border border-zinc-200"
+                              }`}
+                            >
+                              {item.event_type.toUpperCase()}
+                            </span>
+                            <span className="text-xs text-zinc-400">
+                              {formatTime(item.timestamp)}
+                            </span>
+                          </div>
+                        </div>
+                        <div className="flex-shrink-0 flex flex-col items-end gap-2">
+                          <div
+                            className="text-zinc-400 font-mono text-xs bg-zinc-50 px-2 py-1 rounded"
+                            title={item.hash}
                           >
-                            {item.event_type.toUpperCase()}
-                          </span>
-                          <span className="text-xs text-zinc-400">
-                            {formatTime(item.timestamp)}
-                          </span>
+                            #{item.hash?.substring(0, 8)}
+                          </div>
+                          <ExternalLink className="w-4 h-4 text-zinc-300 group-hover:text-zinc-400 transition-colors" />
                         </div>
-                      </div>
-                      <div className="flex-shrink-0 flex flex-col items-end gap-2">
-                        <div
-                          className="text-zinc-400 font-mono text-xs bg-zinc-50 px-2 py-1 rounded"
-                          title={item.hash}
-                        >
-                          #{item.hash?.substring(0, 8)}
-                        </div>
-                        <ExternalLink className="w-4 h-4 text-zinc-300 group-hover:text-zinc-400 transition-colors" />
                       </div>
                     </div>
-                  </div>
-                )})}
+                  );
+                })}
               </div>
-              
+
               {totalCount > pageSize && (
                 <div className="flex items-center justify-between mt-6 pt-4 border-t border-zinc-100">
                   <div className="text-xs text-zinc-500">
-                    Showing {(currentPage - 1) * pageSize + 1}-{Math.min(currentPage * pageSize, totalCount)} of {totalCount}
+                    Showing {(currentPage - 1) * pageSize + 1}-
+                    {Math.min(currentPage * pageSize, totalCount)} of{" "}
+                    {totalCount}
                   </div>
                   <div className="flex items-center gap-2">
                     <button
