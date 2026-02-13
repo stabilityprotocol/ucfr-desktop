@@ -10,6 +10,43 @@ const dbPath = path.join(dbDir, "app.db");
 let db: sqlite3.Database | null = null;
 let currentUserEmail: string | null = null;
 
+// Store current user in a file for persistence across app restarts
+const currentUserFilePath = path.join(dbDir, 'current-user.txt');
+
+/**
+ * Saves the current user email to a file for persistence
+ */
+function saveCurrentUserToFile(email: string | null): void {
+  try {
+    if (email) {
+      fs.writeFileSync(currentUserFilePath, email, 'utf-8');
+      console.log(`[db] Saved current user to file: ${email}`);
+    } else {
+      if (fs.existsSync(currentUserFilePath)) {
+        fs.unlinkSync(currentUserFilePath);
+        console.log('[db] Removed current user file');
+      }
+    }
+  } catch (error) {
+    console.error('[db] Failed to save current user to file:', error);
+  }
+}
+
+/**
+ * Loads the current user email from file
+ */
+function loadCurrentUserFromFile(): string | null {
+  try {
+    if (fs.existsSync(currentUserFilePath)) {
+      const email = fs.readFileSync(currentUserFilePath, 'utf-8').trim();
+      return email || null;
+    }
+  } catch (error) {
+    console.error('[db] Failed to load current user from file:', error);
+  }
+  return null;
+}
+
 // Ensure database directory exists
 if (!fs.existsSync(dbDir)) {
   fs.mkdirSync(dbDir, { recursive: true });
@@ -159,13 +196,22 @@ export function initDb(): void {
   });
 
   console.log("[db] Database initialized with schema");
+
+  // Initialize current user from file if exists
+  initCurrentUser();
 }
 
 export function setCurrentUser(email: string | null): void {
-  if (email === currentUserEmail) return;
+  console.log(`[db] setCurrentUser called with: ${email ?? "null"} (current: ${currentUserEmail ?? "null"})`);
+  
+  if (email === currentUserEmail) {
+    console.log('[db] User unchanged, skipping');
+    return;
+  }
 
   currentUserEmail = email;
-  console.log(`[db] Current user set to: ${email ?? "null"}`);
+  saveCurrentUserToFile(email);
+  console.log(`[db] Current user updated to: ${email ?? "null"}`);
 
   if (email) {
     // Ensure user exists in users table
@@ -179,7 +225,32 @@ export function setCurrentUser(email: string | null): void {
 }
 
 export function getCurrentUser(): string | null {
-  return currentUserEmail;
+  // If we have a current user in memory, return it
+  if (currentUserEmail) {
+    return currentUserEmail;
+  }
+
+  // Otherwise, try to load from file
+  const savedUser = loadCurrentUserFromFile();
+  if (savedUser) {
+    currentUserEmail = savedUser;
+    console.log(`[db] Restored current user from file: ${savedUser}`);
+    return savedUser;
+  }
+
+  return null;
+}
+
+/**
+ * Initializes the current user from file on app startup.
+ * Call this after initDb() to restore the last logged in user.
+ */
+export function initCurrentUser(): void {
+  const savedUser = loadCurrentUserFromFile();
+  if (savedUser) {
+    currentUserEmail = savedUser;
+    console.log(`[db] Initialized current user from file: ${savedUser}`);
+  }
 }
 
 function ensureUser(): string {

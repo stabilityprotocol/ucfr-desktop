@@ -1,4 +1,4 @@
-import { useEffect } from "react";
+import { useEffect, useRef } from "react";
 import { useAtom } from "jotai";
 import {
   autoStartAtom,
@@ -303,9 +303,17 @@ export function useBootstrap() {
   ]);
 
   // Sync current user to main process for database context
+  // Skip the initial null value to avoid overwriting the persisted user
+  const hasSetUser = useRef(false);
   useEffect(() => {
-    if (window.ucfr?.db?.setCurrentUser) {
+    if (!window.ucfr?.db?.setCurrentUser) return;
+
+    if (currentUser) {
+      hasSetUser.current = true;
       window.ucfr.db.setCurrentUser(currentUser);
+    } else if (hasSetUser.current) {
+      // Only sync null after we've previously set a real user (i.e. logout)
+      window.ucfr.db.setCurrentUser(null);
     }
   }, [currentUser]);
 }
