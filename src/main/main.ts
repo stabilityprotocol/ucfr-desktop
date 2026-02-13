@@ -68,8 +68,8 @@ function createTray() {
   tray.setContextMenu(menu);
 }
 
-app.whenReady().then(() => {
-  registerIpcHandlers();
+app.whenReady().then(async () => {
+  await registerIpcHandlers();
   createWindow();
   createTray();
 

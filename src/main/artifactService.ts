@@ -2,7 +2,6 @@ import crypto from "crypto";
 import fs from "fs/promises";
 import path from "path";
 import { BrowserWindow } from "electron";
-import { getSettings } from "./settings";
 import { tokenManager } from "./tokenStore";
 import {
   fetchMark,
@@ -12,6 +11,7 @@ import {
 } from "../shared/api/client";
 import { fileHistoryService } from "./fileHistory";
 import { processImageForArtifact } from "./imageTransformService";
+import { findMarkForFilePath } from "./db";
 
 /**
  * Lazily loaded mime module
@@ -83,17 +83,8 @@ export async function handleFileChange(filePath: string, event: string) {
   try {
     console.log(`[ArtifactService] Processing file: ${filePath} (${event})`);
 
-    const settings = getSettings();
-    const markFolders = settings.projectFolders || {};
-
-    // Find mark ID for this file
-    let markId: string | null = null;
-    for (const [pid, folders] of Object.entries(markFolders)) {
-      if (folders.some((folder) => filePath.startsWith(folder))) {
-        markId = pid;
-        break;
-      }
-    }
+    // Find mark ID for this file from database
+    const markId = await findMarkForFilePath(filePath);
 
     if (!markId) {
       console.log("[ArtifactService] No mark found for file:", filePath);

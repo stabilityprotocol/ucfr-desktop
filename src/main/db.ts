@@ -51,10 +51,21 @@ export function initDb(): void {
     database.run(`
       CREATE TABLE IF NOT EXISTS users (
         email TEXT PRIMARY KEY,
+        token TEXT,
         created_at INTEGER NOT NULL,
         updated_at INTEGER NOT NULL
       );
     `);
+
+    // Migration: add `token` column to existing databases that lack it
+    database.run(
+      `ALTER TABLE users ADD COLUMN token TEXT`,
+      (err: Error | null) => {
+        if (err && !err.message.includes("duplicate column name")) {
+          console.error("[db] Error adding token column:", err);
+        }
+      }
+    );
 
     // Create files table (per-user)
     // `submitted` tracks whether the file hash has been successfully sent to the API.
@@ -115,6 +126,20 @@ export function initDb(): void {
       );
     `);
 
+    // Create watched_folders table (per-user, per-mark)
+    database.run(`
+      CREATE TABLE IF NOT EXISTS watched_folders (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        user_email TEXT NOT NULL,
+        mark_id TEXT NOT NULL,
+        folder_path TEXT NOT NULL,
+        created_at INTEGER NOT NULL,
+        updated_at INTEGER NOT NULL,
+        FOREIGN KEY(user_email) REFERENCES users(email) ON DELETE CASCADE,
+        UNIQUE(user_email, mark_id, folder_path)
+      );
+    `);
+
     // Create indexes
     database.run(`CREATE INDEX IF NOT EXISTS idx_files_user_email ON files(user_email);`);
     database.run(`CREATE INDEX IF NOT EXISTS idx_files_path ON files(path);`);
@@ -122,6 +147,8 @@ export function initDb(): void {
     database.run(`CREATE INDEX IF NOT EXISTS idx_file_history_file_id ON file_history(file_id);`);
     database.run(`CREATE INDEX IF NOT EXISTS idx_file_history_timestamp ON file_history(timestamp);`);
     database.run(`CREATE INDEX IF NOT EXISTS idx_config_user_email ON config(user_email);`);
+    database.run(`CREATE INDEX IF NOT EXISTS idx_watched_folders_user_email ON watched_folders(user_email);`);
+    database.run(`CREATE INDEX IF NOT EXISTS idx_watched_folders_mark_id ON watched_folders(mark_id);`);
     
     // Add unique constraint on hash per user to prevent duplicates
     database.run(`CREATE UNIQUE INDEX IF NOT EXISTS idx_files_user_hash ON files(user_email, current_hash);`);
@@ -394,6 +421,178 @@ export async function markFileAsSubmitted(hash: string): Promise<void> {
   await runAsync(
     `UPDATE files SET submitted = 1 WHERE user_email = ? AND current_hash = ?`,
     [userEmail, hash]
+  );
+}
+
+/**
+ * Deletes all user data from the database (files, file_history, config, watched_folders, users).
+ * Called during logout to ensure the next user starts with a clean slate.
+ * Note: tokens are stored in the users table and are cleared when users are deleted.
+ */
+export async function clearAllUserData(): Promise<void> {
+  // Delete in order respecting foreign key constraints
+  await runAsync(`DELETE FROM file_history`);
+  await runAsync(`DELETE FROM files`);
+  await runAsync(`DELETE FROM config`);
+  await runAsync(`DELETE FROM watched_folders`);
+  await runAsync(`DELETE FROM users`);
+  currentUserEmail = null;
+  console.log("[db] All user data cleared");
+}
+
+// Watched folders helpers (with user context)
+export async function getWatchedFoldersForMark(markId: string): Promise<string[]> {
+  const userEmail = ensureUser();
+  const rows = await allAsync<{ folder_path: string }>(
+    `SELECT folder_path FROM watched_folders 
+     WHERE user_email = ? AND mark_id = ? 
+     ORDER BY folder_path`,
+    [userEmail, markId]
+  );
+  return rows.map(r => r.folder_path);
+}
+
+export async function getAllWatchedFolders(): Promise<Record<string, string[]>> {
+  const userEmail = ensureUser();
+  const rows = await allAsync<{ mark_id: string; folder_path: string }>(
+    `SELECT mark_id, folder_path FROM watched_folders 
+     WHERE user_email = ? 
+     ORDER BY mark_id, folder_path`,
+    [userEmail]
+  );
+  
+  const result: Record<string, string[]> = {};
+  for (const row of rows) {
+    if (!result[row.mark_id]) {
+      result[row.mark_id] = [];
+    }
+    result[row.mark_id].push(row.folder_path);
+  }
+  return result;
+}
+
+export async function addWatchedFolder(markId: string, folderPath: string): Promise<void> {
+  const userEmail = ensureUser();
+  const now = Date.now();
+  await runAsync(
+    `INSERT INTO watched_folders (user_email, mark_id, folder_path, created_at, updated_at)
+     VALUES (?, ?, ?, ?, ?)
+     ON CONFLICT(user_email, mark_id, folder_path) DO UPDATE SET
+       updated_at = excluded.updated_at`,
+    [userEmail, markId, folderPath, now, now]
+  );
+}
+
+export async function removeWatchedFolder(markId: string, folderPath: string): Promise<void> {
+  const userEmail = ensureUser();
+  await runAsync(
+    `DELETE FROM watched_folders 
+     WHERE user_email = ? AND mark_id = ? AND folder_path = ?`,
+    [userEmail, markId, folderPath]
+  );
+}
+
+export async function removeAllWatchedFoldersForMark(markId: string): Promise<void> {
+  const userEmail = ensureUser();
+  await runAsync(
+    `DELETE FROM watched_folders 
+     WHERE user_email = ? AND mark_id = ?`,
+    [userEmail, markId]
+  );
+}
+
+export async function setWatchedFoldersForMark(markId: string, folderPaths: string[]): Promise<void> {
+  const userEmail = ensureUser();
+  const now = Date.now();
+  
+  // Start a transaction
+  const database = getDb();
+  
+  return new Promise((resolve, reject) => {
+    database.run("BEGIN TRANSACTION", async (err) => {
+      if (err) {
+        reject(err);
+        return;
+      }
+      
+      try {
+        // Delete existing folders for this mark
+        await runAsync(
+          `DELETE FROM watched_folders 
+           WHERE user_email = ? AND mark_id = ?`,
+          [userEmail, markId]
+        );
+        
+        // Insert new folders
+        for (const folderPath of folderPaths) {
+          await runAsync(
+            `INSERT INTO watched_folders (user_email, mark_id, folder_path, created_at, updated_at)
+             VALUES (?, ?, ?, ?, ?)`,
+            [userEmail, markId, folderPath, now, now]
+          );
+        }
+        
+        database.run("COMMIT", (commitErr) => {
+          if (commitErr) {
+            reject(commitErr);
+          } else {
+            resolve();
+          }
+        });
+      } catch (error) {
+        database.run("ROLLBACK", () => {
+          reject(error);
+        });
+      }
+    });
+  });
+}
+
+export async function findMarkForFilePath(filePath: string): Promise<string | null> {
+  const userEmail = ensureUser();
+  
+  // Find all watched folders for this user
+  const rows = await allAsync<{ mark_id: string; folder_path: string }>(
+    `SELECT mark_id, folder_path FROM watched_folders 
+     WHERE user_email = ?`,
+    [userEmail]
+  );
+  
+  // Find the mark where the file path starts with the folder path
+  for (const row of rows) {
+    if (filePath.startsWith(row.folder_path)) {
+      return row.mark_id;
+    }
+  }
+  
+  return null;
+}
+
+// Token management helpers (with user context)
+export async function getUserToken(): Promise<string | null> {
+  const userEmail = ensureUser();
+  const row = await getAsync<{ token: string | null }>(
+    `SELECT token FROM users WHERE email = ?`,
+    [userEmail]
+  );
+  return row?.token ?? null;
+}
+
+export async function setUserToken(token: string): Promise<void> {
+  const userEmail = ensureUser();
+  const now = Date.now();
+  await runAsync(
+    `UPDATE users SET token = ?, updated_at = ? WHERE email = ?`,
+    [token, now, userEmail]
+  );
+}
+
+export async function clearUserToken(): Promise<void> {
+  const userEmail = ensureUser();
+  const now = Date.now();
+  await runAsync(
+    `UPDATE users SET token = NULL, updated_at = ? WHERE email = ?`,
+    [now, userEmail]
   );
 }
 

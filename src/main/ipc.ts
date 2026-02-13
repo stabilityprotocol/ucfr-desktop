@@ -1,7 +1,7 @@
 import { app, dialog, ipcMain, shell, BrowserWindow } from "electron";
 import { randomUUID } from "crypto";
-import { tokenManager } from "./tokenStore";
-import { getSettings, updateSettings } from "./settings";
+import { tokenManager, migrateTokenToDb } from "./tokenStore";
+import { getSettings, updateSettings, resetSettings, migrateProjectFoldersToDb } from "./settings";
 import { FolderWatcher } from "./watcher";
 import { handleFileChange } from "./artifactService";
 import {
@@ -10,7 +10,7 @@ import {
   fetchOrganizationMarks,
   TokenExpiredError,
 } from "../shared/api/client";
-import { initDb, dbExec, dbQuery, setCurrentUser } from "./db";
+import { initDb, dbExec, dbQuery, setCurrentUser, clearAllUserData, getAllWatchedFolders, addWatchedFolder, removeWatchedFolder, getWatchedFoldersForMark } from "./db";
 import { fileHistoryService } from "./fileHistory";
 
 let watcher: FolderWatcher | null = null;
@@ -141,18 +141,12 @@ function getOrCreateWatcher(): FolderWatcher {
   return watcher;
 }
 
-export function registerIpcHandlers() {
+export async function registerIpcHandlers() {
   initDb();
 
-  // Initialize watcher with existing folders
-  const settings = getSettings();
-  const markFolders = settings.projectFolders || {};
-  const allFolders = Object.values(markFolders).flat();
-
-  if (allFolders.length > 0) {
-    const w = getOrCreateWatcher();
-    allFolders.forEach((folder) => w.add(folder));
-  }
+  // Initialize watcher with existing folders from database
+  // Note: This will be populated once a user logs in and setCurrentUser is called
+  // The initial load happens in the tokenChanged handler or when folders are accessed
 
   ipcMain.handle("auth/getToken", async () => tokenManager.getToken());
 
@@ -162,6 +156,36 @@ export function registerIpcHandlers() {
 
   ipcMain.handle("auth/clearToken", async () => {
     await tokenManager.clear();
+    return null;
+  });
+
+  /**
+   * Full logout: clears token, resets settings, stops watcher, and wipes user data from DB.
+   * Ensures the next user session starts completely fresh.
+   */
+  ipcMain.handle("auth/logout", async () => {
+    // 1. Clear auth token
+    await tokenManager.clear();
+
+    // 2. Stop file watcher (was watching previous user's folders)
+    if (watcher) {
+      watcher.stop();
+      watcher = null;
+    }
+
+    // 3. Clear any pending debounced file events
+    for (const [, entry] of pendingEvents) {
+      clearTimeout(entry.timer);
+    }
+    pendingEvents.clear();
+
+    // 4. Reset settings to defaults (projectFolders, hasCompletedFirstLogin, etc.)
+    resetSettings();
+
+    // 5. Clear all user data from SQLite database
+    await clearAllUserData();
+
+    console.log("[auth/logout] Full logout completed — all user data cleared");
     return null;
   });
 
@@ -258,18 +282,11 @@ export function registerIpcHandlers() {
     });
     if (!result.canceled && result.filePaths.length) {
       const folderPath = result.filePaths[0];
-      const currentSettings = getSettings();
-      const markFolders = currentSettings.projectFolders || {};
-      const currentList = markFolders[markId] || [];
+      const currentList = await getWatchedFoldersForMark(markId);
 
       if (!currentList.includes(folderPath)) {
-        const newList = [...currentList, folderPath];
-        updateSettings({
-          projectFolders: {
-            ...markFolders,
-            [markId]: newList,
-          },
-        });
+        await addWatchedFolder(markId, folderPath);
+        const newList = await getWatchedFoldersForMark(markId);
 
         const w = getOrCreateWatcher();
         w.add(folderPath);
@@ -284,17 +301,8 @@ export function registerIpcHandlers() {
   ipcMain.handle(
     "mark/removeFolder",
     async (_event, markId: string, folderPath: string) => {
-      const currentSettings = getSettings();
-      const markFolders = currentSettings.projectFolders || {};
-      const currentList = markFolders[markId] || [];
-
-      const newList = currentList.filter((p) => p !== folderPath);
-      updateSettings({
-        projectFolders: {
-          ...markFolders,
-          [markId]: newList,
-        },
-      });
+      await removeWatchedFolder(markId, folderPath);
+      const newList = await getWatchedFoldersForMark(markId);
       if (watcher) {
         watcher.unwatch(folderPath);
       }
@@ -303,15 +311,15 @@ export function registerIpcHandlers() {
   );
 
   ipcMain.handle("mark/getFolders", async (_event, markId: string) => {
-    const currentSettings = getSettings();
-    const markFolders = currentSettings.projectFolders || {};
-    return markFolders[markId] || [];
+    return await getWatchedFoldersForMark(markId);
+  });
+
+  ipcMain.handle("mark/getAllWatchedFolders", async () => {
+    return await getAllWatchedFolders();
   });
 
   ipcMain.handle("mark/getHistory", async (_event, markId: string, page: number = 1, pageSize: number = 20) => {
-    const currentSettings = getSettings();
-    const markFolders = currentSettings.projectFolders || {};
-    const folders = markFolders[markId] || [];
+    const folders = await getWatchedFoldersForMark(markId);
     return await fileHistoryService.getHistoryForFolders(folders, page, pageSize);
   });
 
@@ -408,8 +416,25 @@ export function registerIpcHandlers() {
     }
   });
 
-  ipcMain.handle("db/setCurrentUser", (_event, email: string | null) => {
+  ipcMain.handle("db/setCurrentUser", async (_event, email: string | null) => {
     setCurrentUser(email);
+
+    // Migrate projectFolders and token from electron-store to database on user login
+    if (email) {
+      await migrateProjectFoldersToDb();
+      await migrateTokenToDb();
+
+      // Start watching folders from database
+      const markFolders = await getAllWatchedFolders();
+      const allFolders = Object.values(markFolders).flat();
+
+      if (allFolders.length > 0) {
+        const w = getOrCreateWatcher();
+        allFolders.forEach((folder) => w.add(folder));
+        console.log(`[IPC] Started watching ${allFolders.length} folders for user ${email}`);
+      }
+    }
+
     return null;
   });
 
@@ -501,21 +526,13 @@ export function registerIpcHandlers() {
       console.log("[First Login] Downloads path:", downloadsPath);
 
       // Check if Downloads folder is already attached
-      const currentSettings = getSettings();
-      const markFolders = currentSettings.projectFolders || {};
-      const currentList = markFolders[privateMark.id] || [];
+      const currentList = await getWatchedFoldersForMark(privateMark.id);
 
       if (!currentList.includes(downloadsPath)) {
         console.log("[First Login] Attaching downloads folder to watcher...");
         // Attach Downloads folder to the mark
-        const newList = [...currentList, downloadsPath];
-        updateSettings({
-          projectFolders: {
-            ...markFolders,
-            [privateMark.id]: newList,
-          },
-          hasCompletedFirstLogin: true,
-        });
+        await addWatchedFolder(privateMark.id, downloadsPath);
+        updateSettings({ hasCompletedFirstLogin: true });
 
         // Add to watcher
         const w = getOrCreateWatcher();
@@ -590,9 +607,7 @@ export function registerIpcHandlers() {
       }
 
       const downloadsPath = app.getPath("downloads");
-      const currentSettings = getSettings();
-      const markFolders = currentSettings.projectFolders || {};
-      const currentList = markFolders[privateMark.id] || [];
+      const currentList = await getWatchedFoldersForMark(privateMark.id);
 
       if (currentList.includes(downloadsPath)) {
         sendNotification(
@@ -606,13 +621,7 @@ export function registerIpcHandlers() {
         };
       }
 
-      const newList = [...currentList, downloadsPath];
-      updateSettings({
-        projectFolders: {
-          ...markFolders,
-          [privateMark.id]: newList,
-        },
-      });
+      await addWatchedFolder(privateMark.id, downloadsPath);
 
       const w = getOrCreateWatcher();
       w.add(downloadsPath);

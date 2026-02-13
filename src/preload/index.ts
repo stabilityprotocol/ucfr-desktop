@@ -4,6 +4,7 @@ type RendererAPI = {
   auth: {
     getToken: () => Promise<string | null>;
     clearToken: () => Promise<null>;
+    logout: () => Promise<null>;
     startLoginFlow: () => Promise<unknown>;
     getUser: () => Promise<unknown>;
     handleFirstLogin: () => Promise<unknown>;
@@ -19,6 +20,7 @@ type RendererAPI = {
     addFolder: (markId: string) => Promise<string[] | null>;
     removeFolder: (markId: string, folderPath: string) => Promise<string[]>;
     getFolders: (markId: string) => Promise<string[]>;
+    getAllWatchedFolders: () => Promise<Record<string, string[]>>;
     getHistory: (markId: string, page?: number, pageSize?: number) => Promise<{ items: any[]; total: number }>;
   };
   app: {
@@ -49,6 +51,7 @@ const api: RendererAPI = {
   auth: {
     getToken: () => ipcRenderer.invoke("auth/getToken"),
     clearToken: () => ipcRenderer.invoke("auth/clearToken"),
+    logout: () => ipcRenderer.invoke("auth/logout"),
     startLoginFlow: () => ipcRenderer.invoke("auth/startLoginFlow"),
     getUser: () => ipcRenderer.invoke("auth/getUser"),
     handleFirstLogin: () => ipcRenderer.invoke("auth/handleFirstLogin"),
@@ -67,6 +70,8 @@ const api: RendererAPI = {
       ipcRenderer.invoke("mark/removeFolder", markId, folderPath),
     getFolders: (markId) =>
       ipcRenderer.invoke("mark/getFolders", markId),
+    getAllWatchedFolders: () =>
+      ipcRenderer.invoke("mark/getAllWatchedFolders"),
     getHistory: (markId, page, pageSize) =>
       ipcRenderer.invoke("mark/getHistory", markId, page, pageSize),
   },

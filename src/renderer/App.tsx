@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { useAtom } from "jotai";
+import { useAtom, useSetAtom } from "jotai";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import {
   HashRouter as Router,
@@ -10,10 +10,12 @@ import {
 import { useBootstrap } from "./hooks/useApi";
 import {
   tokenAtom,
+  folderAtom,
   autoStartAtom,
   marksAtom,
   healthAtom,
   currentUserAtom,
+  userProfileAtom,
   organizationsAtom,
   activeOrgAtom,
   isValidatingAtom,
@@ -57,6 +59,11 @@ function AppContent() {
   const [currentUser] = useAtom(currentUserAtom);
   const [organizations] = useAtom(organizationsAtom);
   const [activeOrg, setActiveOrg] = useAtom(activeOrgAtom);
+  const setFolder = useSetAtom(folderAtom);
+  const setHealth = useSetAtom(healthAtom);
+  const setCurrentUser = useSetAtom(currentUserAtom);
+  const setUserProfile = useSetAtom(userProfileAtom);
+  const setOrganizations = useSetAtom(organizationsAtom);
   const [downloadsAttached, setDownloadsAttached] = useState(false);
 
   useEffect(() => {
@@ -84,10 +91,35 @@ function AppContent() {
   }, [activeOrg, currentUser, setMarks]);
 
   useEffect(() => {
+    if (!currentUser) return;
+
+    const refreshMarks = async () => {
+      try {
+        let fetchedMarks = [];
+        if (activeOrg) {
+          fetchedMarks = (await window.ucfr.api.organizationMarks(
+            activeOrg.id
+          )) as any[];
+        } else {
+          fetchedMarks = (await window.ucfr.api.userMarks(
+            currentUser
+          )) as any[];
+        }
+        setMarks(fetchedMarks as any);
+      } catch (error) {
+        console.error("Failed to refresh marks:", error);
+      }
+    };
+
+    const intervalId = setInterval(refreshMarks, 60000);
+
+    return () => clearInterval(intervalId);
+  }, [currentUser, activeOrg, setMarks]);
+
+  useEffect(() => {
     async function checkDownloadsAttachment() {
       if (token && currentUser) {
-        const settings = (await window.ucfr.settings.get()) as any;
-        const markFolders = settings.projectFolders || {};
+        const markFolders = await window.ucfr.mark.getAllWatchedFolders();
         const downloadsPath = await window.ucfr.app.getPath("downloads");
 
         // Check if downloads folder is attached to any mark
@@ -115,8 +147,22 @@ function AppContent() {
   };
 
   const logout = async () => {
-    await window.ucfr.auth.clearToken();
+    // Full logout: clear all backend state (token, settings, watcher, DB)
+    await window.ucfr.auth.logout();
+
+    // Reset all Jotai atoms to their defaults
     setToken(null);
+    setMarks([]);
+    setCurrentUser(null);
+    setUserProfile(null);
+    setOrganizations([]);
+    setActiveOrg(null);
+    setHealth(null);
+    setFolder(undefined);
+    setAutoStart(false);
+
+    // Clear React Query cache
+    queryClient.clear();
   };
 
   const toggleAutoStart = async () => {

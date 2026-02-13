@@ -124,6 +124,17 @@ function createWebApi(): RendererAPI {
         window.dispatchEvent(new Event("tokenChanged"));
         return Promise.resolve(null);
       },
+      logout: () => {
+        setDbToken(null);
+        // Clear settings from localStorage
+        try {
+          localStorage.removeItem(SETTINGS_KEY);
+        } catch {
+          // ignore
+        }
+        window.dispatchEvent(new Event("tokenChanged"));
+        return Promise.resolve(null);
+      },
       startLoginFlow: () => {
         const requestId =
           typeof crypto !== "undefined" && "randomUUID" in crypto
