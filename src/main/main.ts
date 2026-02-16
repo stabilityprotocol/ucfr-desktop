@@ -46,15 +46,30 @@ function createWindow() {
 }
 
 function createTray() {
-  const iconPath = isDev 
-    ? path.join(process.cwd(), 'src/assets/icons/icon.png')
-    : path.join(__dirname, '../assets/icons/icon.png');
+  // Use template icon on macOS for proper light/dark mode support
+  const isMac = process.platform === 'darwin';
+  let iconPath: string;
+  
+  if (isMac) {
+    // macOS uses template images that are automatically tinted
+    iconPath = isDev 
+      ? path.join(process.cwd(), 'src/assets/icons/trayTemplate.png')
+      : path.join(__dirname, '../assets/icons/trayTemplate.png');
+  } else {
+    // Windows/Linux use regular colored icon
+    iconPath = isDev 
+      ? path.join(process.cwd(), 'src/assets/icons/icon.png')
+      : path.join(__dirname, '../assets/icons/icon.png');
+  }
+  
   const icon = nativeImage.createFromPath(iconPath);
   
-  // Resize icon for tray - macOS tray icons are typically 16px
-  const resizedIcon = icon.resize({ width: 16, height: 16 });
+  // On macOS, mark as template image so it adapts to light/dark mode
+  if (isMac) {
+    icon.setTemplateImage(true);
+  }
   
-  tray = new Tray(resizedIcon);
+  tray = new Tray(icon);
   const menu = Menu.buildFromTemplate([
     { label: "Open App", click: () => mainWindow?.show() },
     {
