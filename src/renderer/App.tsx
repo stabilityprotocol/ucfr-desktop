@@ -74,11 +74,11 @@ function AppContent() {
         let fetchedMarks = [];
         if (activeOrg) {
           fetchedMarks = (await window.ucfr.api.organizationMarks(
-            activeOrg.id
+            activeOrg.id,
           )) as any[];
         } else {
           fetchedMarks = (await window.ucfr.api.userMarks(
-            currentUser
+            currentUser,
           )) as any[];
         }
         setMarks(fetchedMarks as any);
@@ -98,11 +98,11 @@ function AppContent() {
         let fetchedMarks = [];
         if (activeOrg) {
           fetchedMarks = (await window.ucfr.api.organizationMarks(
-            activeOrg.id
+            activeOrg.id,
           )) as any[];
         } else {
           fetchedMarks = (await window.ucfr.api.userMarks(
-            currentUser
+            currentUser,
           )) as any[];
         }
         setMarks(fetchedMarks as any);
@@ -123,8 +123,8 @@ function AppContent() {
         const downloadsPath = await window.ucfr.app.getPath("downloads");
 
         // Check if downloads folder is attached to any mark
-        const isAttached = Object.values(markFolders).some(
-          (folders: any) => folders.includes(downloadsPath)
+        const isAttached = Object.values(markFolders).some((folders: any) =>
+          folders.includes(downloadsPath),
         );
 
         setDownloadsAttached(isAttached);
@@ -142,7 +142,7 @@ function AppContent() {
     const auth = (await window.ucfr.auth.startLoginFlow()) as {
       requestId: string;
     };
-    const authUrl = `https://auth.ucfr.io/?request_id=${auth.requestId}`;
+    const authUrl = `https://auth.stabilityprotocol.com/?request_id=${auth.requestId}`;
     await window.ucfr.app.openExternal(authUrl);
   };
 
