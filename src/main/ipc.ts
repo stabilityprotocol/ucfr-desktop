@@ -1,7 +1,7 @@
 import { app, dialog, ipcMain, shell, BrowserWindow } from "electron";
 import { randomUUID } from "crypto";
-import { tokenManager, migrateTokenToDb } from "./tokenStore";
-import { getSettings, updateSettings, resetSettings, migrateProjectFoldersToDb } from "./settings";
+import { tokenManager } from "./tokenStore";
+import { getSettings, updateSettings, resetSettings } from "./settings";
 import { FolderWatcher } from "./watcher";
 import { handleFileChange } from "./artifactService";
 import {
@@ -419,12 +419,8 @@ export async function registerIpcHandlers() {
   ipcMain.handle("db/setCurrentUser", async (_event, email: string | null) => {
     setCurrentUser(email);
 
-    // Migrate projectFolders and token from electron-store to database on user login
+    // Start watching folders from database on user login
     if (email) {
-      await migrateProjectFoldersToDb();
-      await migrateTokenToDb();
-
-      // Start watching folders from database
       const markFolders = await getAllWatchedFolders();
       const allFolders = Object.values(markFolders).flat();
 

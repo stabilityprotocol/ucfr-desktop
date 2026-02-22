@@ -6,10 +6,10 @@ export const configStore = {
   },
 
   async set(key: string, value: string): Promise<void> {
-    setConfigValue(key, value);
+    await setConfigValue(key, value);
   },
 
   async delete(key: string): Promise<void> {
-    deleteConfigValue(key);
+    await deleteConfigValue(key);
   },
 };
