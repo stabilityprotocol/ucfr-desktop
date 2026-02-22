@@ -28,9 +28,13 @@ import {
 type HistoryItem = {
   id: number;
   path: string;
-  event_type: string;
+  eventType: string;
   timestamp: string;
   hash: string;
+};
+
+type RawHistoryItem = Partial<HistoryItem> & {
+  event_type?: string;
 };
 
 type MarkDetailProps = {
@@ -77,7 +81,16 @@ export function MarkDetailPage({ marks }: MarkDetailProps) {
   const loadHistory = async (page: number = currentPage) => {
     if (window.ucfr?.mark && mark) {
       const result = await window.ucfr.mark.getHistory(mark.id, page, pageSize);
-      setHistory(result.items);
+      const normalizedItems: HistoryItem[] = (result.items as RawHistoryItem[]).map(
+        (item, index) => ({
+          id: item.id ?? index,
+          path: item.path ?? "",
+          eventType: item.eventType ?? item.event_type ?? "unknown",
+          timestamp: String(item.timestamp ?? "0"),
+          hash: item.hash ?? "",
+        }),
+      );
+      setHistory(normalizedItems);
       setTotalCount(result.total);
     }
   };
@@ -317,14 +330,16 @@ export function MarkDetailPage({ marks }: MarkDetailProps) {
                           <div className="flex items-center gap-4">
                             <span
                               className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${
-                                item.event_type === "add"
+                                item.eventType === "add"
                                   ? "bg-emerald-50 text-emerald-700 border border-emerald-100"
-                                  : item.event_type === "change"
+                                  : item.eventType === "change"
                                     ? "bg-blue-50 text-blue-700 border border-blue-100"
-                                    : "bg-zinc-50 text-zinc-600 border border-zinc-200"
+                                    : item.eventType === "move" || item.eventType === "rename"
+                                      ? "bg-amber-50 text-amber-700 border border-amber-100"
+                                      : "bg-zinc-50 text-zinc-600 border border-zinc-200"
                               }`}
                             >
-                              {item.event_type.toUpperCase()}
+                              {item.eventType.toUpperCase()}
                             </span>
                             <span className="text-xs text-zinc-400">
                               {formatTime(item.timestamp)}
