@@ -63,14 +63,14 @@ async function getAuthorizedEmail(token: string): Promise<string | null> {
         headers: {
           Authorization: `Bearer ${token}`,
         },
-      }
+      },
     );
     if (!response.ok) return null;
     const data = (await response.json()) as {
       ok: boolean;
       value?: { email: string };
     };
-    return data.ok ? data.value?.email ?? null : null;
+    return data.ok ? (data.value?.email ?? null) : null;
   } catch (e) {
     console.error("Error getting authorized user:", e);
     return null;
@@ -102,7 +102,10 @@ export async function handleFileChange(filePath: string, event: string) {
     try {
       stats = await fs.stat(filePath);
     } catch (statErr) {
-      console.error(`[ArtifactService] Failed to stat file ${filePath}:`, statErr);
+      console.error(
+        `[ArtifactService] Failed to stat file ${filePath}:`,
+        statErr,
+      );
       return;
     }
 
@@ -110,7 +113,10 @@ export async function handleFileChange(filePath: string, event: string) {
     try {
       fingerprint = await getFileHash(filePath);
     } catch (hashErr) {
-      console.error(`[ArtifactService] Failed to hash file ${filePath}:`, hashErr);
+      console.error(
+        `[ArtifactService] Failed to hash file ${filePath}:`,
+        hashErr,
+      );
       return;
     }
 
@@ -119,19 +125,29 @@ export async function handleFileChange(filePath: string, event: string) {
     // fileHistory.handleEvent() runs before this function and writes the hash to the DB
     // with submitted=0. Using getFileByHash here would always find the just-recorded hash,
     // causing every submission to be incorrectly skipped as a "duplicate".
-    console.log(`[ArtifactService] Checking if hash was already submitted to API: ${fingerprint.slice(0, 16)}...`);
+    console.log(
+      `[ArtifactService] Checking if hash was already submitted to API: ${fingerprint.slice(0, 16)}...`,
+    );
     let alreadySubmitted;
     try {
-      alreadySubmitted = await fileHistoryService.getSubmittedFileByHash(fingerprint);
+      alreadySubmitted =
+        await fileHistoryService.getSubmittedFileByHash(fingerprint);
     } catch (dbErr) {
-      console.error(`[ArtifactService] Database error checking submitted hash:`, dbErr);
+      console.error(
+        `[ArtifactService] Database error checking submitted hash:`,
+        dbErr,
+      );
       alreadySubmitted = null;
     }
     if (alreadySubmitted) {
-      console.log(`[ArtifactService] Hash ${fingerprint.slice(0, 16)}... already submitted to API, skipping: ${path.basename(filePath)}`);
+      console.log(
+        `[ArtifactService] Hash ${fingerprint.slice(0, 16)}... already submitted to API, skipping: ${path.basename(filePath)}`,
+      );
       return;
     }
-    console.log(`[ArtifactService] Hash not yet submitted to API, proceeding with submission`);
+    console.log(
+      `[ArtifactService] Hash not yet submitted to API, proceeding with submission`,
+    );
 
     const mimeType = await getMimeType(filePath);
     const fileName = path.basename(filePath);
@@ -139,7 +155,7 @@ export async function handleFileChange(filePath: string, event: string) {
     // Get previous fingerprint from history
     const previousFingerprint = await fileHistoryService.getPreviousHash(
       filePath,
-      fingerprint
+      fingerprint,
     );
 
     // 2. Get Mark & User Info
@@ -153,7 +169,7 @@ export async function handleFileChange(filePath: string, event: string) {
         console.log("[ArtifactService] Token expired, skipping artifact");
         await tokenManager.clear();
         BrowserWindow.getAllWindows().forEach((win) =>
-          win.webContents.send("tokenChanged")
+          win.webContents.send("tokenChanged"),
         );
         return;
       }
@@ -161,7 +177,9 @@ export async function handleFileChange(filePath: string, event: string) {
       return;
     }
     if (!mark) {
-      console.error(`[ArtifactService] Could not fetch mark ${markId} (returned null)`);
+      console.error(
+        `[ArtifactService] Could not fetch mark ${markId} (returned null)`,
+      );
       return;
     }
     console.log(`[ArtifactService] Successfully fetched mark: ${mark.name}`);
@@ -187,7 +205,7 @@ export async function handleFileChange(filePath: string, event: string) {
       // Additional descriptive metadata
       version: "1.0",
       lang: "en",
-      title: `UCFR Artifact for ${fileName}`,
+      title: fileName,
       description: `Submitted by ${userEmail}. Mark ${mark.name}. Artifact covers ${fileName}`,
       keywords: [
         "UCFR",
@@ -242,8 +260,8 @@ export async function handleFileChange(filePath: string, event: string) {
                 : null,
           },
           null,
-          2
-        )
+          2,
+        ),
       );
       return;
     }
@@ -257,7 +275,7 @@ export async function handleFileChange(filePath: string, event: string) {
     };
 
     console.log(
-      `[ArtifactService] Submitting artifact for ${fileName} in mark ${mark.name}`
+      `[ArtifactService] Submitting artifact for ${fileName} in mark ${mark.name}`,
     );
 
     const isImage = await isImageMimeType(mimeType);
@@ -269,7 +287,10 @@ export async function handleFileChange(filePath: string, event: string) {
         const originalBuffer = await fs.readFile(filePath);
 
         // Process image (transform if needed, maintaining original for fingerprint)
-        const processed = await processImageForArtifact(originalBuffer, mimeType);
+        const processed = await processImageForArtifact(
+          originalBuffer,
+          mimeType,
+        );
 
         result = await createImageMarkClaim(
           markId,
@@ -277,12 +298,12 @@ export async function handleFileChange(filePath: string, event: string) {
           payload,
           filePath,
           processed.buffer,
-          processed.mimeType
+          processed.mimeType,
         );
 
         if (processed.transformed) {
           console.log(
-            `[ArtifactService] Submitted transformed image for ${fileName}`
+            `[ArtifactService] Submitted transformed image for ${fileName}`,
           );
         }
       } else {
@@ -294,7 +315,7 @@ export async function handleFileChange(filePath: string, event: string) {
         console.log("[ArtifactService] Token expired, skipping artifact");
         await tokenManager.clear();
         BrowserWindow.getAllWindows().forEach((win) =>
-          win.webContents.send("tokenChanged")
+          win.webContents.send("tokenChanged"),
         );
         return;
       }
@@ -303,7 +324,7 @@ export async function handleFileChange(filePath: string, event: string) {
 
     if (result) {
       console.log(
-        `[ArtifactService] ${isImage ? "Image" : ""} artifact submitted successfully: ${result.id} (mark: ${mark.name}, file: ${fileName})`
+        `[ArtifactService] ${isImage ? "Image" : ""} artifact submitted successfully: ${result.id} (mark: ${mark.name}, file: ${fileName})`,
       );
 
       // Mark the file hash as submitted in the database so future detections
@@ -319,8 +340,8 @@ export async function handleFileChange(filePath: string, event: string) {
         JSON.stringify(
           { markId, markName: mark.name, fileName, isImage },
           null,
-          2
-        )
+          2,
+        ),
       );
     }
   } catch (err) {
