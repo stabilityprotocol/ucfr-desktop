@@ -22,6 +22,7 @@ type RendererAPI = {
     getFolders: (markId: string) => Promise<string[]>;
     getAllWatchedFolders: () => Promise<Record<string, string[]>>;
     getHistory: (markId: string, page?: number, pageSize?: number) => Promise<{ items: any[]; total: number }>;
+    getRecentActivity: (page?: number, pageSize?: number) => Promise<{ items: any[]; total: number }>;
   };
   app: {
     toggleAutoStart: (enable: boolean) => Promise<boolean>;
@@ -74,6 +75,8 @@ const api: RendererAPI = {
       ipcRenderer.invoke("mark/getAllWatchedFolders"),
     getHistory: (markId, page, pageSize) =>
       ipcRenderer.invoke("mark/getHistory", markId, page, pageSize),
+    getRecentActivity: (page, pageSize) =>
+      ipcRenderer.invoke("mark/getRecentActivity", page, pageSize),
   },
   app: {
     toggleAutoStart: (enable) =>

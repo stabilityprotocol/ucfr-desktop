@@ -48,8 +48,8 @@ export function SettingsPage({
             </div>
             <button
               onClick={onToggleAutoStart}
-              className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors focus:outline-none focus:ring-2 focus:ring-zinc-900 focus:ring-offset-2 ${
-                autoStart ? "bg-zinc-900" : "bg-zinc-200"
+              className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors focus:outline-none focus:ring-2 focus:ring-accent focus:ring-offset-2 ${
+                autoStart ? "bg-accent" : "bg-zinc-200"
               }`}
               aria-pressed={autoStart}
               role="switch"
@@ -88,7 +88,7 @@ export function SettingsPage({
                 className={`inline-flex items-center gap-2 px-4 py-2 rounded-md text-sm font-medium transition-colors ${
                   downloadsAttached
                     ? "text-zinc-400 bg-zinc-100 cursor-not-allowed"
-                    : "text-white bg-zinc-900 hover:bg-zinc-800"
+                    : "text-white bg-accent hover:bg-[#0070d4]"
                 }`}
               >
                 {downloadsAttached ? "Connected" : "Connect"}

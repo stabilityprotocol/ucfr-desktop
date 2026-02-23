@@ -323,6 +323,33 @@ export async function registerIpcHandlers() {
     return await fileHistoryService.getHistoryForFolders(folders, page, pageSize);
   });
 
+  ipcMain.handle("mark/getRecentActivity", async (_event, page: number = 1, pageSize: number = 20) => {
+    const markFolders = await getAllWatchedFolders();
+    const folderEntries = Object.entries(markFolders)
+      .flatMap(([markId, folders]) =>
+        folders.map((folderPath) => ({ markId, folderPath })),
+      )
+      .sort((a, b) => b.folderPath.length - a.folderPath.length);
+
+    if (folderEntries.length === 0) {
+      return { items: [], total: 0 };
+    }
+
+    const folders = folderEntries.map((entry) => entry.folderPath);
+    const result = await fileHistoryService.getHistoryForFolders(folders, page, pageSize);
+
+    const items = (result.items as Array<Record<string, unknown>>).map((item) => {
+      const filePath = typeof item.path === "string" ? item.path : "";
+      const matchedEntry = folderEntries.find((entry) => filePath.startsWith(entry.folderPath));
+      return {
+        ...item,
+        markId: matchedEntry?.markId ?? null,
+      };
+    });
+
+    return { items, total: result.total };
+  });
+
   ipcMain.handle("app/toggleAutoStart", async (_event, enable: boolean) => {
     updateSettings({ autoStart: enable });
     app.setLoginItemSettings({

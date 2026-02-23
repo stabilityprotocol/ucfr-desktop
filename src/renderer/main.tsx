@@ -210,9 +210,17 @@ function createWebApi(): RendererAPI {
         console.warn("getFolders is not supported in web environment.");
         return [];
       },
+      getAllWatchedFolders: async () => {
+        console.warn("getAllWatchedFolders is not supported in web environment.");
+        return {};
+      },
       getHistory: async (_markId: string, _page: number = 1, _pageSize: number = 20) => {
         // Web environment: file history is not supported
         console.warn("getHistory is not supported in web environment.");
+        return { items: [], total: 0 };
+      },
+      getRecentActivity: async (_page: number = 1, _pageSize: number = 20) => {
+        console.warn("getRecentActivity is not supported in web environment.");
         return { items: [], total: 0 };
       },
     },

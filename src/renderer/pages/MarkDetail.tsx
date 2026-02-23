@@ -1,6 +1,5 @@
 import { useState, useEffect } from "react";
 import { useParams } from "react-router-dom";
-import { formatDistanceToNow } from "date-fns";
 import type { Project } from "../../shared/api/types";
 import {
   Folder,
@@ -9,16 +8,10 @@ import {
   ExternalLink,
   Box,
   Activity,
-  FileText,
-  Image,
-  Video,
-  Music,
-  Archive,
-  FileCode,
-  File,
   ChevronLeft,
   ChevronRight,
 } from "lucide-react";
+import { ArtifactCard } from "../components/ArtifactCard";
 import {
   getFingerprintVerifyUrl,
   getMarkUrl,
@@ -119,77 +112,6 @@ export function MarkDetailPage({ marks }: MarkDetailProps) {
     }
   };
 
-  const formatTime = (ts: string | number) => {
-    const date = new Date(Number(ts) * 1000);
-    const now = new Date();
-    const hoursDiff = (now.getTime() - date.getTime()) / (1000 * 60 * 60);
-
-    if (hoursDiff < 24) {
-      return formatDistanceToNow(date, { addSuffix: true });
-    }
-    return date.toLocaleString();
-  };
-
-  const getFileName = (path: string) => {
-    return path.split(/[/\\]/).pop() || path;
-  };
-
-  const getFileIcon = (path: string) => {
-    const ext = path.split(".").pop()?.toLowerCase() || "";
-
-    const imageExts = [
-      "jpg",
-      "jpeg",
-      "png",
-      "gif",
-      "bmp",
-      "webp",
-      "svg",
-      "ico",
-      "tiff",
-      "tif",
-    ];
-    const videoExts = ["mp4", "avi", "mov", "wmv", "flv", "webm", "mkv", "m4v"];
-    const audioExts = ["mp3", "wav", "ogg", "flac", "aac", "m4a", "wma"];
-    const archiveExts = ["zip", "rar", "7z", "tar", "gz", "bz2", "xz"];
-    const codeExts = [
-      "js",
-      "ts",
-      "jsx",
-      "tsx",
-      "html",
-      "css",
-      "scss",
-      "json",
-      "xml",
-      "py",
-      "java",
-      "cpp",
-      "c",
-      "h",
-      "php",
-      "rb",
-      "go",
-      "rs",
-    ];
-    const docExts = ["pdf", "doc", "docx", "txt", "rtf", "odt", "md"];
-
-    if (imageExts.includes(ext))
-      return { Icon: Image, color: "text-purple-500", bg: "bg-purple-50" };
-    if (videoExts.includes(ext))
-      return { Icon: Video, color: "text-red-500", bg: "bg-red-50" };
-    if (audioExts.includes(ext))
-      return { Icon: Music, color: "text-amber-500", bg: "bg-amber-50" };
-    if (archiveExts.includes(ext))
-      return { Icon: Archive, color: "text-orange-500", bg: "bg-orange-50" };
-    if (codeExts.includes(ext))
-      return { Icon: FileCode, color: "text-cyan-500", bg: "bg-cyan-50" };
-    if (docExts.includes(ext))
-      return { Icon: FileText, color: "text-blue-500", bg: "bg-blue-50" };
-
-    return { Icon: File, color: "text-zinc-400", bg: "bg-zinc-50" };
-  };
-
   if (!mark) {
     return (
       <div className="min-h-full flex flex-col items-center justify-center text-zinc-500">
@@ -232,7 +154,7 @@ export function MarkDetailPage({ marks }: MarkDetailProps) {
           <button
             onClick={handleAddFolder}
             disabled={loading}
-            className="inline-flex items-center gap-2 px-3 py-1.5 bg-zinc-900 text-white rounded-md text-xs font-medium hover:bg-zinc-800 transition-colors disabled:opacity-50"
+            className="inline-flex items-center gap-2 px-3 py-1.5 bg-accent text-white rounded-md text-xs font-medium hover:bg-[#0070d4] transition-colors disabled:opacity-50"
           >
             <Plus className="w-3.5 h-3.5" />
             Add Folder
@@ -303,60 +225,20 @@ export function MarkDetailPage({ marks }: MarkDetailProps) {
             <>
               <div className="flex flex-col gap-3">
                 {history.map((item, i) => {
-                  const { Icon, color, bg } = getFileIcon(item.path);
+                  const eventType = String(item.eventType ?? "unknown");
+                  const path = String(item.path ?? "");
+                  const hash = String(item.hash ?? "");
+                  const timestamp = String(item.timestamp ?? "0");
+
                   return (
-                    <div
+                    <ArtifactCard
                       key={item.id || i}
-                      className="group relative p-4 rounded-lg border border-zinc-200 bg-white hover:border-zinc-300 hover:shadow-md hover:-translate-y-0.5 transition-all cursor-pointer"
-                      onClick={() =>
-                        openInWeb(getFingerprintVerifyUrl(item.hash))
-                      }
-                    >
-                      <div className="flex items-center justify-between gap-4">
-                        <div className="flex-1 min-w-0">
-                          <div className="flex items-center gap-3 mb-2">
-                            <div
-                              className={`flex-shrink-0 w-8 h-8 rounded-lg ${bg} flex items-center justify-center`}
-                            >
-                              <Icon className={`w-4 h-4 ${color}`} />
-                            </div>
-                            <h3
-                              className="font-medium text-zinc-900 truncate pr-6"
-                              title={item.path}
-                            >
-                              {getFileName(item.path)}
-                            </h3>
-                          </div>
-                          <div className="flex items-center gap-4">
-                            <span
-                              className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${
-                                item.eventType === "add"
-                                  ? "bg-emerald-50 text-emerald-700 border border-emerald-100"
-                                  : item.eventType === "change"
-                                    ? "bg-blue-50 text-blue-700 border border-blue-100"
-                                    : item.eventType === "move" || item.eventType === "rename"
-                                      ? "bg-amber-50 text-amber-700 border border-amber-100"
-                                      : "bg-zinc-50 text-zinc-600 border border-zinc-200"
-                              }`}
-                            >
-                              {item.eventType.toUpperCase()}
-                            </span>
-                            <span className="text-xs text-zinc-400">
-                              {formatTime(item.timestamp)}
-                            </span>
-                          </div>
-                        </div>
-                        <div className="flex-shrink-0 flex flex-col items-end gap-2">
-                          <div
-                            className="text-zinc-400 font-mono text-xs bg-zinc-50 px-2 py-1 rounded"
-                            title={item.hash}
-                          >
-                            #{item.hash?.substring(0, 8)}
-                          </div>
-                          <ExternalLink className="w-4 h-4 text-zinc-300 group-hover:text-zinc-400 transition-colors" />
-                        </div>
-                      </div>
-                    </div>
+                      path={path}
+                      eventType={eventType}
+                      timestamp={timestamp}
+                      hash={hash}
+                      onClick={() => hash && openInWeb(getFingerprintVerifyUrl(hash))}
+                    />
                   );
                 })}
               </div>
