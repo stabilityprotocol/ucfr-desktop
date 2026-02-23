@@ -84,7 +84,13 @@ function createTray() {
 }
 
 app.whenReady().then(async () => {
-  await registerIpcHandlers();
+  try {
+    await registerIpcHandlers();
+  } catch (err) {
+    console.error("[main] Failed to initialize IPC handlers / database:", err);
+    // Continue launching the window so the user at least sees the app
+  }
+
   createWindow();
   createTray();
 
