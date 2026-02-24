@@ -230,4 +230,23 @@
   .animate-shimmer {
     animation: shimmer 2s ease-in-out infinite;
   }
+
+  .bg-pattern-grid {
+    position: relative;
+    isolation: isolate;
+  }
+
+  .bg-pattern-grid::before {
+    content: "";
+    position: absolute;
+    inset: 0;
+    z-index: -1;
+    pointer-events: none;
+    background-color: var(--border);
+    -webkit-mask-image: url("data:image/svg+xml,%3Csvg width='40' height='40' viewBox='0 0 40 40' xmlns='http://www.w3.org/2000/svg'%3E%3Cpath d='M20 15V25M15 20H25' stroke='black' stroke-width='1'/%3E%3C/svg%3E");
+    mask-image: url("data:image/svg+xml,%3Csvg width='40' height='40' viewBox='0 0 40 40' xmlns='http://www.w3.org/2000/svg'%3E%3Cpath d='M20 15V25M15 20H25' stroke='black' stroke-width='1'/%3E%3C/svg%3E");
+    -webkit-mask-size: 40px 40px;
+    mask-size: 40px 40px;
+    opacity: 0.4;
+  }
 }
