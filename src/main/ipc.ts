@@ -12,7 +12,7 @@ import {
 } from "../shared/api/client";
 import { initDb, dbExec, dbQuery, setCurrentUser, clearAllUserData, getAllWatchedFolders, addWatchedFolder, removeWatchedFolder, getWatchedFoldersForMark } from "./db";
 import { fileHistoryService } from "./fileHistory";
-import { decodeUserFromToken } from "../shared/api/auth";
+import { decodeJwtPayload } from "../shared/api/auth";
 
 let watcher: FolderWatcher | null = null;
 
@@ -240,24 +240,44 @@ export async function registerIpcHandlers() {
 
     // Start polling in the background; when the token is ready, store it.
     void (async () => {
+      console.log("[auth/startLoginFlow] Starting token polling for requestId:", requestId);
       const token = await pollForToken(requestId);
+      console.log("[auth/startLoginFlow] Poll result:", token ? "token received" : "no token");
       if (token) {
         // Decode the JWT to extract user email BEFORE persisting the token.
         // After sign-out, currentUser is null — we need to re-establish it
         // from the JWT payload so tokenManager.setToken() can persist.
-        const claims = decodeUserFromToken(token);
-        const email = claims?.email ?? claims?.sub;
+        const payload = decodeJwtPayload<Record<string, unknown>>(token);
+        console.log("[auth/startLoginFlow] JWT payload keys:", Object.keys(payload ?? {}));
+        console.log("[auth/startLoginFlow] JWT full payload:", payload);
+        const email = typeof payload?.email === 'string' ? payload.email :
+                      typeof payload?.sub === 'string' ? payload.sub :
+                      typeof payload?.preferred_username === 'string' ? payload.preferred_username :
+                      null;
+        console.log("[auth/startLoginFlow] Extracted email:", email);
         if (email) {
-          setCurrentUser(email);  // establishes session + creates user row
+          setCurrentUser(email);
+          console.log("[auth/startLoginFlow] Session established for:", email);
+        } else {
+          console.warn("[auth/startLoginFlow] No email or sub found in JWT claims!");
         }
 
+        console.log("[auth/startLoginFlow] About to persist token...");
         await tokenManager.setToken(token);
+        console.log("[auth/startLoginFlow] Token persisted successfully");
+        
+        // Verify token was saved
+        const verifyToken = await tokenManager.getToken();
+        console.log("[auth/startLoginFlow] Token verification:", verifyToken ? "stored" : "NOT stored");
+        
         // Notify all renderer windows that the token has changed
+        console.log("[auth/startLoginFlow] Notifying renderer windows...");
         BrowserWindow.getAllWindows().forEach((win) =>
           win.webContents.send("tokenChanged"),
         );
+        console.log("[auth/startLoginFlow] Token change notifications sent");
       } else {
-        console.error("Authentication timed out or failed.");
+        console.error("[auth/startLoginFlow] Authentication timed out or failed.");
       }
     })();
 

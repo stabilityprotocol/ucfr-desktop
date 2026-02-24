@@ -152,24 +152,30 @@ export function useBootstrap() {
     hydrate();
 
     const handler = async () => {
+      console.log("[useBootstrap] tokenChanged event received!");
       if (!window.ucfr || !window.ucfr.auth) {
         console.warn(
           "[useBootstrap] window.ucfr is not available, skipping token refresh."
         );
         return;
       }
+      console.log("[useBootstrap] Calling auth.getToken()...");
       const nextToken = await window.ucfr.auth.getToken();
+      console.log("[useBootstrap] Token from main process:", nextToken ? "exists" : "null");
       setToken(nextToken);
       if (!nextToken) {
+        console.log("[useBootstrap] Token is null, clearing user state");
         setCurrentUser(null);
         setUserProfile(null);
         setOrganizations([]);
         setMarks([]);
       } else {
-        // Token is available, fetch user information
+        console.log("[useBootstrap] Token is available, fetching user information...");
         try {
           // STEP 1: Fetch user first
+          console.log("[useBootstrap] Calling auth.getUser()...");
           const user = await window.ucfr.auth.getUser();
+          console.log("[useBootstrap] User from auth:", user);
           setCurrentUser(user as any);
 
           // STEP 2: Fetch profile FIRST before any other API calls

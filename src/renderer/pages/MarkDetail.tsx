@@ -135,11 +135,11 @@ export function MarkDetailPage({ marks }: MarkDetailProps) {
         </div>
         <button
           onClick={() => openInWeb(getMarkUrl(mark.id))}
-          className="inline-flex items-center gap-2 px-4 py-2 rounded-md text-sm font-medium text-zinc-600 bg-zinc-50 hover:bg-zinc-100 transition-colors border border-zinc-200"
+          className="shrink-0 inline-flex items-center gap-2 px-4 py-2 rounded-md text-sm font-medium text-zinc-600 bg-zinc-50 hover:bg-zinc-100 transition-colors border border-zinc-200"
           title="Open in Web App"
         >
           <ExternalLink className="w-4 h-4" />
-          <span className="hidden sm:inline">Open in Web</span>
+          <span>Open in Web</span>
         </button>
       </header>
 
