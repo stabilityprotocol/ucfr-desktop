@@ -12,6 +12,7 @@ import {
 } from "../shared/api/client";
 import { initDb, dbExec, dbQuery, setCurrentUser, clearAllUserData, getAllWatchedFolders, addWatchedFolder, removeWatchedFolder, getWatchedFoldersForMark } from "./db";
 import { fileHistoryService } from "./fileHistory";
+import { decodeUserFromToken } from "../shared/api/auth";
 
 let watcher: FolderWatcher | null = null;
 
@@ -241,6 +242,15 @@ export async function registerIpcHandlers() {
     void (async () => {
       const token = await pollForToken(requestId);
       if (token) {
+        // Decode the JWT to extract user email BEFORE persisting the token.
+        // After sign-out, currentUser is null — we need to re-establish it
+        // from the JWT payload so tokenManager.setToken() can persist.
+        const claims = decodeUserFromToken(token);
+        const email = claims?.email ?? claims?.sub;
+        if (email) {
+          setCurrentUser(email);  // establishes session + creates user row
+        }
+
         await tokenManager.setToken(token);
         // Notify all renderer windows that the token has changed
         BrowserWindow.getAllWindows().forEach((win) =>
