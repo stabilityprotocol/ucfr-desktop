@@ -10,7 +10,7 @@ import {
   fetchOrganizationMarks,
   TokenExpiredError,
 } from "../shared/api/client";
-import { initDb, dbExec, dbQuery, setCurrentUser, clearAllUserData, getAllWatchedFolders, addWatchedFolder, removeWatchedFolder, getWatchedFoldersForMark } from "./db";
+import { initDb, dbExec, dbQuery, setCurrentUser, clearAllUserData, getAllWatchedFolders, addWatchedFolder, removeWatchedFolder, getWatchedFoldersForMark, findMarkIdForFolder } from "./db";
 import { fileHistoryService } from "./fileHistory";
 import { decodeJwtPayload } from "../shared/api/auth";
 
@@ -312,6 +312,29 @@ export async function registerIpcHandlers() {
     });
     if (!result.canceled && result.filePaths.length) {
       const folderPath = result.filePaths[0];
+
+      // Check if this folder is already assigned to another mark
+      const existingMarkId = await findMarkIdForFolder(folderPath);
+      if (existingMarkId && existingMarkId !== markId) {
+        let markName = existingMarkId;
+        try {
+          const token = await tokenManager.getToken();
+          const email = (await getAuthorizedUserFromApi()) as string | null;
+          if (token && email) {
+            const marks = await fetchUserMarks(email, token);
+            const conflicting = marks.find((m) => m.id === existingMarkId);
+            if (conflicting) markName = conflicting.name;
+          }
+        } catch {
+          // Fall back to using the mark ID
+        }
+        sendNotification(
+          "error",
+          `This folder is already watched by "${markName}". Remove it there first.`,
+        );
+        return null;
+      }
+
       const currentList = await getWatchedFoldersForMark(markId);
 
       if (!currentList.includes(folderPath)) {
@@ -578,7 +601,25 @@ export async function registerIpcHandlers() {
       const downloadsPath = app.getPath("downloads");
       console.log("[First Login] Downloads path:", downloadsPath);
 
-      // Check if Downloads folder is already attached
+      // Check if Downloads folder is already assigned to another mark
+      const existingMarkId = await findMarkIdForFolder(downloadsPath);
+      if (existingMarkId && existingMarkId !== privateMark.id) {
+        console.log("[First Login] Downloads folder already assigned to mark:", existingMarkId);
+        const conflicting = marks.find((m) => m.id === existingMarkId);
+        const markName = conflicting?.name ?? existingMarkId;
+        sendNotification(
+          "info",
+          `Downloads folder is already watched by "${markName}".`,
+        );
+        updateSettings({ hasCompletedFirstLogin: true });
+        return {
+          success: true,
+          attached: false,
+          reason: `Downloads folder already watched by "${markName}"`,
+        };
+      }
+
+      // Check if Downloads folder is already attached to this mark
       const currentList = await getWatchedFoldersForMark(privateMark.id);
 
       if (!currentList.includes(downloadsPath)) {
@@ -660,6 +701,22 @@ export async function registerIpcHandlers() {
       }
 
       const downloadsPath = app.getPath("downloads");
+
+      // Check if Downloads folder is already assigned to another mark
+      const existingMarkId = await findMarkIdForFolder(downloadsPath);
+      if (existingMarkId && existingMarkId !== privateMark.id) {
+        const conflicting = marks.find((m) => m.id === existingMarkId);
+        const markName = conflicting?.name ?? existingMarkId;
+        sendNotification(
+          "error",
+          `Downloads folder is already watched by "${markName}". Remove it there first.`,
+        );
+        return {
+          success: false,
+          error: `Downloads folder already watched by "${markName}"`,
+        };
+      }
+
       const currentList = await getWatchedFoldersForMark(privateMark.id);
 
       if (currentList.includes(downloadsPath)) {

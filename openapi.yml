@@ -405,11 +405,18 @@ paths:
     get:
       summary: Get user profile
       description: |
-        Returns organizations, projects, and the 10 most recent project claims created by the specified user.
+        Returns the user profile including their username, organizations, projects, and the 10 most recent project claims.
+        The username field contains a unique identifier (2-64 characters, alphanumeric and underscores) that is auto-generated
+        on first profile access and can be used to access the profile via /api/users/username/{username}/profile.
+
         Organizations include those where the user is a direct member (owner or member role) as well as organizations
         where the user is a guest (member of a project but not a direct organization member). Guest status can be
         determined by checking if the user's email is not present in the organization's members list.
         Projects include those where the user is an admin or member, as well as projects owned by the user.
+
+        recentClaims includes private-project claims only when the authenticated requester matches the profile email.
+        For all other requesters (or unauthenticated requests), recentClaims is limited to claims from public projects.
+
         When the authenticated requester matches the profile email, the service resolves and caches the Stability-managed Ethereum address for five minutes.
         Requests for other users' profiles omit the Ethereum address field to preserve privacy.
       tags:
@@ -433,6 +440,7 @@ paths:
                 sample:
                   value:
                     email: user@example.com
+                    username: "user_one"
                     displayName: "User One"
                     websiteUrl: "https://user.example"
                     ethAddress: "0x1111111111111111111111111111111111111111"
@@ -506,6 +514,7 @@ paths:
                   summary: Profile for a different user (ETH address omitted)
                   value:
                     email: colleague@example.com
+                    username: "colleague"
                     organizations: []
                     projects: []
                     recentClaims: []
@@ -518,8 +527,10 @@ paths:
     patch:
       summary: Update user profile
       description: |
-        Updates the display name, website link, or social media channels for the authenticated user's profile.
+        Updates the username, display name, website link, or social media channels for the authenticated user's profile.
         The requester must be authenticated and match the `email` path parameter. Provide at least one field to update.
+
+        Username must be unique (case-insensitive) and follow the format: 2-64 characters, alphanumeric and underscores only.
       tags:
         - Users
       parameters:
@@ -537,6 +548,10 @@ paths:
             schema:
               $ref: "#/components/schemas/UpdateUserProfileRequest"
             examples:
+              updateUsername:
+                summary: Update username
+                value:
+                  username: "new_username"
               updateDisplayName:
                 summary: Update display name and website
                 value:
@@ -626,6 +641,107 @@ paths:
               schema:
                 $ref: "#/components/schemas/ErrorResponse"
 
+  /api/users/username/{username}/profile:
+    get:
+      summary: Get user profile by username
+      description: |
+        Returns organizations, projects, and the 10 most recent project claims for the user with the specified username.
+        Username matching is case-insensitive. Returns 404 if the user doesn't exist or has no username configured.
+
+        Organizations include those where the user is a direct member (owner or member role) as well as organizations
+        where the user is a guest (member of a project but not a direct organization member).
+
+        recentClaims includes private-project claims only when the authenticated requester's email matches the profile email.
+        For all other requesters (or unauthenticated requests), recentClaims is limited to claims from public projects.
+
+        When the authenticated requester's email matches the profile email, the service resolves and caches the
+        Stability-managed Ethereum address for five minutes. Requests from other users omit the ethAddress field.
+      tags:
+        - Users
+      security:
+        - {}
+        - BearerAuth: []
+      parameters:
+        - name: username
+          in: path
+          required: true
+          description: Username of the user profile to retrieve (case-insensitive).
+          schema:
+            type: string
+            pattern: "^[a-zA-Z0-9_]{2,64}$"
+      responses:
+        "200":
+          description: User profile details
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/UserProfile"
+        "400":
+          description: Invalid username parameter
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "404":
+          description: User not found or username not configured
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+
+  /api/users/username/{username}/projects:
+    get:
+      summary: List projects owned by username
+      description: |
+        Public endpoint that returns projects owned by the user with the specified username.
+        Username matching is case-insensitive. When a valid Bearer token for the project owner
+        or a project member is supplied, private projects are included; otherwise only public
+        projects are returned.
+      tags:
+        - Users
+        - Projects
+      security:
+        - {}
+        - BearerAuth: []
+      parameters:
+        - name: username
+          in: path
+          required: true
+          description: Username of the user who owns the projects (case-insensitive).
+          schema:
+            type: string
+            pattern: "^[a-zA-Z0-9_]{2,64}$"
+      responses:
+        "200":
+          description: Projects owned by the user
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  projects:
+                    type: array
+                    items:
+                      $ref: "#/components/schemas/Project"
+        "400":
+          description: Invalid username parameter
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "401":
+          description: Unauthorized (invalid bearer token)
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "404":
+          description: User not found or username not configured
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+
   /api/users/activity/recent-claims:
     get:
       summary: Get recent claims from user's projects
@@ -705,7 +821,7 @@ paths:
       description: |
         Authenticated search endpoint backed by PostgreSQL trigram indexes (when available). A valid bearer token is required, so callers must send `Authorization: Bearer <token>`.
         Provide any combination of the following queries:
-        - `profile` query (minimum 2 characters) to find matching user emails
+        - `username` query (minimum 2 characters) to find matching usernames
         - `organization` query (minimum 2 characters) to locate organization names
         - `project` query (minimum 2 characters) to search project names (only returns projects where the user is owner, admin, or member)
         - `fingerprint` query (minimum 4 hexadecimal characters, with or without the `0x` prefix) to locate matching claim fingerprints
@@ -716,12 +832,12 @@ paths:
       security:
         - BearerAuth: []
       parameters:
-        - name: profile
+        - name: username
           in: query
           required: false
           description: >
-            Partial email to search for. Matching uses trigram similarity across organization members, project members,
-            project admins, and claim authors. When fewer than two characters are provided the query is accepted but not executed.
+            Partial username to search for. Matching uses trigram similarity (or substring fallback) against `user_profiles.username`.
+            Email values are not used for matching. When fewer than two characters are provided the query is accepted but not executed.
           schema:
             type: string
             minLength: 1
@@ -754,10 +870,10 @@ paths:
           schema:
             type: string
             minLength: 1
-        - name: profilesLimit
+        - name: usernamesLimit
           in: query
           required: false
-          description: Maximum number of profile matches to return (default 10, maximum 25). Set to 0 to skip profile search entirely.
+          description: Maximum number of username/profile matches to return (default 10, maximum 25). Set to 0 to skip username search entirely.
           schema:
             type: integer
             minimum: 0
@@ -2432,6 +2548,7 @@ components:
         - CC-BY-NC-4.0
         - CC-BY-NC-SA-4.0
         - CC0-1.0
+        - NONE_SPECIFIED
         - UNLICENSED
 
     License:
@@ -2487,6 +2604,7 @@ components:
           description: License information for the project. Claims under this project inherit this license setting.
         allowAiTraining:
           type: boolean
+          nullable: true
           description: Whether AI training is allowed on claims from this project. Claims under this project inherit this setting.
         members:
           type: array
@@ -2546,6 +2664,7 @@ components:
           description: License key for the project. Claims under this project will inherit this license.
         allowAiTraining:
           type: boolean
+          nullable: true
           description: Whether AI training is allowed on claims from this project. Claims under this project will inherit this setting. Defaults to true.
 
     UpdateProjectDto:
@@ -2573,6 +2692,7 @@ components:
           description: License key for the project. Set to null to remove the license setting.
         allowAiTraining:
           type: boolean
+          nullable: true
           description: Whether AI training is allowed on claims from this project. Claims under this project will inherit this setting.
 
     AddMemberDto:
@@ -2830,7 +2950,7 @@ components:
           type: string
           nullable: true
           description: Optional URI associated with the claim.
-        c2pa:
+        c2paAssets:
           $ref: "#/components/schemas/ClaimC2paAssets"
 
     ProjectClaim:
@@ -3022,6 +3142,42 @@ components:
           nullable: true
           description: Optional project description.
 
+    UserProfileProject:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+          description: Project ID
+        name:
+          type: string
+          description: Project name
+        description:
+          type: string
+          nullable: true
+          description: Project description
+        organization:
+          $ref: "#/components/schemas/ProjectOrganization"
+        ownerUserId:
+          type: string
+          format: email
+          nullable: true
+          description: Email of the user who owns the project (null for organization-owned projects)
+        visibility:
+          type: string
+          enum:
+            - public
+            - private
+          description: Visibility level controlling who can view claims and project details
+        totalClaims:
+          type: integer
+          minimum: 0
+          description: Total number of non-failed claims in the project
+        memberCount:
+          type: integer
+          minimum: 0
+          description: Total number of members in the project
+
     UserProfileClaim:
       allOf:
         - $ref: "#/components/schemas/ProjectClaim"
@@ -3042,6 +3198,13 @@ components:
           type: string
           format: email
           description: Email of the user whose profile is returned.
+        username:
+          type: string
+          nullable: true
+          pattern: "^[a-zA-Z0-9_]{2,64}$"
+          description: |
+            Unique username for the user profile (2-64 characters, alphanumeric and underscores only).
+            Auto-generated on first profile access. Can be used to access profile via /api/users/username/{username}/profile.
         displayName:
           type: string
           nullable: true
@@ -3068,10 +3231,10 @@ components:
           type: array
           description: Projects where the user is an admin, member, or owner. Duplicates are automatically removed.
           items:
-            $ref: "#/components/schemas/Project"
+            $ref: "#/components/schemas/UserProfileProject"
         recentClaims:
           type: array
-          description: Up to 10 most recent project claims created by the user.
+          description: Up to 10 most recent project claims created by the user. Includes private-project claims only for the profile owner; non-owners receive only claims from public projects.
           items:
             $ref: "#/components/schemas/UserProfileClaim"
         ethAddress:
@@ -3102,6 +3265,15 @@ components:
       type: object
       description: Fields that can be updated on a user profile. Provide at least one property.
       properties:
+        username:
+          type: string
+          nullable: true
+          pattern: "^[a-zA-Z0-9_]{2,64}$"
+          minLength: 2
+          maxLength: 64
+          description: |
+            Unique username for the profile (2-64 characters, alphanumeric and underscores only).
+            Must be unique across all users (case-insensitive). Set to null to clear the username.
         displayName:
           type: string
           maxLength: 120
@@ -3118,6 +3290,7 @@ components:
           items:
             $ref: "#/components/schemas/UserSocialChannel"
       example:
+        username: "alicia_doe"
         displayName: "Alicia Doe"
         websiteUrl: "https://alicia.example"
         socialChannels:
@@ -3128,16 +3301,20 @@ components:
     ProfileSearchResult:
       type: object
       required:
+        - username
         - email
         - organizationCount
         - projectCount
         - recentClaimCount
         - score
       properties:
+        username:
+          type: string
+          description: Username that matched the username query.
         email:
           type: string
           format: email
-          description: Email address that matched the profile query.
+          description: Email address associated with the matched username.
         organizationCount:
           type: integer
           minimum: 0
@@ -3158,7 +3335,7 @@ components:
         score:
           type: number
           format: float
-          description: Trigram similarity score (0–1) representing how closely the email matched the query.
+          description: Trigram similarity score (0–1) representing how closely the username matched the query.
 
     FingerprintSearchResult:
       type: object
@@ -3288,7 +3465,7 @@ components:
     SearchResponse:
       type: object
       required:
-        - profileSearchApplied
+        - usernameSearchApplied
         - organizationSearchApplied
         - projectSearchApplied
         - fingerprintSearchApplied
@@ -3297,10 +3474,10 @@ components:
         - projects
         - fingerprints
       properties:
-        profileQuery:
+        usernameQuery:
           type: string
           nullable: true
-          description: Profile query string echoed back when supplied.
+          description: Username query string echoed back when supplied.
         organizationQuery:
           type: string
           nullable: true
@@ -3313,9 +3490,9 @@ components:
           type: string
           nullable: true
           description: Fingerprint query string echoed back when supplied.
-        profileSearchApplied:
+        usernameSearchApplied:
           type: boolean
-          description: Indicates whether the profile query satisfied the minimum length and was executed.
+          description: Indicates whether the username query satisfied the minimum length and was executed.
         organizationSearchApplied:
           type: boolean
           description: Indicates whether the organization query satisfied the minimum length and was executed.

@@ -59,6 +59,80 @@ export async function fetchUserProfile(
   }
 }
 
+/**
+ * Fetches a user profile by username via GET /api/users/username/{username}/profile.
+ * Username matching is case-insensitive on the server.
+ */
+export async function fetchUserProfileByUsername(
+  username: string,
+  token?: string
+): Promise<UserProfile | null> {
+  try {
+    const url = `${BASE_URL}/api/users/username/${encodeURIComponent(username)}/profile`;
+    const options: RequestInit = { method: "GET" };
+
+    // Token is optional for this endpoint; use fetchWithAuth when available
+    let response: Response;
+    if (token) {
+      response = await fetchWithAuth(url, token, options);
+    } else {
+      response = await fetch(url, options);
+    }
+
+    if (!response.ok) {
+      console.error(
+        `Failed to fetch user profile by username: ${response.status} ${response.statusText}`
+      );
+      return null;
+    }
+
+    return await response.json();
+  } catch (error) {
+    if (error instanceof TokenExpiredError) {
+      throw error;
+    }
+    console.error("Error fetching user profile by username:", error);
+    return null;
+  }
+}
+
+/**
+ * Fetches marks owned by a user (by username) via GET /api/users/username/{username}/projects.
+ * Username matching is case-insensitive. Private marks are included when authenticated as the owner.
+ */
+export async function fetchUserMarksByUsername(
+  username: string,
+  token?: string
+): Promise<Project[]> {
+  try {
+    const url = `${BASE_URL}/api/users/username/${encodeURIComponent(username)}/projects`;
+    const options: RequestInit = { method: "GET" };
+
+    let response: Response;
+    if (token) {
+      response = await fetchWithAuth(url, token, options);
+    } else {
+      response = await fetch(url, options);
+    }
+
+    if (!response.ok) {
+      console.error(
+        `Failed to fetch user marks by username: ${response.status} ${response.statusText}`
+      );
+      return [];
+    }
+
+    const data = await response.json();
+    return data.projects || [];
+  } catch (error) {
+    if (error instanceof TokenExpiredError) {
+      throw error;
+    }
+    console.error("Error fetching user marks by username:", error);
+    return [];
+  }
+}
+
 export async function fetchUserMarks(
   email: string,
   token: string

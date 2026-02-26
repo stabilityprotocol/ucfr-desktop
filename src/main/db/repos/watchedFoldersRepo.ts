@@ -79,6 +79,16 @@ export function setWatchedFoldersForMarkForUser(userEmail: string, markId: strin
   }
 }
 
+export function findMarkIdForFolderForUser(userEmail: string, folderPath: string): string | null {
+  const row = getDb()
+    .select({ markId: watchedFolders.markId })
+    .from(watchedFolders)
+    .where(and(eq(watchedFolders.userEmail, userEmail), eq(watchedFolders.folderPath, folderPath)))
+    .get();
+
+  return row?.markId ?? null;
+}
+
 export function findMarkForFilePathForUser(userEmail: string, filePath: string): string | null {
   const rows = getDb()
     .select({ markId: watchedFolders.markId, folderPath: watchedFolders.folderPath })

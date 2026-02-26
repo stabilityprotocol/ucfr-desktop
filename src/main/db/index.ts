@@ -21,6 +21,7 @@ import {
 import {
   addWatchedFolderForUser,
   findMarkForFilePathForUser,
+  findMarkIdForFolderForUser,
   getAllWatchedFoldersForUser,
   getWatchedFoldersForMarkForUser,
   removeAllWatchedFoldersForMarkForUser,
@@ -161,6 +162,10 @@ export async function removeAllWatchedFoldersForMark(markId: string): Promise<vo
 
 export async function setWatchedFoldersForMark(markId: string, folderPaths: string[]): Promise<void> {
   setWatchedFoldersForMarkForUser(ensureUser(), markId, folderPaths);
+}
+
+export async function findMarkIdForFolder(folderPath: string): Promise<string | null> {
+  return findMarkIdForFolderForUser(ensureUser(), folderPath);
 }
 
 export async function findMarkForFilePath(filePath: string): Promise<string | null> {

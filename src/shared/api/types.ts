@@ -32,6 +32,7 @@ export type LicenseKey =
   | "CC-BY-NC-4.0"
   | "CC-BY-NC-SA-4.0"
   | "CC0-1.0"
+  | "NONE_SPECIFIED"
   | "UNLICENSED";
 
 // =============================================================================
@@ -92,7 +93,7 @@ export type Project = {
   ownerUserId?: string | null;
   visibility: "public" | "private";
   license?: License | null;
-  allowAiTraining?: boolean;
+  allowAiTraining?: boolean | null;
   members: string[];
   createdAt: string;
   updatedAt: string;
@@ -143,16 +144,33 @@ export type UserSocialChannel = {
 };
 
 /**
+ * Lightweight mark representation used in user profile responses.
+ * Unlike the full Project type, this includes aggregate counts
+ * (totalClaims, memberCount) and omits detailed member lists.
+ */
+export type UserProfileProject = {
+  id: string;
+  name: string;
+  description?: string | null;
+  organization?: ProjectOrganization | null;
+  ownerUserId?: string | null;
+  visibility: "public" | "private";
+  totalClaims: number;
+  memberCount: number;
+};
+
+/**
  * User profile with organizations, marks, and recent artifacts.
- * Returned by GET /api/users/{email}/profile endpoint.
+ * Returned by GET /api/users/{email}/profile or GET /api/users/username/{username}/profile endpoint.
  */
 export type UserProfile = {
   email: string;
+  username?: string | null;
   displayName?: string | null;
   websiteUrl?: string | null;
   socialChannels?: UserSocialChannel[];
   organizations: Organization[];
-  projects: Project[];
+  projects: UserProfileProject[];
   recentClaims: unknown[];
   ethAddress?: string | null;
 };
@@ -166,6 +184,7 @@ export type UserProfile = {
  * Part of the SearchResponse from GET /api/search endpoint.
  */
 export type ProfileSearchResult = {
+  username: string;
   email: string;
   organizationCount: number;
   projectCount: number;
@@ -225,11 +244,11 @@ export type FingerprintSearchResult = {
  * Supports searching profiles, organizations, marks, and fingerprints.
  */
 export type SearchResponse = {
-  profileQuery?: string | null;
+  usernameQuery?: string | null;
   organizationQuery?: string | null;
   projectQuery?: string | null;
   fingerprintQuery?: string | null;
-  profileSearchApplied: boolean;
+  usernameSearchApplied: boolean;
   organizationSearchApplied: boolean;
   projectSearchApplied: boolean;
   fingerprintSearchApplied: boolean;

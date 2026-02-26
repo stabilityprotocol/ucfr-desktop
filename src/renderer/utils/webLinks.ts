@@ -1,6 +1,6 @@
 export const WEB_APP_BASE_URL = "https://mnlth.app";
 
-export const getDashboardUrl = () => `${WEB_APP_BASE_URL}/dashboard`;
+export const getDashboardUrl = () => `${WEB_APP_BASE_URL}/profile`;
 
 export const getMarkUrl = (markId: string) =>
   `${WEB_APP_BASE_URL}/mark/${markId}`;

@@ -65,6 +65,10 @@ function AppContent() {
   const setUserProfile = useSetAtom(userProfileAtom);
   const setOrganizations = useSetAtom(organizationsAtom);
   const [downloadsAttached, setDownloadsAttached] = useState(false);
+  const [downloadsMarkName, setDownloadsMarkName] = useState<string | null>(
+    null,
+  );
+  const [downloadsMarkId, setDownloadsMarkId] = useState<string | null>(null);
 
   useEffect(() => {
     async function loadMarks() {
@@ -122,16 +126,26 @@ function AppContent() {
         const markFolders = await window.ucfr.mark.getAllWatchedFolders();
         const downloadsPath = await window.ucfr.app.getPath("downloads");
 
-        // Check if downloads folder is attached to any mark
-        const isAttached = Object.values(markFolders).some((folders: any) =>
-          folders.includes(downloadsPath),
-        );
+        // Find which mark the downloads folder is attached to
+        const attachedMarkId = Object.entries(markFolders).find(
+          ([, folders]: [string, any]) => folders.includes(downloadsPath),
+        )?.[0];
 
-        setDownloadsAttached(isAttached);
+        setDownloadsAttached(!!attachedMarkId);
+        setDownloadsMarkId(attachedMarkId ?? null);
+
+        if (attachedMarkId && marks.length > 0) {
+          const attachedMark = marks.find(
+            (m: any) => m.id === attachedMarkId,
+          );
+          setDownloadsMarkName(attachedMark?.name ?? null);
+        } else {
+          setDownloadsMarkName(null);
+        }
       }
     }
     checkDownloadsAttachment();
-  }, [token, currentUser]);
+  }, [token, currentUser, marks]);
 
   const login = async () => {
     if (!window.ucfr) {
@@ -228,6 +242,8 @@ function AppContent() {
               currentUser={currentUser}
               onAttachDownloadsFolder={handleAttachDownloadsFolder}
               downloadsAttached={downloadsAttached}
+              downloadsMarkName={downloadsMarkName}
+              downloadsMarkId={downloadsMarkId}
             />
           }
         />

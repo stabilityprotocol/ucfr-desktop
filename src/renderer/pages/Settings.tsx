@@ -1,4 +1,5 @@
-import { LogOut, Settings, ExternalLink } from "lucide-react";
+import { LogOut, Settings, ExternalLink, ChevronRight } from "lucide-react";
+import { useNavigate } from "react-router-dom";
 import { getProfileSettingsUrl, openInWeb } from "../utils/webLinks";
 
 type SettingsPageProps = {
@@ -8,6 +9,8 @@ type SettingsPageProps = {
   currentUser?: string | null;
   onAttachDownloadsFolder?: () => Promise<void>;
   downloadsAttached?: boolean;
+  downloadsMarkName?: string | null;
+  downloadsMarkId?: string | null;
 };
 
 export function SettingsPage({
@@ -17,7 +20,10 @@ export function SettingsPage({
   currentUser,
   onAttachDownloadsFolder,
   downloadsAttached,
+  downloadsMarkName,
+  downloadsMarkId,
 }: SettingsPageProps) {
+  const navigate = useNavigate();
   return (
     <div className="w-full max-w-3xl mx-auto p-8 md:p-12">
       <header className="mb-8">
@@ -78,7 +84,7 @@ export function SettingsPage({
                 </p>
                 <p className="text-sm text-zinc-500 mt-1">
                   {downloadsAttached
-                    ? "Your downloads folder is connected to My Artifacts."
+                    ? "Your downloads folder is being monitored."
                     : "Connect your downloads folder to automatically track new files."}
                 </p>
               </div>
@@ -94,6 +100,19 @@ export function SettingsPage({
                 {downloadsAttached ? "Connected" : "Connect"}
               </button>
             </div>
+            {downloadsAttached && downloadsMarkName && downloadsMarkId && (
+              <button
+                onClick={() => navigate(`/marks/${downloadsMarkId}`)}
+                className="mt-3 w-full flex items-center gap-2 px-3 py-2 rounded-lg bg-accent/[0.06] border border-accent/10 hover:bg-accent/[0.10] hover:border-accent/20 transition-colors group cursor-pointer"
+              >
+                <div className="w-1.5 h-1.5 rounded-full bg-accent shrink-0" />
+                <p className="text-xs text-accent font-medium">
+                  Connected to{" "}
+                  <span className="font-semibold">{downloadsMarkName}</span>
+                </p>
+                <ChevronRight className="w-3.5 h-3.5 text-accent/50 group-hover:text-accent ml-auto shrink-0 transition-colors" />
+              </button>
+            )}
           </div>
         </div>
 
