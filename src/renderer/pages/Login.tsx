@@ -10,9 +10,6 @@ export function LoginPage({ onLogin }: LoginPageProps) {
           <div className="mb-2 text-[38px] leading-none font-semibold tracking-tight text-zinc-800">
             Monolith
           </div>
-          <h1 className="text-3xl font-semibold tracking-tight text-zinc-900 md:text-4xl">
-            Connect your desktop to Monolith
-          </h1>
           <p className="text-sm text-zinc-600 max-w-[360px] mx-auto">
             Sign in with your Monolith account to start tracking folders and
             syncing artifacts in the background.
@@ -24,8 +21,8 @@ export function LoginPage({ onLogin }: LoginPageProps) {
             Authenticate
           </h2>
           <p className="mb-6 text-sm text-zinc-900 text-center">
-            We&apos;ll open a secure browser window where you can complete the
-            login. Once authorized, you&apos;ll be redirected back here.
+            Opens a secure browser window to login. Once authorized, you&apos;ll
+            be redirected back here
           </p>
           <div className="flex justify-center">
             <button
