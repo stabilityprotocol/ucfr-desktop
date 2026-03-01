@@ -10,7 +10,7 @@ export const getMarkSettingsUrl = (markId: string) =>
 
 export const getProfileSettingsUrl = (email?: string) =>
   email
-    ? `${WEB_APP_BASE_URL}/profile/${email}`
+    ? `${WEB_APP_BASE_URL}/profile/${encodeURIComponent(email)}?tab=settings`
     : `${WEB_APP_BASE_URL}/profile`;
 
 export const getOrganizationUrl = (orgId: string) =>
