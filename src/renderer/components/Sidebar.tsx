@@ -2,7 +2,7 @@ import { useRef, useEffect, useState } from "react";
 import { useAtom } from "jotai";
 import { NavLink, useNavigate } from "react-router-dom";
 import { Settings, ChevronDown, User } from "lucide-react";
-import { activeOrgAtom, organizationsAtom } from "../state";
+import { activeOrgAtom, currentUserAtom, organizationsAtom } from "../state";
 
 interface SidebarProps {
   marks: any[];
@@ -11,9 +11,11 @@ interface SidebarProps {
 export function Sidebar({ marks }: SidebarProps) {
   const navigate = useNavigate();
   const [activeOrg, setActiveOrg] = useAtom(activeOrgAtom);
+  const [currentUser] = useAtom(currentUserAtom);
   const [organizations] = useAtom(organizationsAtom);
   const [isOrgSelectorOpen, setIsOrgSelectorOpen] = useState(false);
   const dropdownRef = useRef<HTMLDivElement>(null);
+  const hasWorkspaces = organizations.length > 0;
 
   useEffect(() => {
     function handleClickOutside(event: MouseEvent) {
@@ -29,6 +31,15 @@ export function Sidebar({ marks }: SidebarProps) {
       document.removeEventListener("mousedown", handleClickOutside);
     };
   }, []);
+
+  useEffect(() => {
+    if (!hasWorkspaces) {
+      setIsOrgSelectorOpen(false);
+      if (activeOrg) {
+        setActiveOrg(null);
+      }
+    }
+  }, [activeOrg, hasWorkspaces, setActiveOrg]);
 
   const getInitials = (name: string) => {
     return name
@@ -52,33 +63,44 @@ export function Sidebar({ marks }: SidebarProps) {
 
       {/* Mark Selector */}
       <div className="px-4 my-5 relative" ref={dropdownRef}>
-        <div
-          onClick={() => setIsOrgSelectorOpen(!isOrgSelectorOpen)}
-          className="flex items-center justify-between px-3 py-2.5 bg-white border border-zinc-200/80 hover:border-zinc-300 transition-colors rounded-md cursor-pointer group"
-        >
-          <div className="flex items-center gap-3">
-            {activeOrg ? (
-              <div className="h-8 w-8 bg-accent flex items-center justify-center rounded-sm flex-shrink-0">
-                <span className="text-white font-bold text-xs">
-                  {getInitials(activeOrg.name)}
-                </span>
-              </div>
-            ) : (
-              <div className="h-8 w-8 bg-zinc-200 flex items-center justify-center rounded-sm flex-shrink-0">
-                <User size={16} className="text-zinc-600" />
-              </div>
-            )}
-            <span className="font-medium text-sm text-zinc-900 truncate max-w-[140px]">
-              {activeOrg ? activeOrg.name : "Personal Marks"}
+        {hasWorkspaces ? (
+          <div
+            onClick={() => setIsOrgSelectorOpen(!isOrgSelectorOpen)}
+            className="flex items-center justify-between px-3 py-2.5 bg-white border border-zinc-200/80 hover:border-zinc-300 transition-colors rounded-md cursor-pointer group"
+          >
+            <div className="flex items-center gap-3">
+              {activeOrg ? (
+                <div className="h-8 w-8 bg-accent flex items-center justify-center rounded-sm flex-shrink-0">
+                  <span className="text-white font-bold text-xs">
+                    {getInitials(activeOrg.name)}
+                  </span>
+                </div>
+              ) : (
+                <div className="h-8 w-8 bg-zinc-200 flex items-center justify-center rounded-sm flex-shrink-0">
+                  <User size={16} className="text-zinc-600" />
+                </div>
+              )}
+              <span className="font-medium text-sm text-zinc-900 truncate max-w-[140px]">
+                {activeOrg ? activeOrg.name : "Personal Marks"}
+              </span>
+            </div>
+            <ChevronDown
+              size={14}
+              className="text-zinc-400 group-hover:text-zinc-600"
+            />
+          </div>
+        ) : (
+          <div className="flex items-center gap-3 px-3 py-2.5 bg-white border border-zinc-200/80 rounded-md">
+            <div className="h-8 w-8 bg-zinc-200 flex items-center justify-center rounded-sm flex-shrink-0">
+              <User size={16} className="text-zinc-600" />
+            </div>
+            <span className="font-medium text-sm text-zinc-900">
+              Personal Marks
             </span>
           </div>
-          <ChevronDown
-            size={14}
-            className="text-zinc-400 group-hover:text-zinc-600"
-          />
-        </div>
+        )}
 
-        {isOrgSelectorOpen && (
+        {hasWorkspaces && isOrgSelectorOpen && (
           <div className="absolute left-4 right-4 top-full mt-1 bg-white border border-zinc-200 rounded-md shadow-lg z-50 max-h-80 overflow-y-auto py-2">
             <div
               className={`px-3 py-3 hover:bg-zinc-50 cursor-pointer flex items-center gap-3 ${
@@ -98,7 +120,7 @@ export function Sidebar({ marks }: SidebarProps) {
                   PERSONAL MARKS
                 </span>
                 <span className="text-xs text-zinc-500 truncate">
-                  Your own marks
+                  Your marks and shared personal marks
                 </span>
               </div>
             </div>
@@ -153,21 +175,34 @@ export function Sidebar({ marks }: SidebarProps) {
             Marks
           </div>
           <div className="flex flex-col gap-1">
-            {marks.map((p) => (
-              <NavLink
-                key={p.id}
-                to={`/marks/${p.id}`}
-                className={({ isActive }) =>
-                  `w-full block text-left text-sm font-normal transition-colors truncate px-3 py-1.5 rounded-md ${
-                    isActive
-                      ? "bg-accent text-white"
-                      : "text-zinc-500 hover:text-zinc-900 hover:bg-white"
-                  }`
-                }
-              >
-                {p.name}
-              </NavLink>
-            ))}
+            {marks.map((p) => {
+              const isSharedPersonalMark =
+                !p.organization?.id &&
+                p.adminEmail !== currentUser &&
+                Boolean(currentUser) &&
+                p.members.includes(currentUser);
+
+              return (
+                <NavLink
+                  key={p.id}
+                  to={`/marks/${p.id}`}
+                  className={({ isActive }) =>
+                    `w-full block text-left transition-colors px-3 py-1.5 rounded-md ${
+                      isActive
+                        ? "bg-accent text-white"
+                        : "text-zinc-500 hover:text-zinc-900 hover:bg-white"
+                    }`
+                  }
+                >
+                  <div className="truncate text-sm font-normal">{p.name}</div>
+                  {isSharedPersonalMark && (
+                    <div className="mt-1 text-[9px] leading-none font-semibold tracking-[0.12em] uppercase opacity-75">
+                      MEMBER
+                    </div>
+                  )}
+                </NavLink>
+              );
+            })}
           </div>
         </div>
       </nav>

@@ -27,6 +27,7 @@ import { MarkDetailPage } from "./pages/MarkDetail";
 import { SettingsPage } from "./pages/Settings";
 import { Layout } from "./components/Layout";
 import { ToastProvider } from "./components/ToastProvider";
+import type { Organization, Project } from "../shared/api/types";
 import "./style.css";
 
 const queryClient = new QueryClient({
@@ -37,6 +38,71 @@ const queryClient = new QueryClient({
     },
   },
 });
+
+async function loadMarksForScope({
+  activeOrg,
+  currentUser,
+  organizations,
+}: {
+  activeOrg: Organization | null;
+  currentUser: string | null;
+  organizations: Organization[];
+}): Promise<Project[]> {
+  if (!currentUser) {
+    return [];
+  }
+
+  if (activeOrg) {
+    return (await window.ucfr.api.organizationMarks(activeOrg.id)) as Project[];
+  }
+
+  const ownMarks = (await window.ucfr.api.userMarks(currentUser)) as Project[];
+  const memberEmails = Array.from(
+    new Set(
+      organizations
+        .flatMap((org) => org.members.map((member) => member.email))
+        .filter((email) => email !== currentUser),
+    ),
+  );
+
+  if (memberEmails.length === 0) {
+    return ownMarks;
+  }
+
+  const sharedPersonalMarkResults = await Promise.allSettled(
+    memberEmails.map(async (email) => {
+      const memberMarks = (await window.ucfr.api.userMarks(email)) as Project[];
+      return memberMarks.filter(
+        (mark) =>
+          !mark.organization?.id &&
+          mark.adminEmail !== currentUser &&
+          mark.members.includes(currentUser),
+      );
+    }),
+  );
+
+  const dedupedMarks = new Map<string, Project>();
+
+  for (const mark of ownMarks) {
+    if (!dedupedMarks.has(mark.id)) {
+      dedupedMarks.set(mark.id, mark);
+    }
+  }
+
+  for (const result of sharedPersonalMarkResults) {
+    if (result.status !== "fulfilled") {
+      continue;
+    }
+
+    for (const mark of result.value) {
+      if (!dedupedMarks.has(mark.id)) {
+        dedupedMarks.set(mark.id, mark);
+      }
+    }
+  }
+
+  return Array.from(dedupedMarks.values());
+}
 
 export default function App() {
   return (
@@ -75,41 +141,31 @@ function AppContent() {
       if (!currentUser) return;
 
       try {
-        let fetchedMarks = [];
-        if (activeOrg) {
-          fetchedMarks = (await window.ucfr.api.organizationMarks(
-            activeOrg.id,
-          )) as any[];
-        } else {
-          fetchedMarks = (await window.ucfr.api.userMarks(
-            currentUser,
-          )) as any[];
-        }
-        setMarks(fetchedMarks as any);
+        const fetchedMarks = await loadMarksForScope({
+          activeOrg,
+          currentUser,
+          organizations,
+        });
+        setMarks(fetchedMarks);
       } catch (error) {
         console.error("Failed to load marks:", error);
       }
     }
 
     loadMarks();
-  }, [activeOrg, currentUser, setMarks]);
+  }, [activeOrg, currentUser, organizations, setMarks]);
 
   useEffect(() => {
     if (!currentUser) return;
 
     const refreshMarks = async () => {
       try {
-        let fetchedMarks = [];
-        if (activeOrg) {
-          fetchedMarks = (await window.ucfr.api.organizationMarks(
-            activeOrg.id,
-          )) as any[];
-        } else {
-          fetchedMarks = (await window.ucfr.api.userMarks(
-            currentUser,
-          )) as any[];
-        }
-        setMarks(fetchedMarks as any);
+        const fetchedMarks = await loadMarksForScope({
+          activeOrg,
+          currentUser,
+          organizations,
+        });
+        setMarks(fetchedMarks);
       } catch (error) {
         console.error("Failed to refresh marks:", error);
       }
@@ -118,7 +174,7 @@ function AppContent() {
     const intervalId = setInterval(refreshMarks, 60000);
 
     return () => clearInterval(intervalId);
-  }, [currentUser, activeOrg, setMarks]);
+  }, [currentUser, activeOrg, organizations, setMarks]);
 
   useEffect(() => {
     async function checkDownloadsAttachment() {
