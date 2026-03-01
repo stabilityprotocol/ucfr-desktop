@@ -8,6 +8,12 @@ let mainWindow: BrowserWindow | null = null;
 
 const isDev = !app.isPackaged;
 
+function resolveAssetPath(...segments: string[]) {
+  return isDev
+    ? path.join(process.cwd(), "src", "assets", ...segments)
+    : path.join(process.resourcesPath, "assets", ...segments);
+}
+
 function createWindow() {
   let preloadPath: string;
   if (isDev) {
@@ -19,9 +25,7 @@ function createWindow() {
   }
 
   // Determine icon path
-  const iconPath = isDev
-    ? path.join(process.cwd(), 'src/assets/icons/icon.png')
-    : path.join(__dirname, '../assets/icons/icon.png');
+  const iconPath = resolveAssetPath("icons", "icon.png");
   
   const icon = nativeImage.createFromPath(iconPath);
 
@@ -48,21 +52,15 @@ function createWindow() {
 function createTray() {
   // Use template icon on macOS for proper light/dark mode support
   const isMac = process.platform === 'darwin';
-  let iconPath: string;
-  
-  if (isMac) {
-    // macOS uses template images that are automatically tinted
-    iconPath = isDev 
-      ? path.join(process.cwd(), 'src/assets/icons/trayTemplate.png')
-      : path.join(__dirname, '../assets/icons/trayTemplate.png');
-  } else {
-    // Windows/Linux use regular colored icon
-    iconPath = isDev 
-      ? path.join(process.cwd(), 'src/assets/icons/icon.png')
-      : path.join(__dirname, '../assets/icons/icon.png');
-  }
+  const iconPath = isMac
+    ? resolveAssetPath("icons", "trayTemplate.png")
+    : resolveAssetPath("icons", "icon.png");
   
   const icon = nativeImage.createFromPath(iconPath);
+  if (icon.isEmpty()) {
+    console.error(`[main] Failed to load tray icon from ${iconPath}`);
+    return;
+  }
   
   // On macOS, mark as template image so it adapts to light/dark mode
   if (isMac) {
