@@ -250,10 +250,8 @@ function AppContent() {
       return;
     }
 
-    const auth = (await window.ucfr.auth.startLoginFlow()) as {
-      requestId: string;
-    };
-    const authUrl = `https://auth.stabilityprotocol.com/?request_id=${auth.requestId}`;
+    await window.ucfr.auth.startLoginFlow();
+    const authUrl = `https://auth.stabilityprotocol.com/?redirect_to=monolithbystability://token`;
     await window.ucfr.app.openExternal(authUrl);
   };
 
