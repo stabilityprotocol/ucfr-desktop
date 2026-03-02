@@ -9,6 +9,12 @@
     "app/**/*",
     "!app/**/*.map"
   ],
+  "protocols": [
+    {
+      "name": "Monolith by Stability",
+      "schemes": ["monolithbystability"]
+    }
+  ],
   "asarUnpack": [
     "node_modules/better-sqlite3/**",
     "node_modules/bindings/**",

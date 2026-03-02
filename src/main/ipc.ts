@@ -10,9 +10,9 @@ import {
   fetchOrganizationMarks,
   TokenExpiredError,
 } from "../shared/api/client";
-import { initDb, dbExec, dbQuery, setCurrentUser, clearAllUserData, getAllWatchedFolders, addWatchedFolder, removeWatchedFolder, getWatchedFoldersForMark, findMarkIdForFolder } from "./db";
+import { initDb, dbExec, dbQuery, setCurrentUser, getCurrentUser, clearAllUserData, getAllWatchedFolders, addWatchedFolder, removeWatchedFolder, getWatchedFoldersForMark, findMarkIdForFolder } from "./db";
 import { fileHistoryService } from "./fileHistory";
-import { decodeJwtPayload } from "../shared/api/auth";
+import { decodeJwtPayload, isTokenExpired } from "../shared/api/auth";
 
 let watcher: FolderWatcher | null = null;
 
@@ -26,6 +26,83 @@ function sendNotification(type: "success" | "error" | "info", message: string) {
   BrowserWindow.getAllWindows().forEach((win) =>
     win.webContents.send("notification", { type, message }),
   );
+}
+
+function notifyTokenChanged() {
+  BrowserWindow.getAllWindows().forEach((win) =>
+    win.webContents.send("tokenChanged"),
+  );
+}
+
+function clearPendingWatcherState() {
+  for (const [, entry] of pendingEvents) {
+    clearTimeout(entry.timer);
+  }
+  pendingEvents.clear();
+}
+
+function stopWatcherForSessionChange() {
+  if (watcher) {
+    watcher.stop();
+    watcher = null;
+  }
+  clearPendingWatcherState();
+}
+
+function getEmailFromToken(token: string): string | null {
+  const payload = decodeJwtPayload<Record<string, unknown>>(token);
+  if (!payload) {
+    return null;
+  }
+
+  return typeof payload.email === "string" ? payload.email :
+         typeof payload.sub === "string" ? payload.sub :
+         typeof payload.preferred_username === "string" ? payload.preferred_username :
+         null;
+}
+
+export async function applyAuthToken(
+  token: string,
+  source: "login-flow" | "deeplink",
+): Promise<{ ok: true; email: string } | { ok: false; reason: string }> {
+  const nextToken = token.trim();
+  if (!nextToken) {
+    if (source === "deeplink") {
+      sendNotification("error", "Sign-in link did not include a token.");
+    }
+    return { ok: false, reason: "Missing token" };
+  }
+
+  if (isTokenExpired(nextToken)) {
+    if (source === "deeplink") {
+      sendNotification("error", "Sign-in link token is expired.");
+    }
+    return { ok: false, reason: "Token is expired" };
+  }
+
+  const email = getEmailFromToken(nextToken);
+  if (!email) {
+    if (source === "deeplink") {
+      sendNotification("error", "Sign-in link token is invalid.");
+    }
+    return { ok: false, reason: "Token does not contain a usable user identifier" };
+  }
+
+  const previousUser = getCurrentUser();
+  if (previousUser && previousUser !== email) {
+    stopWatcherForSessionChange();
+  }
+
+  setCurrentUser(email);
+  await tokenManager.setToken(nextToken);
+  notifyTokenChanged();
+
+  if (source === "deeplink") {
+    sendNotification("success", `Signed in as ${email}`);
+  }
+
+  console.log(`[auth/${source}] Applied token for ${email}`);
+  return { ok: true, email };
 }
 
 async function pollForToken(requestId: string): Promise<string | null> {
@@ -169,21 +246,12 @@ export async function registerIpcHandlers() {
     await tokenManager.clear();
 
     // 2. Stop file watcher (was watching previous user's folders)
-    if (watcher) {
-      watcher.stop();
-      watcher = null;
-    }
+    stopWatcherForSessionChange();
 
-    // 3. Clear any pending debounced file events
-    for (const [, entry] of pendingEvents) {
-      clearTimeout(entry.timer);
-    }
-    pendingEvents.clear();
-
-    // 4. Reset settings to defaults (projectFolders, hasCompletedFirstLogin, etc.)
+    // 3. Reset settings to defaults (projectFolders, hasCompletedFirstLogin, etc.)
     resetSettings();
 
-    // 5. Clear all user data from SQLite database
+    // 4. Clear all user data from SQLite database
     await clearAllUserData();
 
     console.log("[auth/logout] Full logout completed — all user data cleared");
@@ -244,38 +312,10 @@ export async function registerIpcHandlers() {
       const token = await pollForToken(requestId);
       console.log("[auth/startLoginFlow] Poll result:", token ? "token received" : "no token");
       if (token) {
-        // Decode the JWT to extract user email BEFORE persisting the token.
-        // After sign-out, currentUser is null — we need to re-establish it
-        // from the JWT payload so tokenManager.setToken() can persist.
-        const payload = decodeJwtPayload<Record<string, unknown>>(token);
-        console.log("[auth/startLoginFlow] JWT payload keys:", Object.keys(payload ?? {}));
-        console.log("[auth/startLoginFlow] JWT full payload:", payload);
-        const email = typeof payload?.email === 'string' ? payload.email :
-                      typeof payload?.sub === 'string' ? payload.sub :
-                      typeof payload?.preferred_username === 'string' ? payload.preferred_username :
-                      null;
-        console.log("[auth/startLoginFlow] Extracted email:", email);
-        if (email) {
-          setCurrentUser(email);
-          console.log("[auth/startLoginFlow] Session established for:", email);
-        } else {
-          console.warn("[auth/startLoginFlow] No email or sub found in JWT claims!");
+        const result = await applyAuthToken(token, "login-flow");
+        if (!result.ok) {
+          console.error("[auth/startLoginFlow] Failed to apply token:", result.reason);
         }
-
-        console.log("[auth/startLoginFlow] About to persist token...");
-        await tokenManager.setToken(token);
-        console.log("[auth/startLoginFlow] Token persisted successfully");
-        
-        // Verify token was saved
-        const verifyToken = await tokenManager.getToken();
-        console.log("[auth/startLoginFlow] Token verification:", verifyToken ? "stored" : "NOT stored");
-        
-        // Notify all renderer windows that the token has changed
-        console.log("[auth/startLoginFlow] Notifying renderer windows...");
-        BrowserWindow.getAllWindows().forEach((win) =>
-          win.webContents.send("tokenChanged"),
-        );
-        console.log("[auth/startLoginFlow] Token change notifications sent");
       } else {
         console.error("[auth/startLoginFlow] Authentication timed out or failed.");
       }

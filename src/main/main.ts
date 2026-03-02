@@ -1,12 +1,98 @@
 import { app, BrowserWindow, Menu, Tray, nativeImage } from "electron";
 import path from "path";
-import { registerIpcHandlers, stopWatcher } from "./ipc";
-import { getSettings } from "./settings";
+import { applyAuthToken, registerIpcHandlers, stopWatcher } from "./ipc";
 
 let tray: Tray | null = null;
 let mainWindow: BrowserWindow | null = null;
+let pendingDeepLink: string | null = null;
 
 const isDev = !app.isPackaged;
+const appProtocol = "monolithbystability";
+
+function extractDeepLink(argv: string[]) {
+  return argv.find((arg) => arg.startsWith(`${appProtocol}://`)) ?? null;
+}
+
+function focusMainWindow() {
+  if (!mainWindow) {
+    return;
+  }
+
+  if (mainWindow.isMinimized()) {
+    mainWindow.restore();
+  }
+
+  mainWindow.show();
+  mainWindow.focus();
+}
+
+function flushPendingDeepLink() {
+  if (!mainWindow || !pendingDeepLink) {
+    return;
+  }
+
+  if (mainWindow.webContents.isLoadingMainFrame()) {
+    return;
+  }
+
+  mainWindow.webContents.send("app/open-url", pendingDeepLink);
+  pendingDeepLink = null;
+}
+
+function getTokenFromDeepLink(target: string): string | null {
+  try {
+    const url = new URL(target);
+    if (url.protocol !== `${appProtocol}:` || url.host !== "token") {
+      return null;
+    }
+
+    const token = decodeURIComponent(url.pathname.replace(/^\/+/, ""));
+    return token || null;
+  } catch {
+    return null;
+  }
+}
+
+async function handleDeepLink(url: string) {
+  const token = getTokenFromDeepLink(url);
+  if (token) {
+    const result = await applyAuthToken(token, "deeplink");
+    if (!result.ok) {
+      console.error("[main] Failed to apply token from deep link:", result.reason);
+    }
+
+    pendingDeepLink = "/";
+  } else {
+    pendingDeepLink = url;
+  }
+
+  if (!app.isReady()) {
+    return;
+  }
+
+  if (!mainWindow) {
+    createWindow();
+  }
+
+  focusMainWindow();
+  flushPendingDeepLink();
+}
+
+function registerAppProtocol() {
+  if (isDev) {
+    const entryPoint = process.argv[1];
+    if (entryPoint) {
+      app.setAsDefaultProtocolClient(
+        appProtocol,
+        process.execPath,
+        [path.resolve(entryPoint)],
+      );
+      return;
+    }
+  }
+
+  app.setAsDefaultProtocolClient(appProtocol);
+}
 
 function resolveAssetPath(...segments: string[]) {
   return isDev
@@ -47,6 +133,10 @@ function createWindow() {
   } else {
     mainWindow.loadFile(path.join(__dirname, "../renderer/index.html"));
   }
+
+  mainWindow.webContents.once("did-finish-load", () => {
+    flushPendingDeepLink();
+  });
 }
 
 function createTray() {
@@ -81,23 +171,58 @@ function createTray() {
   tray.setContextMenu(menu);
 }
 
-app.whenReady().then(async () => {
-  try {
-    await registerIpcHandlers();
-  } catch (err) {
-    console.error("[main] Failed to initialize IPC handlers / database:", err);
-    // Continue launching the window so the user at least sees the app
-  }
+const gotSingleInstanceLock = app.requestSingleInstanceLock();
 
-  createWindow();
-  createTray();
-
-  app.on("activate", () => {
-    if (BrowserWindow.getAllWindows().length === 0) {
-      createWindow();
+if (!gotSingleInstanceLock) {
+  app.quit();
+} else {
+  app.on("second-instance", (_event, argv) => {
+    const deepLink = extractDeepLink(argv);
+    if (deepLink) {
+      void handleDeepLink(deepLink);
+      return;
     }
+
+    focusMainWindow();
   });
-});
+
+  app.on("open-url", (event, url) => {
+    event.preventDefault();
+    void handleDeepLink(url);
+  });
+
+  app.whenReady().then(async () => {
+    registerAppProtocol();
+
+    try {
+      await registerIpcHandlers();
+    } catch (err) {
+      console.error("[main] Failed to initialize IPC handlers / database:", err);
+      // Continue launching the window so the user at least sees the app
+    }
+
+    createWindow();
+    createTray();
+
+    if (pendingDeepLink) {
+      void handleDeepLink(pendingDeepLink);
+    }
+
+    const initialDeepLink = extractDeepLink(process.argv);
+    if (initialDeepLink) {
+      void handleDeepLink(initialDeepLink);
+    }
+
+    app.on("activate", () => {
+      if (BrowserWindow.getAllWindows().length === 0) {
+        createWindow();
+        return;
+      }
+
+      focusMainWindow();
+    });
+  });
+}
 
 app.on("window-all-closed", () => {
   if (process.platform !== "darwin") {

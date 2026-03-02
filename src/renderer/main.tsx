@@ -237,6 +237,7 @@ function createWebApi(): RendererAPI {
         console.warn("getPath is not supported in web environment.");
         return "";
       },
+      onOpenUrl: () => () => undefined,
     },
     sync: {
       startWatcher: async () => {

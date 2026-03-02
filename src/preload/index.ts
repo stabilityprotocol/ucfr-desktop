@@ -28,6 +28,7 @@ type RendererAPI = {
     toggleAutoStart: (enable: boolean) => Promise<boolean>;
     openExternal: (target: string) => Promise<void>;
     getPath: (name: string) => Promise<string>;
+    onOpenUrl: (callback: (target: string) => void) => () => void;
   };
   sync: {
     startWatcher: (folderPath: string) => Promise<boolean>;
@@ -83,6 +84,13 @@ const api: RendererAPI = {
       ipcRenderer.invoke("app/toggleAutoStart", enable),
     openExternal: (target) => ipcRenderer.invoke("app/openExternal", target),
     getPath: (name) => ipcRenderer.invoke("app/getPath", name),
+    onOpenUrl: (callback) => {
+      const subscription = (_event: unknown, target: string) => {
+        callback(target);
+      };
+      ipcRenderer.on("app/open-url", subscription);
+      return () => ipcRenderer.removeListener("app/open-url", subscription);
+    },
   },
   sync: {
     startWatcher: (folderPath) =>

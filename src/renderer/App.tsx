@@ -6,6 +6,7 @@ import {
   Routes,
   Route,
   Navigate,
+  useNavigate,
 } from "react-router-dom";
 import { useBootstrap } from "./hooks/useApi";
 import {
@@ -115,8 +116,35 @@ export default function App() {
   );
 }
 
+function parseRouteFromAppUrl(target: string): string | null {
+  try {
+    const url = new URL(target);
+    if (url.protocol !== "monolithbystability:") {
+      return null;
+    }
+
+    if (url.hash.startsWith("#/")) {
+      return `${url.hash.slice(1)}${url.search}`;
+    }
+
+    const parts = [url.host, url.pathname.replace(/^\/+/, "")]
+      .filter(Boolean)
+      .join("/");
+
+    if (!parts) {
+      return "/";
+    }
+
+    return `/${parts}${url.search}`;
+  } catch (error) {
+    console.error("Failed to parse app URL:", error);
+    return null;
+  }
+}
+
 function AppContent() {
   useBootstrap();
+  const navigate = useNavigate();
   const [token, setToken] = useAtom(tokenAtom);
   const [isValidating] = useAtom(isValidatingAtom);
   const [autoStart, setAutoStart] = useAtom(autoStartAtom);
@@ -202,6 +230,19 @@ function AppContent() {
     }
     checkDownloadsAttachment();
   }, [token, currentUser, marks]);
+
+  useEffect(() => {
+    const unsubscribe = window.ucfr.app.onOpenUrl((target) => {
+      const nextRoute = parseRouteFromAppUrl(target);
+      if (!nextRoute) {
+        return;
+      }
+
+      navigate(nextRoute);
+    });
+
+    return unsubscribe;
+  }, [navigate]);
 
   const login = async () => {
     if (!window.ucfr) {
