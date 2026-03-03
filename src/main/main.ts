@@ -1,6 +1,7 @@
 import { app, BrowserWindow, Menu, Tray, nativeImage } from "electron";
 import path from "path";
 import { applyAuthToken, registerIpcHandlers, stopWatcher } from "./ipc";
+import { initAutoUpdater, stopAutoUpdater } from "./autoUpdater";
 
 let tray: Tray | null = null;
 let mainWindow: BrowserWindow | null = null;
@@ -203,6 +204,7 @@ if (!gotSingleInstanceLock) {
 
     createWindow();
     createTray();
+    initAutoUpdater();
 
     if (pendingDeepLink) {
       void handleDeepLink(pendingDeepLink);
@@ -233,6 +235,7 @@ app.on("window-all-closed", () => {
 
 app.on("before-quit", () => {
   stopWatcher();
+  stopAutoUpdater();
 });
 
 export {}; // keep TypeScript happy when module is unused

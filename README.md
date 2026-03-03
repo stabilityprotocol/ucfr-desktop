@@ -1,55 +1,37 @@
-# UCFR Desktop
+# Monolith
 
-Mocked Electron + React desktop shell that follows the API surface defined in `openapi.yml`. The app ships with fake authentication, settings, and watcher flows so you can experiment with the renderer UI and IPC messages without a backend.
+Desktop companion app by [Monolith](https://joinmonolith.com) @ [Stability Protocol](https://stabilityprotocol.com) that watches your files, creates artifacts automatically, and keeps everything organized into marks.
 
-## Prerequisites
-- Node.js 18+ recommended.
-- Yarn Berry (v4) with the `node-modules` linker (configured in `.yarnrc.yml`).
+## Download
 
-If you do not have Yarn v4 yet, install it via:
-```bash
-yarn set version 4.3.1
-```
+Get the latest version for your platform from [GitHub Releases](https://github.com/stabilityprotocol/ucfr-desktop/releases/latest):
 
-## Install dependencies
-The repository uses Plug'n'Play disabled (`node-modules` linker), so the usual `node_modules` directory will be created.
-```bash
-yarn install
-```
+| Platform | Format              |
+| -------- | ------------------- |
+| macOS    | `.dmg`              |
+| Windows  | `.exe`              |
+| Linux    | `.AppImage`, `.deb` |
 
-## Run the app in development
-Starts Vite for the renderer and Electron (with ts-node) for the main process, waiting for the renderer to be ready.
-```bash
-yarn dev
-```
-The app will open an Electron window connected to `http://localhost:5173`.
+The app checks for updates automatically. Minor updates are installed in the background. Major versions will prompt you to download the new release.
 
-### Run renderer only
-If you just want to iterate on the React UI in the browser:
-```bash
-yarn renderer
-```
-Then open `http://localhost:5173` in your browser.
+## What it does
 
-### Run main process only
-To run only the Electron main process against an already running renderer:
-```bash
-yarn main
-```
+- **File watching** -- Monitors folders you choose and creates artifacts whenever files are added or changed.
+- **Marks** -- Group related folders and artifacts into marks, either personal or shared with your organization.
+- **Sync** -- Artifacts are synced to the Stability Protocol platform so they are accessible from anywhere.
+- **Auto-update** -- The app stays up to date without manual intervention.
 
-## Build the renderer
-A production build of the React renderer can be produced with:
-```bash
-yarn build:renderer
-```
+## Getting started
 
-## Project structure
-- `src/main`: Electron main process, IPC handlers, tray, token store, settings, and folder watcher mocks.
-- `src/preload`: Preload script that exposes safe IPC bridges to the renderer.
-- `src/renderer`: React UI powered by Vite, Jotai, and React Query.
-- `src/shared`: Shared types and mock API helpers.
-- `openapi.yml`: API shape used to align the mocked flows.
-- `DEFINITION.md`: Reference for the app definition and requirements.
+1. Download and install Monolith for your platform.
+2. Open the app and sign in with your Stability Protocol account.
+3. On first launch your Downloads folder is automatically connected to your personal mark.
+4. Add more folders from the mark detail page to start watching them.
 
-## Notes on the mocks
-All authentication, settings, and watcher interactions are fake; state is kept in-memory or persisted locally via `electron-store` for tokens. Adjust the mock implementations in `src/shared/api/mockApi.ts` or the IPC handlers in `src/main/ipc.ts` as you start wiring real backend calls.
+## Support
+
+Found a bug or have a feature request? [Open an issue](https://github.com/stabilityprotocol/ucfr-desktop/issues).
+
+## Development
+
+See [DEVELOPMENT.md](DEVELOPMENT.md) for build instructions, project structure, and release workflow.

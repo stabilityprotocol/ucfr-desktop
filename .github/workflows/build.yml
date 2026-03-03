@@ -1,4 +1,4 @@
-name: Build & Release (random draft name)
+name: Build & Release
 
 on:
   push:
@@ -12,6 +12,8 @@ permissions:
 
 env:
   NODE_VERSION: 20
+  # Publish to GitHub Releases only on semver tags (v*.*.*), otherwise skip
+  PUBLISH_FLAG: ${{ startsWith(github.ref, 'refs/tags/v') && 'always' || 'never' }}
 
 jobs:
   build-linux:
@@ -42,7 +44,9 @@ jobs:
         run: yarn install --immutable
 
       - name: Build Linux (AppImage, deb + updater files)
-        run: yarn build --linux deb AppImage --publish never
+        run: yarn build --linux deb AppImage --publish ${{ env.PUBLISH_FLAG }}
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Upload linux artifacts
         uses: actions/upload-artifact@v4
@@ -83,7 +87,9 @@ jobs:
         run: yarn install --immutable
 
       - name: Build Windows (EXE + updater files)
-        run: yarn build --win --publish never
+        run: yarn build --win --publish ${{ env.PUBLISH_FLAG }}
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Upload win artifacts
         uses: actions/upload-artifact@v4
@@ -126,9 +132,10 @@ jobs:
         run: yarn install --immutable
 
       - name: Build macOS (DMG + updater files)
-        run: yarn build --mac dmg --publish never
+        run: yarn build --mac dmg --publish ${{ env.PUBLISH_FLAG }}
         env:
           DEBUG: electron-builder,electron-builder:*
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           CSC_LINK: ${{ secrets.CSC_LINK }}
           CSC_KEY_PASSWORD: ${{ secrets.CSC_KEY_PASSWORD }}
           APPLE_ID: ${{ secrets.APPLE_ID }}
@@ -145,7 +152,9 @@ jobs:
             dist/latest*.yml
             dist/*.blockmap
 
-  release:
+  # Draft release for non-tag builds (testing/preview)
+  release-draft:
+    if: ${{ !startsWith(github.ref, 'refs/tags/v') }}
     needs: [build-win, build-linux, build-mac]
     runs-on: ubuntu-latest
     steps:

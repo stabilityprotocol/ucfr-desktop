@@ -47,6 +47,11 @@ type RendererAPI = {
     query: <T = any>(sql: string, params?: unknown[]) => Promise<T[]>;
     setCurrentUser: (email: string | null) => Promise<null>;
   };
+  update: {
+    check: () => Promise<{ success: boolean; version?: string | null; error?: string }>;
+    install: () => Promise<void>;
+    onStatus: (callback: (status: any) => void) => () => void;
+  };
 };
 
 const api: RendererAPI = {
@@ -117,6 +122,17 @@ const api: RendererAPI = {
     exec: (sql) => ipcRenderer.invoke("db/exec", sql),
     query: (sql, params) => ipcRenderer.invoke("db/query", sql, params),
     setCurrentUser: (email) => ipcRenderer.invoke("db/setCurrentUser", email),
+  },
+  update: {
+    check: () => ipcRenderer.invoke("update:check"),
+    install: () => ipcRenderer.invoke("update:install"),
+    onStatus: (callback) => {
+      const subscription = (_event: unknown, status: any) => {
+        callback(status);
+      };
+      ipcRenderer.on("update:status", subscription);
+      return () => ipcRenderer.removeListener("update:status", subscription);
+    },
   },
 };
 

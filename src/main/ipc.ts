@@ -13,6 +13,7 @@ import {
 import { initDb, dbExec, dbQuery, setCurrentUser, getCurrentUser, clearAllUserData, getAllWatchedFolders, addWatchedFolder, removeWatchedFolder, getWatchedFoldersForMark, findMarkIdForFolder } from "./db";
 import { fileHistoryService } from "./fileHistory";
 import { decodeJwtPayload, isTokenExpired } from "../shared/api/auth";
+import { checkForUpdates, quitAndInstall } from "./autoUpdater";
 
 let watcher: FolderWatcher | null = null;
 
@@ -803,6 +804,21 @@ export async function registerIpcHandlers() {
 
   ipcMain.handle("app/getPath", async (_event, name: string) => {
     return app.getPath(name as any);
+  });
+
+  // ─── Auto-update IPC handlers ──────────────────────────────────
+  ipcMain.handle("update:check", async () => {
+    try {
+      const result = await checkForUpdates();
+      return { success: true, version: result?.updateInfo?.version ?? null };
+    } catch (err) {
+      const message = err instanceof Error ? err.message : "Unknown error";
+      return { success: false, error: message };
+    }
+  });
+
+  ipcMain.handle("update:install", () => {
+    quitAndInstall();
   });
 }
 

@@ -291,6 +291,13 @@ function createWebApi(): RendererAPI {
         return null;
       },
     },
+    update: {
+      check: async () => ({ success: false, error: "Not supported in web environment" }),
+      install: async () => {
+        console.warn("update.install is not supported in web environment.");
+      },
+      onStatus: () => () => {},
+    },
   };
 }
 
