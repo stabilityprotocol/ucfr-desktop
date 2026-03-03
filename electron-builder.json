@@ -51,6 +51,7 @@
   "publish": {
     "provider": "github",
     "owner": "stabilityprotocol",
-    "repo": "ucfr-desktop"
+    "repo": "ucfr-desktop",
+    "releaseType": "release"
   }
 }
