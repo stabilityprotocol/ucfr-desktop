@@ -1,6 +1,6 @@
 {
   "name": "ucfr-desktop",
-  "version": "0.2.2",
+  "version": "0.2.3",
   "description": "Desktop client for Monolith by Stability Protocol",
   "author": "Stability Protocol <contact@stabilityprotocol.com>",
   "main": "app/main/main.js",
