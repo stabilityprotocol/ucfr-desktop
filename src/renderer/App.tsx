@@ -40,14 +40,19 @@ const queryClient = new QueryClient({
   },
 });
 
+/**
+ * Loads marks for the current scope (organization or personal workspace).
+ * When viewing an organization, fetches that org's marks.
+ * Otherwise, fetches all marks the user has access to via GET /api/projects.
+ * The API already returns all marks where the user is admin, member, or org member,
+ * so no client-side deduplication of shared marks is needed.
+ */
 async function loadMarksForScope({
   activeOrg,
   currentUser,
-  organizations,
 }: {
   activeOrg: Organization | null;
   currentUser: string | null;
-  organizations: Organization[];
 }): Promise<Project[]> {
   if (!currentUser) {
     return [];
@@ -57,52 +62,8 @@ async function loadMarksForScope({
     return (await window.ucfr.api.organizationMarks(activeOrg.id)) as Project[];
   }
 
-  const ownMarks = (await window.ucfr.api.userMarks(currentUser)) as Project[];
-  const memberEmails = Array.from(
-    new Set(
-      organizations
-        .flatMap((org) => org.members.map((member) => member.email))
-        .filter((email) => email !== currentUser),
-    ),
-  );
-
-  if (memberEmails.length === 0) {
-    return ownMarks;
-  }
-
-  const sharedPersonalMarkResults = await Promise.allSettled(
-    memberEmails.map(async (email) => {
-      const memberMarks = (await window.ucfr.api.userMarks(email)) as Project[];
-      return memberMarks.filter(
-        (mark) =>
-          !mark.organization?.id &&
-          mark.adminEmail !== currentUser &&
-          mark.members.includes(currentUser),
-      );
-    }),
-  );
-
-  const dedupedMarks = new Map<string, Project>();
-
-  for (const mark of ownMarks) {
-    if (!dedupedMarks.has(mark.id)) {
-      dedupedMarks.set(mark.id, mark);
-    }
-  }
-
-  for (const result of sharedPersonalMarkResults) {
-    if (result.status !== "fulfilled") {
-      continue;
-    }
-
-    for (const mark of result.value) {
-      if (!dedupedMarks.has(mark.id)) {
-        dedupedMarks.set(mark.id, mark);
-      }
-    }
-  }
-
-  return Array.from(dedupedMarks.values());
+  // GET /api/projects returns all marks where user is admin, member, or org member
+  return (await window.ucfr.api.marks()) as Project[];
 }
 
 export default function App() {
@@ -172,7 +133,6 @@ function AppContent() {
         const fetchedMarks = await loadMarksForScope({
           activeOrg,
           currentUser,
-          organizations,
         });
         setMarks(fetchedMarks);
       } catch (error) {
@@ -181,7 +141,7 @@ function AppContent() {
     }
 
     loadMarks();
-  }, [activeOrg, currentUser, organizations, setMarks]);
+  }, [activeOrg, currentUser, setMarks]);
 
   useEffect(() => {
     if (!currentUser) return;
@@ -191,7 +151,6 @@ function AppContent() {
         const fetchedMarks = await loadMarksForScope({
           activeOrg,
           currentUser,
-          organizations,
         });
         setMarks(fetchedMarks);
       } catch (error) {
@@ -202,7 +161,7 @@ function AppContent() {
     const intervalId = setInterval(refreshMarks, 60000);
 
     return () => clearInterval(intervalId);
-  }, [currentUser, activeOrg, organizations, setMarks]);
+  }, [currentUser, activeOrg, setMarks]);
 
   useEffect(() => {
     async function checkDownloadsAttachment() {

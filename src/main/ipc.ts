@@ -5,11 +5,12 @@ import { getSettings, updateSettings, resetSettings } from "./settings";
 import { FolderWatcher } from "./watcher";
 import { handleFileChange } from "./artifactService";
 import {
-  fetchUserProfile,
-  fetchUserMarks,
+  fetchMe,
+  fetchMyMarks,
   fetchOrganizationMarks,
   TokenExpiredError,
 } from "../shared/api/client";
+import type { UserProfile } from "../shared/api/types";
 import { initDb, dbExec, dbQuery, setCurrentUser, getCurrentUser, clearAllUserData, getAllWatchedFolders, addWatchedFolder, removeWatchedFolder, getWatchedFoldersForMark, findMarkIdForFolder } from "./db";
 import { fileHistoryService } from "./fileHistory";
 import { decodeJwtPayload, isTokenExpired } from "../shared/api/auth";
@@ -133,46 +134,37 @@ async function pollForToken(requestId: string): Promise<string | null> {
   return null;
 }
 
-async function getAuthorizedUserFromApi(): Promise<unknown | null> {
+/**
+ * Fetches the authenticated user's full profile via GET /api/users/me.
+ * This replaces the old getAuthorizedUserFromApi() which called the external
+ * `is-authorized` endpoint just to resolve an email. Now we get the complete
+ * profile (id, email, username, organizations, projects) in a single call.
+ * Returns null if no token or the request fails. Clears token on 401.
+ */
+async function getAuthorizedUserProfile(): Promise<UserProfile | null> {
   const token = await tokenManager.getToken();
   if (!token) return null;
 
   try {
-    const response = await fetch(
-      "https://auth.stabilityprotocol.com/v1/auth/is-authorized",
-      {
-        method: "POST",
-        headers: {
-          Authorization: `Bearer ${token}`,
-        },
-      },
-    );
-
-    if (response.status === 401) {
+    const profile = await fetchMe(token);
+    return profile;
+  } catch (error) {
+    if (error instanceof TokenExpiredError) {
       await tokenManager.clear();
       return null;
     }
-
-    if (!response.ok) {
-      console.error("is-authorized failed:", response.statusText);
-      return null;
-    }
-
-    const data = (await response.json()) as {
-      ok: boolean;
-      value?: {
-        email: string;
-        iat: number;
-        exp: number;
-      };
-    };
-
-    if (!data.ok) return null;
-    return data.value?.email ?? null;
-  } catch (err) {
-    console.error("is-authorized error:", err);
+    console.error("[getAuthorizedUserProfile] Error:", error);
     return null;
   }
+}
+
+/**
+ * Convenience wrapper that resolves just the user's email from /api/users/me.
+ * Used in places where only the email identifier is needed (e.g., legacy DB lookups).
+ */
+async function getAuthorizedUserEmail(): Promise<string | null> {
+  const profile = await getAuthorizedUserProfile();
+  return profile?.email ?? null;
 }
 
 function processEvent(file: string, event: string): void {
@@ -229,8 +221,13 @@ export async function registerIpcHandlers() {
 
   ipcMain.handle("auth/getToken", async () => tokenManager.getToken());
 
+  /**
+   * Returns the authenticated user's full profile from GET /api/users/me.
+   * The renderer uses this to populate the user identity, organizations, and projects.
+   * Returns null if no token or the request fails.
+   */
   ipcMain.handle("auth/getUser", async () => {
-    return getAuthorizedUserFromApi();
+    return getAuthorizedUserProfile();
   });
 
   ipcMain.handle("auth/clearToken", async () => {
@@ -360,10 +357,9 @@ export async function registerIpcHandlers() {
         let markName = existingMarkId;
         try {
           const token = await tokenManager.getToken();
-          const email = (await getAuthorizedUserFromApi()) as string | null;
-          if (token && email) {
-            const marks = await fetchUserMarks(email, token);
-            const conflicting = marks.find((m) => m.id === existingMarkId);
+          if (token) {
+            const marks = await fetchMyMarks(token);
+            const conflicting = marks.find((m: { id: string; name: string }) => m.id === existingMarkId);
             if (conflicting) markName = conflicting.name;
           }
         } catch {
@@ -460,13 +456,15 @@ export async function registerIpcHandlers() {
     return true;
   });
 
+  /**
+   * Fetches all marks for the authenticated user via GET /api/projects.
+   * Returns marks where the user is admin, member, or part of the owning organization.
+   */
   ipcMain.handle("api/marks", async () => {
     const token = await tokenManager.getToken();
     if (!token) return [];
-    const email = (await getAuthorizedUserFromApi()) as string | null;
-    if (!email) return [];
     try {
-      return await fetchUserMarks(email, token);
+      return await fetchMyMarks(token);
     } catch (error) {
       if (error instanceof TokenExpiredError) {
         await tokenManager.clear();
@@ -479,18 +477,28 @@ export async function registerIpcHandlers() {
     }
   });
 
-  // Removing api/me as it was using mock and not used in core flow (auth/getUser is used).
-  ipcMain.handle("api/me", async () => null);
+  /**
+   * Returns the authenticated user's full profile from GET /api/users/me.
+   * This is the primary identity endpoint for the renderer to recover user state.
+   */
+  ipcMain.handle("api/me", async () => {
+    return getAuthorizedUserProfile();
+  });
 
   ipcMain.handle("api/health", async () => {
     return { status: "ok", version: "1.0.0" };
   });
 
-  ipcMain.handle("api/userProfile", async (_event, email: string) => {
+  /**
+   * Returns the authenticated user's full profile via GET /api/users/me.
+   * The email parameter is kept for backward compatibility with the preload bridge
+   * but is no longer used — identity is resolved from the Bearer token.
+   */
+  ipcMain.handle("api/userProfile", async (_event, _email?: string) => {
     const token = await tokenManager.getToken();
     if (!token) return null;
     try {
-      return await fetchUserProfile(email, token);
+      return await fetchMe(token);
     } catch (error) {
       if (error instanceof TokenExpiredError) {
         await tokenManager.clear();
@@ -503,11 +511,16 @@ export async function registerIpcHandlers() {
     }
   });
 
-  ipcMain.handle("api/userMarks", async (_event, email: string) => {
+  /**
+   * Returns all marks for the authenticated user via GET /api/projects.
+   * The email parameter is kept for backward compatibility with the preload bridge
+   * but is no longer used — identity is resolved from the Bearer token.
+   */
+  ipcMain.handle("api/userMarks", async (_event, _email?: string) => {
     const token = await tokenManager.getToken();
     if (!token) return [];
     try {
-      return await fetchUserMarks(email, token);
+      return await fetchMyMarks(token);
     } catch (error) {
       if (error instanceof TokenExpiredError) {
         await tokenManager.clear();
@@ -596,22 +609,22 @@ export async function registerIpcHandlers() {
     }
     console.log("[First Login] Token available: ✓");
 
-    const email = (await getAuthorizedUserFromApi()) as string | null;
-    if (!email) {
-      console.log("[First Login] No user email available");
-      return { success: false, error: "No user email available" };
+    const profile = await getAuthorizedUserProfile();
+    if (!profile?.email) {
+      console.log("[First Login] No user profile available");
+      return { success: false, error: "No user profile available" };
     }
-    console.log("[First Login] User email:", email);
+    console.log("[First Login] User:", profile.username, profile.email);
 
     try {
       // Fetch all user marks
       console.log("[First Login] Fetching user marks...");
-      const marks = await fetchUserMarks(email, token);
+      const marks = await fetchMyMarks(token);
       console.log("[First Login] Found", marks.length, "marks");
 
       // Find personal "My Artifacts" with visibility "private"
       const privateMark = marks.find(
-        (mark) =>
+        (mark: { name: string; visibility: string; organization?: unknown }) =>
           mark.name === "My Artifacts" &&
           mark.visibility === "private" &&
           !mark.organization, // Ensure it's a personal mark
@@ -646,7 +659,7 @@ export async function registerIpcHandlers() {
       const existingMarkId = await findMarkIdForFolder(downloadsPath);
       if (existingMarkId && existingMarkId !== privateMark.id) {
         console.log("[First Login] Downloads folder already assigned to mark:", existingMarkId);
-        const conflicting = marks.find((m) => m.id === existingMarkId);
+        const conflicting = marks.find((m: { id: string; name: string }) => m.id === existingMarkId);
         const markName = conflicting?.name ?? existingMarkId;
         sendNotification(
           "info",
@@ -716,15 +729,15 @@ export async function registerIpcHandlers() {
       return { success: false, error: "No token available" };
     }
 
-    const email = (await getAuthorizedUserFromApi()) as string | null;
-    if (!email) {
-      return { success: false, error: "No user email available" };
+    const profile = await getAuthorizedUserProfile();
+    if (!profile?.email) {
+      return { success: false, error: "No user profile available" };
     }
 
     try {
-      const marks = await fetchUserMarks(email, token);
+      const marks = await fetchMyMarks(token);
       const privateMark = marks.find(
-        (mark) =>
+        (mark: { name: string; visibility: string; organization?: unknown }) =>
           mark.name === "My Artifacts" &&
           mark.visibility === "private" &&
           !mark.organization,
@@ -746,7 +759,7 @@ export async function registerIpcHandlers() {
       // Check if Downloads folder is already assigned to another mark
       const existingMarkId = await findMarkIdForFolder(downloadsPath);
       if (existingMarkId && existingMarkId !== privateMark.id) {
-        const conflicting = marks.find((m) => m.id === existingMarkId);
+        const conflicting = marks.find((m: { id: string; name: string }) => m.id === existingMarkId);
         const markName = conflicting?.name ?? existingMarkId;
         sendNotification(
           "error",

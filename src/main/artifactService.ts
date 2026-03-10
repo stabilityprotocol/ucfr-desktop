@@ -4,6 +4,7 @@ import path from "path";
 import { BrowserWindow } from "electron";
 import { tokenManager } from "./tokenStore";
 import {
+  fetchMe,
   fetchMark,
   createMarkClaim,
   createImageMarkClaim,
@@ -53,25 +54,24 @@ async function getFileHash(filePath: string): Promise<string> {
   return `0x${hashSum.digest("hex")}`;
 }
 
-async function getAuthorizedEmail(token: string): Promise<string | null> {
-  // Verify token and get email.
+/**
+ * Resolves the authenticated user's identity by calling GET /api/users/me.
+ * Returns both email and username from the profile, which are used in artifact
+ * metadata. Re-throws TokenExpiredError so the caller can clear the token and
+ * notify renderer windows.
+ */
+async function getAuthorizedUser(
+  token: string,
+): Promise<{ email: string; username: string } | null> {
   try {
-    const response = await fetch(
-      "https://auth.stabilityprotocol.com/v1/auth/is-authorized",
-      {
-        method: "POST",
-        headers: {
-          Authorization: `Bearer ${token}`,
-        },
-      },
-    );
-    if (!response.ok) return null;
-    const data = (await response.json()) as {
-      ok: boolean;
-      value?: { email: string };
-    };
-    return data.ok ? (data.value?.email ?? null) : null;
+    const profile = await fetchMe(token);
+    if (!profile?.email) return null;
+    return { email: profile.email, username: profile.username };
   } catch (e) {
+    // Let TokenExpiredError propagate so handleFileChange clears the token
+    if (e instanceof TokenExpiredError) {
+      throw e;
+    }
     console.error("Error getting authorized user:", e);
     return null;
   }
@@ -184,19 +184,23 @@ export async function handleFileChange(filePath: string, event: string) {
     }
     console.log(`[ArtifactService] Successfully fetched mark: ${mark.name}`);
 
-    console.log(`[ArtifactService] Fetching authorized email...`);
-    const userEmail = await getAuthorizedEmail(token);
-    if (!userEmail) {
-      console.error("[ArtifactService] Could not identify user email");
+    console.log(`[ArtifactService] Fetching authorized user...`);
+    const authorizedUser = await getAuthorizedUser(token);
+    if (!authorizedUser) {
+      console.error("[ArtifactService] Could not identify user");
       return;
     }
-    console.log(`[ArtifactService] Got user email: ${userEmail}`);
+    const { email: userEmail, username } = authorizedUser;
+    console.log(`[ArtifactService] Got user: ${username} (${userEmail})`);
 
     // 3. Construct Data JSON
-    // API expects certain top-level fields inside `data`
+    // API expects certain top-level fields inside `data`.
+    // The `username` field is required by the OpenAPI spec for claim metadata.
+    // `userEmail` is kept for backward compatibility with existing claims.
     const artifactData = {
       // Required by server-side schema
       filename: fileName,
+      username,
       userEmail,
       markId,
       markName: mark.name,
@@ -206,7 +210,7 @@ export async function handleFileChange(filePath: string, event: string) {
       version: "1.0",
       lang: "en",
       title: fileName,
-      description: `Submitted by ${userEmail}. Mark ${mark.name}. Artifact covers ${fileName}`,
+      description: `Submitted by ${username}. Mark ${mark.name}. Artifact covers ${fileName}`,
       keywords: [
         "UCFR",
         "artifact",
@@ -218,6 +222,7 @@ export async function handleFileChange(filePath: string, event: string) {
       license: "https://ucfr.io/LICENSE.txt",
       canonicalUrl: "https://www.ucfr.io/",
       author: {
+        username,
         email: userEmail,
         organizationId: mark.organization?.id || markId,
         projectId: markId,
@@ -235,6 +240,7 @@ export async function handleFileChange(filePath: string, event: string) {
     // 4. Defensive validation prior to submit
     const requiredStrFields: Array<[string, unknown]> = [
       ["filename", artifactData.filename],
+      ["username", artifactData.username],
       ["userEmail", artifactData.userEmail],
       ["markId", artifactData.markId],
       ["markName", artifactData.markName],

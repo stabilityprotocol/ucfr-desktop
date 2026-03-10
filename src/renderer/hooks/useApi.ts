@@ -87,33 +87,29 @@ export function useBootstrap() {
         return;
       }
 
-      // Token is valid, proceed with fetching user data
-      // STEP 1: Fetch user first
-      const user = await window.ucfr.auth.getUser();
-      setCurrentUser(user as any);
+      // Token is valid, proceed with fetching user data.
+      // auth.getUser() now returns the full UserProfile from GET /api/users/me,
+      // so we no longer need a separate api.userProfile(email) call.
+      const profile = (await window.ucfr.auth.getUser()) as any;
 
-      // STEP 2: If we have a user, fetch their profile FIRST before any other API calls
-      if (user && typeof user === "string") {
-        try {
-          const profile = (await window.ucfr.api.userProfile(user)) as any;
-          if (profile) {
-            setUserProfile(profile);
-            if (profile.organizations) {
-              setOrganizations(profile.organizations);
-            }
-          }
-        } catch (err) {
-          console.error("Failed to fetch profile", err);
+      // Extract email as the local session identifier (currentUserAtom)
+      const userEmail: string | null = profile?.email ?? null;
+      setCurrentUser(userEmail);
+
+      if (profile) {
+        setUserProfile(profile);
+        if (profile.organizations) {
+          setOrganizations(profile.organizations);
         }
       }
 
-      // STEP 3: Now fetch everything else in parallel
+      // Fetch settings, marks, and health in parallel
       const [settings, marks, health] = await Promise.all([
         window.ucfr.settings.get(),
         window.ucfr.api.marks(),
         window.ucfr.api.health(),
       ]);
-      
+
       setToken(token);
       const typedSettings = settings as {
         folderPath?: string;
@@ -125,7 +121,7 @@ export function useBootstrap() {
       setHealth(health as any);
 
       // Handle first-time login logic (can be async, doesn't block)
-      if (!firstLoginInProgress && user && typeof user === "string") {
+      if (!firstLoginInProgress && userEmail) {
         firstLoginInProgress = true;
         window.ucfr.auth
           .handleFirstLogin()
@@ -172,51 +168,44 @@ export function useBootstrap() {
       } else {
         console.log("[useBootstrap] Token is available, fetching user information...");
         try {
-          // STEP 1: Fetch user first
+          // auth.getUser() now returns the full UserProfile from GET /api/users/me
           console.log("[useBootstrap] Calling auth.getUser()...");
-          const user = await window.ucfr.auth.getUser();
-          console.log("[useBootstrap] User from auth:", user);
-          setCurrentUser(user as any);
+          const profile = (await window.ucfr.auth.getUser()) as any;
+          const userEmail: string | null = profile?.email ?? null;
+          console.log("[useBootstrap] User email from profile:", userEmail);
+          setCurrentUser(userEmail);
 
-          // STEP 2: Fetch profile FIRST before any other API calls
-          if (user && typeof user === "string") {
-            try {
-              const profile = (await window.ucfr.api.userProfile(user)) as any;
-              if (profile) {
-                setUserProfile(profile);
-                if (profile.organizations) {
-                  setOrganizations(profile.organizations);
-                }
-              }
-            } catch (err) {
-              console.error("Failed to fetch profile", err);
-            }
-
-            // Handle first-time login logic (can be async, doesn't block)
-            if (!firstLoginInProgress) {
-              firstLoginInProgress = true;
-              window.ucfr.auth
-                .handleFirstLogin()
-                .then((result: any) => {
-                  if (result.attached) {
-                    console.info(
-                      `[First Login] Downloads folder attached to "${result.markName}"`,
-                      result
-                    );
-                  } else if (result.skipped) {
-                    console.info(`[First Login] ${result.reason}`);
-                  } else if (result.success === false) {
-                    console.error(`[First Login] Failed:`, result.error);
-                  }
-                })
-                .catch((err) => console.error("Failed to handle first login", err))
-                .finally(() => {
-                  firstLoginInProgress = false;
-                });
+          if (profile) {
+            setUserProfile(profile);
+            if (profile.organizations) {
+              setOrganizations(profile.organizations);
             }
           }
 
-          // STEP 3: Now fetch everything else in parallel
+          // Handle first-time login logic (can be async, doesn't block)
+          if (userEmail && !firstLoginInProgress) {
+            firstLoginInProgress = true;
+            window.ucfr.auth
+              .handleFirstLogin()
+              .then((result: any) => {
+                if (result.attached) {
+                  console.info(
+                    `[First Login] Downloads folder attached to "${result.markName}"`,
+                    result
+                  );
+                } else if (result.skipped) {
+                  console.info(`[First Login] ${result.reason}`);
+                } else if (result.success === false) {
+                  console.error(`[First Login] Failed:`, result.error);
+                }
+              })
+              .catch((err) => console.error("Failed to handle first login", err))
+              .finally(() => {
+                firstLoginInProgress = false;
+              });
+          }
+
+          // Fetch marks and health in parallel
           const [marks, health] = await Promise.all([
             window.ucfr.api.marks(),
             window.ucfr.api.health(),

@@ -36,6 +36,22 @@ export type LicenseKey =
   | "UNLICENSED";
 
 // =============================================================================
+// User Reference Types
+// =============================================================================
+
+/**
+ * Lightweight user reference used throughout the API to identify users.
+ * Replaces flat email strings with a richer object containing username and stable UUID.
+ * The optional `email` field is only populated when the authenticated user is
+ * viewing their own data (e.g., own profile, own projects, own claims).
+ */
+export type UserRef = {
+  username: string;
+  id: string;
+  email?: string;
+};
+
+// =============================================================================
 // Organization Types
 // =============================================================================
 
@@ -51,21 +67,24 @@ export type ProjectOrganization = {
 
 /**
  * Member of an organization with their role and join date.
+ * Uses username as the primary identifier (replaces email in older API versions).
  */
 export type OrganizationMember = {
-  email: string;
+  id?: string | null;
+  username: string;
   role: "owner" | "member";
   joinedAt: string;
 };
 
 /**
  * Full organization entity with members and metadata.
+ * The `owner` field is a UserRef object representing the organization owner.
  */
 export type Organization = {
   id: string;
   name: string;
   description?: string;
-  ownerEmail: string;
+  owner: UserRef;
   members: OrganizationMember[];
   createdAt: string;
   updatedAt: string;
@@ -73,30 +92,41 @@ export type Organization = {
 
 // =============================================================================
 // Mark Types (API type name kept as Project for backend compatibility)
-
 // =============================================================================
 // Artifact Types (API uses 'Claim' terminology for backend compatibility)
-// =============================================================================
 // =============================================================================
 
 /**
  * Mark entity representing a collection of artifacts.
  * Marks can belong to an organization or be user-owned.
  * Note: API type name kept as `Project` for backend compatibility.
+ *
+ * The `admin` field is a UserRef object identifying the project administrator.
+ * The `owner` field is a UserRef (or null for org-owned marks) identifying the personal owner.
+ * The `members` array contains UserRef objects for each collaborator.
  */
 export type Project = {
   id: string;
   name: string;
   description?: string;
-  adminEmail: string;
+  admin: UserRef;
   organization?: ProjectOrganization | null;
-  ownerUserId?: string | null;
+  owner?: UserRef | null;
   visibility: "public" | "private";
   license?: License | null;
+  licenseKey?: LicenseKey;
   allowAiTraining?: boolean | null;
-  members: string[];
+  members: UserRef[];
   createdAt: string;
   updatedAt: string;
+};
+
+/**
+ * Extended Project type that includes a claim count.
+ * Returned by GET /api/projects (list all projects for authenticated user).
+ */
+export type ProjectWithClaimsCount = Project & {
+  claimsCount: number;
 };
 
 // =============================================================================
@@ -153,7 +183,7 @@ export type UserProfileProject = {
   name: string;
   description?: string | null;
   organization?: ProjectOrganization | null;
-  ownerUserId?: string | null;
+  owner?: UserRef | null;
   visibility: "public" | "private";
   totalClaims: number;
   memberCount: number;
@@ -161,11 +191,16 @@ export type UserProfileProject = {
 
 /**
  * User profile with organizations, marks, and recent artifacts.
- * Returned by GET /api/users/{email}/profile or GET /api/users/username/{username}/profile endpoint.
+ * Returned by GET /api/users/me, GET /api/users/username/{username}/profile,
+ * or GET /api/users/id/{uuid}/profile.
+ *
+ * The `id` field is the user's immutable UUID. The `email` field is only
+ * included when the authenticated user is viewing their own profile.
  */
 export type UserProfile = {
-  email: string;
-  username?: string | null;
+  id: string;
+  email?: string;
+  username: string;
   displayName?: string | null;
   websiteUrl?: string | null;
   socialChannels?: UserSocialChannel[];
@@ -182,10 +217,10 @@ export type UserProfile = {
 /**
  * Profile search result with activity statistics.
  * Part of the SearchResponse from GET /api/search endpoint.
+ * Uses a UserRef `user` field instead of flat username/email strings.
  */
 export type ProfileSearchResult = {
-  username: string;
-  email: string;
+  user: UserRef;
   organizationCount: number;
   projectCount: number;
   recentClaimCount: number;
@@ -201,7 +236,6 @@ export type OrganizationSearchResult = {
   id: string;
   name: string;
   description?: string | null;
-  ownerEmail: string;
   memberCount: number;
   projectCount: number;
   score: number;
@@ -215,7 +249,6 @@ export type ProjectSearchResult = {
   id: string;
   name: string;
   description?: string | null;
-  adminEmail: string;
   organization?: {
     id: string;
     name: string;

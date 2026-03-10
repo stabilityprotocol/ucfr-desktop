@@ -3,9 +3,9 @@ import ReactDOM from "react-dom/client";
 import App from "./App";
 import type { RendererAPI } from "../preload";
 import {
+  fetchMe,
+  fetchMyMarks,
   fetchOrganizationMarks,
-  fetchUserProfile,
-  fetchUserMarks,
 } from "../shared/api/client";
 
 const CONFIG_TOKEN_KEY = "auth.token";
@@ -80,37 +80,20 @@ async function webPollForToken(requestId: string): Promise<string | null> {
   return null;
 }
 
+/**
+ * Resolves the authenticated user's email by calling GET /api/users/me.
+ * Returns the email string (used as local session key) or null on failure.
+ */
 async function webGetAuthorizedUser(token: string): Promise<string | null> {
   try {
-    const response = await fetch(
-      "https://auth.stabilityprotocol.com/v1/auth/is-authorized",
-      {
-        method: "POST",
-        headers: {
-          Authorization: `Bearer ${token}`,
-        },
-      }
-    );
-
-    if (response.status === 401) {
-      await setDbToken(null);
+    const profile = await fetchMe(token);
+    if (!profile) {
+      setDbToken(null);
       return null;
     }
-
-    if (!response.ok) {
-      console.error("is-authorized (web) failed:", response.statusText);
-      return null;
-    }
-
-    const data = (await response.json()) as {
-      ok: boolean;
-      value?: { email: string };
-    };
-
-    if (!data.ok) return null;
-    return data.value?.email ?? null;
+    return profile.email ?? null;
   } catch (err) {
-    console.error("is-authorized (web) error:", err);
+    console.error("webGetAuthorizedUser error:", err);
     return null;
   }
 }
@@ -153,34 +136,27 @@ function createWebApi(): RendererAPI {
 
         return Promise.resolve({ requestId });
       },
+      // Returns the full UserProfile (or null) — matches updated Electron IPC handler
       getUser: async () => {
         const token = getDbToken();
         if (!token) return null;
-        return webGetAuthorizedUser(token);
+        return fetchMe(token);
       },
       handleFirstLogin: async () => {
         console.warn("handleFirstLogin is not supported in web environment.");
         return { skipped: true, reason: "Web environment" };
       },
+      // Validates the token by calling GET /api/users/me.
+      // If the endpoint returns a profile, the token is valid.
       validateToken: async () => {
         const token = getDbToken();
         if (!token) return { valid: false };
         try {
-          const response = await fetch(
-            "https://auth.stabilityprotocol.com/v1/auth/is-authorized",
-            {
-              method: "POST",
-              headers: { Authorization: `Bearer ${token}` },
-            }
-          );
-          if (response.status === 401) {
-            setDbToken(null);
-            return { valid: false };
-          }
-          if (!response.ok) return { valid: true };
-          const data = (await response.json()) as { ok: boolean };
-          return { valid: data.ok === true };
+          const profile = await fetchMe(token);
+          return { valid: profile !== null };
         } catch {
+          // Network errors are treated as "unknown" — assume valid to avoid
+          // logging out users when offline.
           return { valid: true };
         }
       },
@@ -250,26 +226,32 @@ function createWebApi(): RendererAPI {
       },
     },
     api: {
-      me: async () => null,
+      // Fetches the authenticated user's profile via GET /api/users/me
+      me: async () => {
+        const token = getDbToken();
+        if (!token) return null;
+        return fetchMe(token);
+      },
+      // Fetches all marks for the authenticated user via GET /api/projects
       marks: async () => {
         const token = getDbToken();
         if (!token) return [];
-        const email = await webGetAuthorizedUser(token);
-        if (!email) return [];
-        return fetchUserMarks(email, token);
+        return fetchMyMarks(token);
       },
       health: async () => {
         return { status: "ok", version: "1.0.0" };
       },
-      userProfile: async (email: string) => {
+      // Kept for backward compat; email param is unused — delegates to fetchMe
+      userProfile: async (_email: string) => {
         const token = getDbToken();
         if (!token) return null;
-        return fetchUserProfile(email, token);
+        return fetchMe(token);
       },
-      userMarks: async (email: string) => {
+      // Kept for backward compat; email param is unused — delegates to fetchMyMarks
+      userMarks: async (_email: string) => {
         const token = getDbToken();
         if (!token) return [];
-        return fetchUserMarks(email, token);
+        return fetchMyMarks(token);
       },
       organizationMarks: async (orgId: string) => {
         const token = getDbToken();

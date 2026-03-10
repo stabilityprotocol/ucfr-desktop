@@ -56,11 +56,15 @@ export function MarksPage({ marks }: MarksPageProps) {
     <Container>
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
         {marks.map((mark) => {
+          // A shared personal mark is one where the user is a member but not the admin,
+          // and the mark doesn't belong to an organization.
           const isSharedPersonalMark =
             !mark.organization?.id &&
-            mark.adminEmail !== currentUser &&
+            mark.admin?.email !== currentUser &&
             Boolean(currentUser) &&
-            mark.members.includes(currentUser);
+            mark.members.some(
+              (m) => m.email === currentUser || m.username === currentUser,
+            );
 
           return (
             <Link
