@@ -178,9 +178,12 @@ export function Sidebar({ marks }: SidebarProps) {
             {marks.map((p) => {
               const isSharedPersonalMark =
                 !p.organization?.id &&
-                p.adminEmail !== currentUser &&
+                p.admin?.email !== currentUser &&
                 Boolean(currentUser) &&
-                p.members.includes(currentUser);
+                p.members?.some(
+                  (m: any) =>
+                    m.email === currentUser || m.username === currentUser,
+                );
 
               return (
                 <NavLink

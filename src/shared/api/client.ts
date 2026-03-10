@@ -7,7 +7,12 @@
  * authenticated user's full profile in a single call.
  */
 
-import { UserProfile, Project, CreateProjectClaimDto } from "./types";
+import {
+  UserProfile,
+  Project,
+  ProjectWithClaimsCount,
+  CreateProjectClaimDto,
+} from "./types";
 
 const BASE_URL = "https://api.ucfr.io";
 
@@ -125,8 +130,11 @@ export async function fetchUserProfileByUsername(
 /**
  * Fetches all marks for the authenticated user via GET /api/projects.
  * Returns marks where the user is admin, member, or part of the owning organization.
+ * The API returns ProjectWithClaimsCount (Project + claimsCount).
  */
-export async function fetchMyMarks(token: string): Promise<Project[]> {
+export async function fetchMyMarks(
+  token: string,
+): Promise<ProjectWithClaimsCount[]> {
   try {
     const response = await fetchWithAuth(`${BASE_URL}/api/projects`, token, {
       method: "GET",

@@ -1,6 +1,6 @@
 import { useState, useEffect } from "react";
 import { useParams } from "react-router-dom";
-import type { Project } from "../../shared/api/types";
+import type { ProjectWithClaimsCount } from "../../shared/api/types";
 import {
   Folder,
   Plus,
@@ -31,7 +31,7 @@ type RawHistoryItem = Partial<HistoryItem> & {
 };
 
 type MarkDetailProps = {
-  marks: Project[];
+  marks: ProjectWithClaimsCount[];
 };
 
 export function MarkDetailPage({ marks }: MarkDetailProps) {

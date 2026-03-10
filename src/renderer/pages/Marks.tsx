@@ -1,12 +1,12 @@
 import { useParams, Link } from "react-router-dom";
 import { useAtom } from "jotai";
-import type { Project } from "../../shared/api/types";
+import type { ProjectWithClaimsCount } from "../../shared/api/types";
 import { MarkDetailPage } from "./MarkDetail";
 import { LayoutGrid, ExternalLink } from "lucide-react";
 import { currentUserAtom } from "../state";
 
 type MarksPageProps = {
-  marks: Project[];
+  marks: ProjectWithClaimsCount[];
 };
 
 export function MarksPage({ marks }: MarksPageProps) {
@@ -63,7 +63,8 @@ export function MarksPage({ marks }: MarksPageProps) {
             mark.admin?.email !== currentUser &&
             Boolean(currentUser) &&
             mark.members.some(
-              (m) => m.email === currentUser || m.username === currentUser,
+              (m: { email?: string; username?: string }) =>
+                m.email === currentUser || m.username === currentUser,
             );
 
           return (
@@ -82,15 +83,16 @@ export function MarksPage({ marks }: MarksPageProps) {
                   </div>
                 )}
               </div>
-              {/* Artifacts count removed as it is not available in Project type */}
-              {/*
-              <div className="flex items-center gap-2 text-xs text-zinc-500">
-                <span className="inline-flex items-center justify-center w-5 h-5 rounded bg-zinc-100 font-medium text-zinc-700">
-                  {mark.artifacts}
-                </span>
-                <span>{mark.artifacts === 1 ? "artifact" : "artifacts"}</span>
-              </div>
-              */}
+              {mark.claimsCount != null && (
+                <div className="flex items-center gap-2 text-xs text-zinc-500 mt-1">
+                  <span className="inline-flex items-center justify-center min-w-[20px] h-5 px-1 rounded bg-zinc-100 font-medium text-zinc-700 tabular-nums">
+                    {mark.claimsCount}
+                  </span>
+                  <span>
+                    {mark.claimsCount === 1 ? "artifact" : "artifacts"}
+                  </span>
+                </div>
+              )}
               <div className="absolute top-4 right-4 text-zinc-300 group-hover:text-zinc-400 transition-colors">
                 <ExternalLink className="w-4 h-4" />
               </div>

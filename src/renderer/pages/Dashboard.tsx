@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
-import type { Health, Project } from "../../shared/api/types";
+import type { Health, ProjectWithClaimsCount } from "../../shared/api/types";
 import {
   Activity,
   ChevronLeft,
@@ -17,7 +17,7 @@ import {
 type DashboardPageProps = {
   currentUser: string | null;
   health: Health | null;
-  marks: Project[];
+  marks: ProjectWithClaimsCount[];
 };
 
 export function DashboardPage({

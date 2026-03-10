@@ -28,7 +28,10 @@ import { MarkDetailPage } from "./pages/MarkDetail";
 import { SettingsPage } from "./pages/Settings";
 import { Layout } from "./components/Layout";
 import { ToastProvider } from "./components/ToastProvider";
-import type { Organization, Project } from "../shared/api/types";
+import type {
+  Organization,
+  ProjectWithClaimsCount,
+} from "../shared/api/types";
 import "./style.css";
 
 const queryClient = new QueryClient({
@@ -53,17 +56,25 @@ async function loadMarksForScope({
 }: {
   activeOrg: Organization | null;
   currentUser: string | null;
-}): Promise<Project[]> {
+}): Promise<ProjectWithClaimsCount[]> {
   if (!currentUser) {
     return [];
   }
 
   if (activeOrg) {
-    return (await window.ucfr.api.organizationMarks(activeOrg.id)) as Project[];
+    // Organization endpoint returns Project[] (without claimsCount); cast for
+    // compatibility — the count will simply be undefined on org-scoped marks.
+    return (await window.ucfr.api.organizationMarks(
+      activeOrg.id,
+    )) as ProjectWithClaimsCount[];
   }
 
-  // GET /api/projects returns all marks where user is admin, member, or org member
-  return (await window.ucfr.api.marks()) as Project[];
+  // GET /api/projects returns ProjectWithClaimsCount[].
+  // When viewing the personal workspace, filter out organization-owned marks so
+  // only personal (and shared personal) marks are shown.
+  const allMarks =
+    (await window.ucfr.api.marks()) as ProjectWithClaimsCount[];
+  return allMarks.filter((m) => !m.organization);
 }
 
 export default function App() {

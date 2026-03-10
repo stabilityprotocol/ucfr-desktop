@@ -1,6 +1,7 @@
 import { atom } from "jotai";
 import type {
   Project,
+  ProjectWithClaimsCount,
   Health,
   Organization,
   UserProfile,
@@ -11,7 +12,7 @@ export const folderAtom = atom<string | undefined>(undefined);
 export const autoStartAtom = atom<boolean>(false);
 export const logsAtom = atom<Array<{ message: string; ts: number }>>([]);
 export const syncStatusAtom = atom<string>("idle");
-export const marksAtom = atom<Project[]>([]);
+export const marksAtom = atom<ProjectWithClaimsCount[]>([]);
 export const healthAtom = atom<Health | null>(null);
 export const currentUserAtom = atom<string | null>(null);
 export const userProfileAtom = atom<UserProfile | null>(null);
