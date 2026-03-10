@@ -151,7 +151,7 @@ export function Sidebar({ marks }: SidebarProps) {
         )}
       </div>
 
-      <nav className="flex flex-col flex-1 px-4 space-y-4">
+      <nav className="flex flex-col flex-1 px-4 space-y-4 overflow-y-auto min-h-0">
         {/* Dashboard Link */}
         <div>
           <NavLink
