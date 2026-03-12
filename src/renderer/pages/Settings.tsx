@@ -1,5 +1,4 @@
-import { LogOut, Settings, ExternalLink, ChevronRight, RefreshCw, Download, CheckCircle } from "lucide-react";
-import { useNavigate } from "react-router-dom";
+import { LogOut, Settings, ExternalLink, RefreshCw, Download, CheckCircle } from "lucide-react";
 import { useState, useEffect, useCallback } from "react";
 import { getProfileSettingsUrl, openInWeb } from "../utils/webLinks";
 
@@ -8,10 +7,6 @@ type SettingsPageProps = {
   onToggleAutoStart: () => Promise<void> | void;
   onLogout: () => Promise<void> | void;
   currentUser?: string | null;
-  onAttachDownloadsFolder?: () => Promise<void>;
-  downloadsAttached?: boolean;
-  downloadsMarkName?: string | null;
-  downloadsMarkId?: string | null;
 };
 
 export function SettingsPage({
@@ -19,13 +14,7 @@ export function SettingsPage({
   onToggleAutoStart,
   onLogout,
   currentUser,
-  onAttachDownloadsFolder,
-  downloadsAttached,
-  downloadsMarkName,
-  downloadsMarkId,
 }: SettingsPageProps) {
-  const navigate = useNavigate();
-
   type UpdateState =
     | { kind: "idle" }
     | { kind: "checking" }
@@ -127,52 +116,6 @@ export function SettingsPage({
                 } inline-block h-4 w-4 transform rounded-full bg-white transition-transform`}
               />
             </button>
-          </div>
-        </div>
-
-        <div className="rounded-xl border border-zinc-200 bg-white overflow-hidden">
-          <div className="px-6 py-4 border-b border-zinc-100 bg-zinc-50/50">
-            <h2 className="text-sm font-medium text-zinc-900">
-              File Monitoring
-            </h2>
-          </div>
-          <div className="p-6">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-sm font-medium text-zinc-900">
-                  Auto-track downloads folder
-                </p>
-                <p className="text-sm text-zinc-500 mt-1">
-                  {downloadsAttached
-                    ? "Your downloads folder is being monitored."
-                    : "Connect your downloads folder to automatically track new files."}
-                </p>
-              </div>
-              <button
-                onClick={onAttachDownloadsFolder}
-                disabled={downloadsAttached}
-                className={`inline-flex items-center gap-2 px-4 py-2 rounded-md text-sm font-medium transition-colors ${
-                  downloadsAttached
-                    ? "text-zinc-400 bg-zinc-100 cursor-not-allowed"
-                    : "text-white bg-accent hover:bg-[#0070d4]"
-                }`}
-              >
-                {downloadsAttached ? "Connected" : "Connect"}
-              </button>
-            </div>
-            {downloadsAttached && downloadsMarkName && downloadsMarkId && (
-              <button
-                onClick={() => navigate(`/marks/${downloadsMarkId}`)}
-                className="mt-3 w-full flex items-center gap-2 px-3 py-2 rounded-lg bg-accent/[0.06] border border-accent/10 hover:bg-accent/[0.10] hover:border-accent/20 transition-colors group cursor-pointer"
-              >
-                <div className="w-1.5 h-1.5 rounded-full bg-accent shrink-0" />
-                <p className="text-xs text-accent font-medium">
-                  Connected to{" "}
-                  <span className="font-semibold">{downloadsMarkName}</span>
-                </p>
-                <ChevronRight className="w-3.5 h-3.5 text-accent/50 group-hover:text-accent ml-auto shrink-0 transition-colors" />
-              </button>
-            )}
           </div>
         </div>
 

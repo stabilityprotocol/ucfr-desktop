@@ -1,14 +1,12 @@
 /**
  * Settings store for the application
- * Manages persistent configuration including auto-start preferences
- * and first-time login state.
+ * Manages persistent configuration including auto-start preferences.
  */
 import Store from 'electron-store';
 
 type Settings = {
   folderPath?: string;
   autoStart?: boolean;
-  hasCompletedFirstLogin?: boolean;
 };
 
 const settings = new Store<Settings>({
@@ -16,26 +14,16 @@ const settings = new Store<Settings>({
   defaults: {
     folderPath: undefined,
     autoStart: false,
-    hasCompletedFirstLogin: false
   }
 });
 
 export function getSettings(): Settings {
   const current = settings.store;
   
-  // Defensive migration: ensure all default fields exist
-  const migrated: Settings = {
+  return {
     folderPath: current.folderPath,
     autoStart: current.autoStart ?? false,
-    hasCompletedFirstLogin: current.hasCompletedFirstLogin ?? false,
   };
-  
-  // If migration occurred, persist the updated settings
-  if (current.hasCompletedFirstLogin === undefined) {
-    settings.set(migrated);
-  }
-  
-  return migrated;
 }
 
 export function updateSettings(update: Partial<Settings>): Settings {

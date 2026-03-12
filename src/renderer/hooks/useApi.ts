@@ -15,9 +15,6 @@ import { useQueryClient } from "@tanstack/react-query";
 import { isTokenExpired } from "../../shared/api/auth";
 import { toast } from "sonner";
 
-// Prevent concurrent first login attempts
-let firstLoginInProgress = false;
-
 export function useBootstrap() {
   const [, setToken] = useAtom(tokenAtom);
   const [, setFolder] = useAtom(folderAtom);
@@ -120,29 +117,6 @@ export function useBootstrap() {
       setMarks(marks as any);
       setHealth(health as any);
 
-      // Handle first-time login logic (can be async, doesn't block)
-      if (!firstLoginInProgress && userEmail) {
-        firstLoginInProgress = true;
-        window.ucfr.auth
-          .handleFirstLogin()
-          .then((result: any) => {
-            if (result.attached) {
-              console.info(
-                `[First Login] Downloads folder attached to "${result.markName}"`,
-                result
-              );
-            } else if (result.skipped) {
-              console.info(`[First Login] ${result.reason}`);
-            } else if (result.success === false) {
-              console.error(`[First Login] Failed:`, result.error);
-            }
-          })
-          .catch((err) => console.error("Failed to handle first login", err))
-          .finally(() => {
-            firstLoginInProgress = false;
-          });
-      }
-
       setIsValidating(false);
     }
     hydrate();
@@ -180,29 +154,6 @@ export function useBootstrap() {
             if (profile.organizations) {
               setOrganizations(profile.organizations);
             }
-          }
-
-          // Handle first-time login logic (can be async, doesn't block)
-          if (userEmail && !firstLoginInProgress) {
-            firstLoginInProgress = true;
-            window.ucfr.auth
-              .handleFirstLogin()
-              .then((result: any) => {
-                if (result.attached) {
-                  console.info(
-                    `[First Login] Downloads folder attached to "${result.markName}"`,
-                    result
-                  );
-                } else if (result.skipped) {
-                  console.info(`[First Login] ${result.reason}`);
-                } else if (result.success === false) {
-                  console.error(`[First Login] Failed:`, result.error);
-                }
-              })
-              .catch((err) => console.error("Failed to handle first login", err))
-              .finally(() => {
-                firstLoginInProgress = false;
-              });
           }
 
           // Fetch marks and health in parallel

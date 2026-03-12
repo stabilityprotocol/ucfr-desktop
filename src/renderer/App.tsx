@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect } from "react";
 import { useAtom, useSetAtom } from "jotai";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import {
@@ -130,12 +130,6 @@ function AppContent() {
   const setCurrentUser = useSetAtom(currentUserAtom);
   const setUserProfile = useSetAtom(userProfileAtom);
   const setOrganizations = useSetAtom(organizationsAtom);
-  const [downloadsAttached, setDownloadsAttached] = useState(false);
-  const [downloadsMarkName, setDownloadsMarkName] = useState<string | null>(
-    null,
-  );
-  const [downloadsMarkId, setDownloadsMarkId] = useState<string | null>(null);
-
   useEffect(() => {
     async function loadMarks() {
       if (!currentUser) return;
@@ -173,33 +167,6 @@ function AppContent() {
 
     return () => clearInterval(intervalId);
   }, [currentUser, activeOrg, setMarks]);
-
-  useEffect(() => {
-    async function checkDownloadsAttachment() {
-      if (token && currentUser) {
-        const markFolders = await window.ucfr.mark.getAllWatchedFolders();
-        const downloadsPath = await window.ucfr.app.getPath("downloads");
-
-        // Find which mark the downloads folder is attached to
-        const attachedMarkId = Object.entries(markFolders).find(
-          ([, folders]: [string, any]) => folders.includes(downloadsPath),
-        )?.[0];
-
-        setDownloadsAttached(!!attachedMarkId);
-        setDownloadsMarkId(attachedMarkId ?? null);
-
-        if (attachedMarkId && marks.length > 0) {
-          const attachedMark = marks.find(
-            (m: any) => m.id === attachedMarkId,
-          );
-          setDownloadsMarkName(attachedMark?.name ?? null);
-        } else {
-          setDownloadsMarkName(null);
-        }
-      }
-    }
-    checkDownloadsAttachment();
-  }, [token, currentUser, marks]);
 
   useEffect(() => {
     const unsubscribe = window.ucfr.app.onOpenUrl((target) => {
@@ -249,17 +216,6 @@ function AppContent() {
     setAutoStart(next);
   };
 
-  const handleAttachDownloadsFolder = async () => {
-    try {
-      const result = (await window.ucfr.auth.attachDownloadsFolder()) as any;
-      if (result.attached) {
-        setDownloadsAttached(true);
-      }
-    } catch (error) {
-      console.error("Failed to attach downloads folder:", error);
-    }
-  };
-
   // Show loading screen while validating token against the server
   if (isValidating) {
     return (
@@ -305,10 +261,6 @@ function AppContent() {
               onToggleAutoStart={toggleAutoStart}
               onLogout={logout}
               currentUser={currentUser}
-              onAttachDownloadsFolder={handleAttachDownloadsFolder}
-              downloadsAttached={downloadsAttached}
-              downloadsMarkName={downloadsMarkName}
-              downloadsMarkId={downloadsMarkId}
             />
           }
         />

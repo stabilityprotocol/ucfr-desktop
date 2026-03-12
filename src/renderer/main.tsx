@@ -142,10 +142,6 @@ function createWebApi(): RendererAPI {
         if (!token) return null;
         return fetchMe(token);
       },
-      handleFirstLogin: async () => {
-        console.warn("handleFirstLogin is not supported in web environment.");
-        return { skipped: true, reason: "Web environment" };
-      },
       // Validates the token by calling GET /api/users/me.
       // If the endpoint returns a profile, the token is valid.
       validateToken: async () => {
@@ -159,10 +155,6 @@ function createWebApi(): RendererAPI {
           // logging out users when offline.
           return { valid: true };
         }
-      },
-      attachDownloadsFolder: async () => {
-        console.warn("attachDownloadsFolder is not supported in web environment.");
-        return { success: false, error: "Not supported in web environment" };
       },
     },
     settings: {

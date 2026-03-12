@@ -7,9 +7,7 @@ type RendererAPI = {
     logout: () => Promise<null>;
     startLoginFlow: () => Promise<unknown>;
     getUser: () => Promise<unknown>;
-    handleFirstLogin: () => Promise<unknown>;
     validateToken: () => Promise<{ valid: boolean }>;
-    attachDownloadsFolder: () => Promise<unknown>;
   };
   settings: {
     get: () => Promise<unknown>;
@@ -61,9 +59,7 @@ const api: RendererAPI = {
     logout: () => ipcRenderer.invoke("auth/logout"),
     startLoginFlow: () => ipcRenderer.invoke("auth/startLoginFlow"),
     getUser: () => ipcRenderer.invoke("auth/getUser"),
-    handleFirstLogin: () => ipcRenderer.invoke("auth/handleFirstLogin"),
     validateToken: () => ipcRenderer.invoke("auth/validateToken"),
-    attachDownloadsFolder: () => ipcRenderer.invoke("auth/attachDownloadsFolder"),
   },
   settings: {
     get: () => ipcRenderer.invoke("settings/get"),
