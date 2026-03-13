@@ -51,7 +51,7 @@ export function Sidebar({ marks }: SidebarProps) {
   };
 
   return (
-    <aside className="border-r border-zinc-200/70 bg-stone-50 p-0 flex flex-col h-full">
+    <aside className="border-r border-zinc-200/70 bg-stone-50 p-0 flex h-full min-h-0 flex-col">
       {/* Logo Area */}
       <div className="px-6 py-6 border-b border-zinc-200/60">
         <NavLink to="/" className="inline-flex items-center">
@@ -151,9 +151,9 @@ export function Sidebar({ marks }: SidebarProps) {
         )}
       </div>
 
-      <nav className="flex flex-col flex-1 px-4 space-y-4 overflow-y-auto min-h-0">
+      <nav className="flex min-h-0 flex-1 flex-col px-4">
         {/* Dashboard Link */}
-        <div>
+        <div className="pb-4">
           <NavLink
             to="/"
             end
@@ -170,48 +170,50 @@ export function Sidebar({ marks }: SidebarProps) {
         </div>
 
         {/* Marks Section */}
-        <div>
-          <div className="text-[11px] font-semibold text-zinc-400 uppercase tracking-[0.14em] mb-2 px-2">
+        <div className="flex min-h-0 flex-1 flex-col pb-4">
+          <div className="mb-2 px-2 text-[11px] font-semibold uppercase tracking-[0.14em] text-zinc-400">
             Marks
           </div>
-          <div className="flex flex-col gap-1">
-            {marks.map((p) => {
-              const isSharedPersonalMark =
-                !p.organization?.id &&
-                p.admin?.email !== currentUser &&
-                Boolean(currentUser) &&
-                p.members?.some(
-                  (m: any) =>
-                    m.email === currentUser || m.username === currentUser,
-                );
+          <div className="min-h-0 overflow-y-auto">
+            <div className="flex flex-col gap-1">
+              {marks.map((p) => {
+                const isSharedPersonalMark =
+                  !p.organization?.id &&
+                  p.admin?.email !== currentUser &&
+                  Boolean(currentUser) &&
+                  p.members?.some(
+                    (m: any) =>
+                      m.email === currentUser || m.username === currentUser,
+                  );
 
-              return (
-                <NavLink
-                  key={p.id}
-                  to={`/marks/${p.id}`}
-                  className={({ isActive }) =>
-                    `w-full block text-left transition-colors px-3 py-1.5 rounded-md ${
-                      isActive
-                        ? "bg-accent text-white"
-                        : "text-zinc-500 hover:text-zinc-900 hover:bg-white"
-                    }`
-                  }
-                >
-                  <div className="truncate text-sm font-normal">{p.name}</div>
-                  {isSharedPersonalMark && (
-                    <div className="mt-1 text-[9px] leading-none font-semibold tracking-[0.12em] uppercase opacity-75">
-                      MEMBER
-                    </div>
-                  )}
-                </NavLink>
-              );
-            })}
+                return (
+                  <NavLink
+                    key={p.id}
+                    to={`/marks/${p.id}`}
+                    className={({ isActive }) =>
+                      `w-full block text-left transition-colors px-3 py-1.5 rounded-md ${
+                        isActive
+                          ? "bg-accent text-white"
+                          : "text-zinc-500 hover:text-zinc-900 hover:bg-white"
+                      }`
+                    }
+                  >
+                    <div className="truncate text-sm font-normal">{p.name}</div>
+                    {isSharedPersonalMark && (
+                      <div className="mt-1 text-[9px] leading-none font-semibold tracking-[0.12em] uppercase opacity-75">
+                        MEMBER
+                      </div>
+                    )}
+                  </NavLink>
+                );
+              })}
+            </div>
           </div>
         </div>
       </nav>
 
       {/* Bottom Settings */}
-      <div className="p-4 mt-auto border-t border-zinc-200/60">
+      <div className="mt-auto border-t border-zinc-200/60 p-4">
         <NavLink
           to="/settings"
           className={({ isActive }) =>
